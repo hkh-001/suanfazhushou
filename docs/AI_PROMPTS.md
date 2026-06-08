@@ -1,0 +1,178 @@
+# AI Prompts
+
+## Prompt Principles
+
+- Prompt templates must not be scattered in business logic.
+- Default templates should live as files.
+- Runtime active templates may be stored in the database.
+- AI behavior should be educational, heuristic, and step-by-step.
+- Do not give final answers too early by default.
+
+## Template Storage
+
+Recommended file location:
+
+```text
+backend/app/prompts/templates/
+```
+
+Recommended database table:
+
+```text
+prompt_templates
+```
+
+The file and database versions should be connected by:
+
+- `template_key`
+- `file_path`
+- `version`
+- `enabled`
+
+## Prompt Types
+
+### concept_explanation
+
+Purpose:
+
+- Explain algorithm concepts.
+- Include intuition, use cases, complexity, and pitfalls.
+
+Expected style:
+
+- beginner-friendly by default
+- explain terms before using them heavily
+- include examples where useful
+
+### problem_hint
+
+Purpose:
+
+- Help users solve a problem without immediately giving the full solution.
+
+Expected structure:
+
+1. problem understanding
+2. key observation
+3. first hint
+4. stronger hint if needed
+5. pseudocode
+6. full solution only when explicitly needed
+
+### code_review
+
+Purpose:
+
+- Diagnose user-submitted C++ or Python code.
+
+Expected structure:
+
+1. code intent
+2. likely algorithm
+3. key logic explanation
+4. bug or risk analysis
+5. WA/TLE/RE possibility
+6. fix suggestion
+7. corrected code only when necessary
+
+### complexity_analysis
+
+Purpose:
+
+- Analyze time and space complexity.
+
+Expected structure:
+
+1. input size assumptions
+2. key loops or recursive states
+3. time complexity
+4. space complexity
+5. optimization suggestions
+
+### problem_generation
+
+Purpose:
+
+- Generate original algorithm practice problems.
+
+Expected output:
+
+- title
+- background
+- statement
+- input format
+- output format
+- constraints
+- sample input
+- sample output
+- hints
+- solution idea
+- optional C++ solution
+- optional Python solution
+- test cases
+
+Generated problems must be marked in data as:
+
+```text
+is_ai_generated=true
+```
+
+### learning_path
+
+Purpose:
+
+- Recommend the next learning steps based on user progress.
+
+Expected inputs:
+
+- current stage
+- target track
+- completed topics
+- weak topics
+- recent mistakes
+
+Expected output:
+
+- recommended topics
+- ordering
+- reason
+- estimated effort
+- suggested practice
+
+### mistake_review
+
+Purpose:
+
+- Help users review mistakes and extract reusable lessons.
+
+Expected structure:
+
+1. mistake summary
+2. root cause
+3. related knowledge point
+4. fix strategy
+5. similar future warning signs
+6. review suggestion
+
+## Teaching Modes
+
+Supported modes:
+
+- beginner
+- problem_hint
+- code_debug
+- complexity
+- interview
+- contest_quick_fix
+
+Beginner mode:
+
+- avoid unexplained terms
+- use concrete examples
+- explain slowly
+
+Advanced mode:
+
+- concise explanation
+- competitive-programming terminology allowed
+- focus on key observations and complexity
