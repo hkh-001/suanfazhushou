@@ -186,6 +186,7 @@ Implement AI service/provider abstraction and MVP AI capabilities.
 - AI problem generation
 - prompt template loading
 - AI call metadata logging
+- ContextBuilder topic context injection
 
 ### Expected APIs
 
@@ -199,6 +200,8 @@ Implement AI service/provider abstraction and MVP AI capabilities.
 - backend AI service handles timeout and failure safely
 - prompt templates are not scattered in business logic
 - AI logs store metadata only by default
+- runtime prompt templates are read from `prompt_templates`, not file fallback
+- generated problems are parsed as JSON and marked `is_ai_generated=true`
 
 ### Not Included
 
@@ -206,6 +209,9 @@ Implement AI service/provider abstraction and MVP AI capabilities.
 - multi-provider management UI
 - complete prompt admin
 - storing full user code in AI logs by default
+- RAG, embeddings, pgvector, or knowledge chunks
+- persistent problem storage
+- chat history persistence
 
 ## Phase 4: Dashboard And Review Loop
 

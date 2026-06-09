@@ -109,6 +109,19 @@ AI:
 - `POST /api/ai/code-review`
 - `POST /api/ai/generate-problem`
 
+Phase 3 AI rules:
+
+- All AI responses use `{ "data": { "result": "...", "prompt_type": "...", "model": "...", "usage": { "input_tokens": null, "output_tokens": null } } }`.
+- `POST /api/ai/chat` accepts `topic_id`, `question`, and `mode`.
+- `POST /api/ai/code-review` accepts `topic_id`, `language`, `code`, and optional `question`.
+- `POST /api/ai/generate-problem` accepts `topic_id`, `difficulty`, and optional `requirements`.
+- AI configuration errors return `AI_CONFIG_MISSING`.
+- Provider timeout returns `AI_PROVIDER_TIMEOUT`.
+- Provider non-2xx or invalid provider responses return `AI_PROVIDER_ERROR`.
+- Generated problem parse failures return `AI_OUTPUT_PARSE_ERROR`.
+- Missing runtime prompt templates return `PROMPT_TEMPLATE_NOT_FOUND`.
+- The backend must not expose provider stack traces or full provider responses.
+
 Future APIs:
 
 - `POST /api/auth/register`

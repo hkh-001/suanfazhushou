@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://algomentor:algomentor_password@localhost:5432/algomentor?connect_timeout=5"
     enable_dev_user: bool = True
     dev_user_id: str = "00000000-0000-0000-0000-000000000001"
+    ai_provider: str = "openai_compatible"
+    ai_base_url: str = ""
+    ai_api_key: str = ""
+    ai_model: str = ""
+    ai_timeout_seconds: int = 60
+    ai_max_retries: int = 1
     cors_origins_raw: str = Field(
         default="http://localhost:3000",
         validation_alias="CORS_ORIGINS",

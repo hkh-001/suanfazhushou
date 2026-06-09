@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
+from app.providers.ai.base import AIProvider
+from app.providers.ai.openai_compatible import OpenAICompatibleProvider
 
 
 def get_current_user(db: Session = Depends(get_db)) -> User:
@@ -28,3 +30,7 @@ def get_current_user(db: Session = Depends(get_db)) -> User:
             },
         )
     return user
+
+
+def get_ai_provider() -> AIProvider:
+    return OpenAICompatibleProvider()

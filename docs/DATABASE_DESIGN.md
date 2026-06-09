@@ -37,6 +37,13 @@ Phase 2 creates only:
 
 The remaining MVP tables are intentionally deferred.
 
+Phase 3 adds only:
+
+- `prompt_templates`
+- `ai_call_logs`
+
+Phase 3 still does not create `problems`, `chat_sessions`, `chat_messages`, `code_reviews`, or `mistake_notes`.
+
 ## users
 
 ```text
@@ -270,6 +277,7 @@ input_tokens
 output_tokens
 latency_ms
 success
+error_code
 error_message
 created_at
 ```

@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Phase 2: database and knowledge map minimum loop.
+The project is currently in Phase 3: AI core features minimum loop.
 
 This repository currently contains:
 
@@ -24,12 +24,13 @@ This repository currently contains:
 - Docker Compose service definitions
 - PostgreSQL schema for users, topics, topic dependencies, and learning records
 - knowledge map APIs and pages
+- AI tutoring, code diagnosis, and AI-generated practice prompt APIs and pages
+- prompt template runtime loading and AI call metadata logs
 
 It does not yet contain:
 
-- AI Provider implementation
 - authentication implementation
-- problem system
+- persisted problem system
 - mistake notebook
 - Dashboard frontend page
 - OJ or code execution
@@ -57,7 +58,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, and `docker-compose.yml` now contain the Phase 2 knowledge map loop.
+`frontend/`, `backend/`, and `docker-compose.yml` now contain the Phase 3 AI learning loop.
 
 ## MVP Focus
 
@@ -155,6 +156,7 @@ Migrations and seed:
 cd backend
 uv run alembic upgrade head
 uv run python scripts/seed_topics.py
+uv run python scripts/seed_prompt_templates.py
 ```
 
 Frontend:
@@ -194,12 +196,28 @@ POST http://localhost:8000/api/learning/records
 GET http://localhost:8000/api/dashboard/summary
 ```
 
+Phase 3 APIs:
+
+```text
+POST http://localhost:8000/api/ai/chat
+POST http://localhost:8000/api/ai/code-review
+POST http://localhost:8000/api/ai/generate-problem
+```
+
 Phase 2 frontend pages:
 
 ```text
 http://localhost:3000
 http://localhost:3000/topics
 http://localhost:3000/topics/{id}
+```
+
+Phase 3 frontend pages:
+
+```text
+http://localhost:3000/chat
+http://localhost:3000/code-review
+http://localhost:3000/problems/generate
 ```
 
 ## Testing
@@ -238,4 +256,4 @@ Do not commit a real `.env` file. Use `.env.example` as the template.
 
 ## Next Step
 
-The next product implementation step is Phase 3: AI core features planning and implementation. Before creating AI Provider code or prompt templates, confirm the exact scope according to `AGENTS.md`.
+The next product implementation step is Phase 4: Dashboard and review loop planning. Do not add auth, OJ, code execution, or persistent problem storage without a separate phase plan.
