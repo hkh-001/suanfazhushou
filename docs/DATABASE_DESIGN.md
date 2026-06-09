@@ -9,9 +9,9 @@
 - Separate seed data from schema migrations where practical.
 - Store AI logs as metadata by default, not full prompts or full user code.
 
-## Core Tables
+## Table Roadmap
 
-MVP core tables:
+Long-term product tables:
 
 - `users`
 - `user_settings`
@@ -28,19 +28,18 @@ MVP core tables:
 - `ai_call_logs`
 - `recommendation_logs`
 
-Phase 2 creates only:
+MVP v0.1 implemented tables:
 
 - `users`
 - `topics`
 - `topic_dependencies`
 - `learning_records`
-
-The remaining MVP tables are intentionally deferred.
-
-Phase 3 adds only:
-
 - `prompt_templates`
 - `ai_call_logs`
+
+Phase 2 creates `users`, `topics`, `topic_dependencies`, and `learning_records`.
+
+Phase 3 adds `prompt_templates` and `ai_call_logs`.
 
 Phase 3 still does not create `problems`, `chat_sessions`, `chat_messages`, `code_reviews`, or `mistake_notes`.
 
@@ -51,6 +50,8 @@ Phase 4 adds no database tables and no schema migration. It reuses:
 - `users`
 
 Phase 4 Dashboard data is computed from published topics and the current user's learning records. `mistake_notes`, `recommendation_logs`, `problems`, `code_reviews`, `chat_sessions`, and `chat_messages` remain deferred.
+
+Phase 5 and later are Post-MVP roadmap work. They are not required for MVP v0.1 completion.
 
 ## users
 

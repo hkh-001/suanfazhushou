@@ -45,11 +45,13 @@ diagnose level
 -> recommend next step
 ```
 
-The MVP focuses on a simplified loop:
+MVP v0.1 focuses on a simplified loop:
 
 ```text
-topic -> AI explanation -> code diagnosis -> learning record -> dashboard
+topic -> AI explanation -> code diagnosis -> learning record -> dashboard -> next step
 ```
+
+MVP v0.1 is complete when this loop can be demonstrated through Phase 0-4. Complete OJ, real authentication, RAG, persistent problem storage, and a full mistake notebook are Post-MVP work.
 
 ## Differentiation
 

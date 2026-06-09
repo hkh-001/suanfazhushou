@@ -38,7 +38,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       body = {};
     }
     throw new ApiError(
-      body.error?.message ?? "Request failed",
+      body.error?.message ?? "请求失败，请稍后重试。",
       body.error?.code ?? "REQUEST_FAILED",
       response.status
     );

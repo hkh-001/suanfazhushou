@@ -3,18 +3,10 @@
 import { FormEvent, useState } from "react";
 
 import { useTopics } from "@/features/topics/hooks";
-import { ApiError } from "@/lib/api/client";
 
 import { submitChat } from "./api";
-import { FormShell, ResultPanel, TopicSelect } from "./shared";
+import { AIErrorNotice, FormShell, ResultPanel, TopicSelect, friendlyAIError } from "./shared";
 import type { AIResponseData, ChatPayload } from "./types";
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError || error instanceof Error) {
-    return error.message;
-  }
-  return "Request failed";
-}
 
 export function ChatPage() {
   const { data: topicsData, error: topicsError } = useTopics();
@@ -38,7 +30,7 @@ export function ChatPage() {
       });
       setResult(response.data);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(friendlyAIError(err));
     } finally {
       setLoading(false);
     }
@@ -46,48 +38,51 @@ export function ChatPage() {
 
   return (
     <FormShell
-      description="Ask for a step-by-step explanation with optional knowledge map context."
-      eyebrow="AI Tutor"
-      title="Ask AlgoMentor"
+      description="选择知识点后提问，AI 会结合当前知识点进行分步骤讲解。"
+      eyebrow="AI TUTOR"
+      title="AI 算法问答"
     >
-      <form className="grid gap-5 border border-[#d7d0c3] bg-white/80 p-5" onSubmit={submit}>
+      <form
+        className="grid gap-5 rounded-lg border border-[#dbeafe] bg-white/90 p-5 shadow-sm shadow-blue-100/60"
+        onSubmit={submit}
+      >
         {topicsError ? (
-          <p className="text-sm font-semibold text-red-700">Failed to load topics: {topicsError}</p>
+          <p className="text-sm font-semibold text-red-700">知识点加载失败：{topicsError}</p>
         ) : null}
         <TopicSelect onChange={setTopicId} topics={topicsData?.data ?? []} value={topicId} />
-        <label className="block text-sm font-medium text-[#344250]">
-          Mode
+        <label className="block text-sm font-medium text-[#334155]">
+          学习模式
           <select
-            className="mt-2 w-full border border-[#c9c1b4] bg-white px-3 py-2"
+            className="mt-2 w-full rounded-md border border-[#bfdbfe] bg-white px-3 py-2 text-[#0f172a] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
             onChange={(event) => setMode(event.target.value as ChatPayload["mode"])}
             value={mode}
           >
-            <option value="beginner">Beginner</option>
-            <option value="advanced">Advanced</option>
+            <option value="beginner">入门模式</option>
+            <option value="advanced">进阶模式</option>
           </select>
         </label>
-        <label className="block text-sm font-medium text-[#344250]">
-          Question
+        <label className="block text-sm font-medium text-[#334155]">
+          输入你的问题
           <textarea
-            className="mt-2 min-h-36 w-full border border-[#c9c1b4] bg-white px-3 py-2 leading-7"
+            className="mt-2 min-h-36 w-full rounded-md border border-[#bfdbfe] bg-white px-3 py-2 leading-7 text-[#0f172a] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
             maxLength={2000}
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Ask about an algorithm idea, use case, complexity, or pitfall."
+            placeholder="例如：二分查找为什么要注意边界？前缀和适合解决什么问题？"
             required
             value={question}
           />
         </label>
         <button
-          className="w-fit bg-[#1f2933] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="w-fit rounded-md bg-[#2563eb] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:opacity-60"
           disabled={loading}
           type="submit"
         >
-          {loading ? "Asking..." : "Ask"}
+          {loading ? "正在发送..." : "发送问题"}
         </button>
-        {error ? <p className="text-sm font-semibold text-red-700">{error}</p> : null}
+        {error ? <AIErrorNotice message={error} /> : null}
       </form>
       {!result && !loading && !error ? (
-        <p className="mt-6 text-sm text-[#50606f]">AI answers will appear here after you submit a question.</p>
+        <p className="mt-6 text-sm text-[#64748b]">提交问题后，AI 回答会显示在这里。</p>
       ) : null}
       {result ? (
         <div className="mt-6">
@@ -97,7 +92,7 @@ export function ChatPage() {
             outputTokens={result.usage.output_tokens}
             promptType={result.prompt_type}
             result={result.result}
-            title="Answer"
+            title="AI 回答"
           />
         </div>
       ) : null}

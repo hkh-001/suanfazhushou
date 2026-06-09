@@ -4,14 +4,26 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 from app.db.session import get_db
 from app.main import app
+from app.models.ai_call_log import AICallLog
+from app.models.learning_record import LearningRecord
 from app.models.topic import Topic
 from app.models.user import User
+from app.services.settings.ai_runtime_settings import clear_runtime_ai_settings
+
+
+@pytest.fixture(autouse=True)
+def reset_runtime_ai_settings() -> Generator[None, None, None]:
+    clear_runtime_ai_settings()
+    try:
+        yield
+    finally:
+        clear_runtime_ai_settings()
 
 
 @pytest.fixture()
@@ -49,8 +61,13 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
 @pytest.fixture()
 def dev_user(db_session: Session) -> User:
+    dev_user_id = UUID(settings.dev_user_id)
+    db_session.execute(delete(AICallLog).where(AICallLog.user_id == dev_user_id))
+    db_session.execute(delete(LearningRecord).where(LearningRecord.user_id == dev_user_id))
+    db_session.execute(delete(User).where(User.id == dev_user_id))
+    db_session.flush()
     user = User(
-        id=UUID(settings.dev_user_id),
+        id=dev_user_id,
         email=f"dev-{uuid4()}@algomentor.local",
         username=f"dev_{uuid4().hex[:8]}",
         learning_stage="beginner",

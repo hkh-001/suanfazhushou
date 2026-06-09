@@ -19,6 +19,7 @@ from app.schemas.ai import (
 )
 from app.services.ai.context_builder import ContextBuilder
 from app.services.ai.prompt_renderer import PromptRenderer
+from app.services.settings.ai_runtime_settings import get_effective_ai_settings
 
 
 _ERROR_MESSAGES = {
@@ -151,9 +152,10 @@ class AIService:
         try:
             return self.provider.complete(prompt=prompt, prompt_type=prompt_type)
         except AIProviderError as exc:
+            effective_settings = get_effective_ai_settings()
             self._log_call(
                 user=user,
-                model=settings.ai_model or "unconfigured",
+                model=effective_settings.model or "unconfigured",
                 prompt_type=prompt_type,
                 input_tokens=None,
                 output_tokens=None,

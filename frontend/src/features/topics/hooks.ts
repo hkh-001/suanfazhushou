@@ -13,7 +13,7 @@ function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  return "Unknown error";
+  return "未知错误，请稍后重试。";
 }
 
 export function useTopics() {

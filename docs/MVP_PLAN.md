@@ -10,9 +10,9 @@ Core loop:
 Topic -> AI explanation -> code diagnosis -> learning record -> dashboard -> next step
 ```
 
-## MVP Scope
+## MVP v0.1 Scope
 
-The MVP prioritizes:
+MVP v0.1 prioritizes:
 
 - knowledge map
 - AI Q&A
@@ -21,15 +21,52 @@ The MVP prioritizes:
 - learning status records
 - Dashboard basic statistics
 
-The MVP may use:
+MVP v0.1 may use:
 
 - single-user mode
 - default development user
 - simplified auth placeholder
 
+MVP v0.1 includes only:
+
+- Phase 0: Project Rules And Infrastructure Planning
+- Phase 1: Engineering Skeleton
+- Phase 2: Database And Knowledge Map
+- Phase 3: AI Core Features
+- Phase 4: Dashboard And Review Loop
+
+Phase 5 and later are Post-MVP roadmap items. They are not required for MVP v0.1 completion.
+
+## MVP v0.1 Completion Criteria
+
+MVP v0.1 is complete when the main learning loop can be demonstrated end to end:
+
+```text
+Topic -> AI explanation -> code diagnosis -> learning record -> dashboard -> next step
+```
+
+Required demonstration:
+
+- user can browse published topics
+- user can open a topic detail page
+- user can ask AI for topic-aware explanation
+- user can submit code for AI diagnosis
+- user can update a topic learning record
+- Dashboard reflects learning progress
+- Dashboard shows rule-based next steps
+
+MVP v0.1 does not require:
+
+- OJ or code execution
+- complete mistake notebook
+- real registration/login or JWT auth
+- RAG, embeddings, pgvector, or knowledge chunks
+- complex recommendation engine
+- persistent problem storage
+
 ## Explicitly Out Of Scope
 
-The MVP should not include:
+MVP v0.1 should not include:
 
 - full registration and login
 - email verification
@@ -249,6 +286,73 @@ Make the learning loop visible through a Dashboard-first review loop.
 - teacher/admin analytics
 - AI usage summary
 
+## Phase 4.5: MVP Stabilization
+
+### Goal
+
+Stabilize MVP v0.1 without adding business features.
+
+### Expected Work
+
+- end-to-end acceptance testing
+- README startup and verification command review
+- documentation synchronization
+- `.env.example` consistency check
+- Docker Compose configuration verification
+- backend test suite verification
+- frontend lint and build verification
+- demo seed data verification
+- manual demo flow documentation
+- known limitations list
+
+### Expected Commands
+
+```bash
+docker compose config
+docker compose up -d postgres redis
+
+cd backend
+uv run alembic upgrade head
+uv run python scripts/seed_topics.py
+uv run python scripts/seed_prompt_templates.py
+uv run pytest
+
+cd frontend
+pnpm lint
+pnpm build
+```
+
+### Manual Demo Flow
+
+```text
+open /topics
+-> open topic detail
+-> update learning status
+-> ask AI tutor from /chat
+-> submit code to /code-review
+-> generate practice prompt from /problems/generate
+-> open /dashboard
+-> verify progress and next steps
+```
+
+### Completion Criteria
+
+- MVP v0.1 main loop can be demonstrated from UI.
+- Required backend tests pass.
+- Frontend lint and build pass.
+- Docker Compose config is valid.
+- README and docs match the implemented behavior.
+- No secrets, caches, dependency folders, or build artifacts are tracked.
+
+### Not Included
+
+- new business APIs
+- new frontend feature pages
+- database schema changes
+- Alembic migrations
+- AI Provider behavior changes
+- auth, OJ, RAG, mistake notebook, or problem persistence
+
 ## Phase Acceptance Rule
 
 Each phase must end with:
@@ -259,3 +363,61 @@ Each phase must end with:
 - test or verification instructions
 - known limitations
 - next recommended step
+
+## Post-MVP Roadmap
+
+The following phases are Post-MVP work. They are not required for MVP v0.1 completion.
+
+### Phase 5: Code Review Persistence And Mistake Notebook
+
+Planned direction:
+
+- persist selected code review results only when explicitly saved by the user
+- introduce mistake note workflows
+- support root cause, fix suggestion, reflection, and review status
+- connect mistake review back to Dashboard and review loop
+
+Boundary:
+
+- do not automatically store full user code without explicit product decision
+- keep AI logs metadata-only by default
+
+### Phase 6: Problem System And Practice Flow
+
+Planned direction:
+
+- introduce persisted `problems`
+- connect problems to topics
+- support AI-generated original problems as saved practice items
+- add practice list/detail pages
+
+Boundary:
+
+- avoid copying third-party problem statements unless license allows
+- keep external source metadata and attribution
+
+### Phase 7: RAG Knowledge Retrieval
+
+Planned direction:
+
+- add retrieval-ready knowledge chunks
+- improve AI context beyond single `topic_id`
+- evaluate embeddings or PostgreSQL-compatible vector retrieval
+
+Boundary:
+
+- do not introduce RAG into MVP v0.1
+- keep ContextBuilder extensible
+
+### Phase 8: Code Execution / OJ Sandbox
+
+Planned direction:
+
+- add sandboxed code execution
+- support timeout, memory limits, network restrictions, and filesystem isolation
+- evaluate submission and judging workflow
+
+Boundary:
+
+- never execute untrusted user code on the host machine
+- keep `ENABLE_CODE_EXECUTION=false` until sandboxing is explicitly implemented

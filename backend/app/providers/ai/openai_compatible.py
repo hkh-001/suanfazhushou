@@ -3,26 +3,29 @@ from time import sleep
 
 import httpx
 
-from app.core.config import settings
 from app.providers.ai.base import AIProvider, AIProviderError, AIProviderResult, AIProviderUsage
+from app.core.config import settings
+from app.services.settings.ai_runtime_settings import EffectiveAISettings, get_effective_ai_settings
 
 
 class OpenAICompatibleProvider(AIProvider):
     provider_name = "openai_compatible"
 
-    def _validate_config(self) -> None:
-        if not settings.ai_base_url or not settings.ai_api_key or not settings.ai_model:
+    def _get_config(self) -> EffectiveAISettings:
+        effective_settings = get_effective_ai_settings()
+        if not effective_settings.configured:
             raise AIProviderError(
                 "AI_CONFIG_MISSING",
                 "AI provider configuration is missing",
                 status_code=503,
             )
+        return effective_settings
 
     def complete(self, *, prompt: str, prompt_type: str) -> AIProviderResult:
-        self._validate_config()
-        url = f"{settings.ai_base_url.rstrip('/')}/chat/completions"
+        ai_settings = self._get_config()
+        url = f"{ai_settings.base_url.rstrip('/')}/chat/completions"
         payload = {
-            "model": settings.ai_model,
+            "model": ai_settings.model,
             "messages": [
                 {
                     "role": "system",
@@ -33,7 +36,7 @@ class OpenAICompatibleProvider(AIProvider):
             "temperature": 0.2 if prompt_type == "problem_generation" else 0.4,
         }
         headers = {
-            "Authorization": f"Bearer {settings.ai_api_key}",
+            "Authorization": f"Bearer {ai_settings.api_key}",
             "Content-Type": "application/json",
         }
         attempts = max(settings.ai_max_retries, 0) + 1
@@ -55,7 +58,7 @@ class OpenAICompatibleProvider(AIProvider):
                 usage = data.get("usage", {})
                 return AIProviderResult(
                     content=content,
-                    model=str(data.get("model") or settings.ai_model),
+                    model=str(data.get("model") or ai_settings.model),
                     usage=AIProviderUsage(
                         input_tokens=usage.get("prompt_tokens"),
                         output_tokens=usage.get("completion_tokens"),

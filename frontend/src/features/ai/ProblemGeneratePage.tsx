@@ -3,18 +3,10 @@
 import { FormEvent, useState } from "react";
 
 import { useTopics } from "@/features/topics/hooks";
-import { ApiError } from "@/lib/api/client";
 
 import { submitProblemGeneration } from "./api";
-import { FormShell, ResultPanel, TopicSelect } from "./shared";
+import { AIErrorNotice, FormShell, ResultPanel, TopicSelect, friendlyAIError } from "./shared";
 import type { AIResponseData, ProblemGenerationPayload } from "./types";
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError || error instanceof Error) {
-    return error.message;
-  }
-  return "Request failed";
-}
 
 export function ProblemGeneratePage() {
   const { data: topicsData, error: topicsError } = useTopics();
@@ -38,7 +30,7 @@ export function ProblemGeneratePage() {
       });
       setResult(response.data);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(friendlyAIError(err));
     } finally {
       setLoading(false);
     }
@@ -46,50 +38,53 @@ export function ProblemGeneratePage() {
 
   return (
     <FormShell
-      description="Generate one original, license-safe practice problem as structured JSON."
-      eyebrow="Problem Generation"
-      title="Generate a practice problem"
+      description="根据知识点和难度生成一题原创练习题，用于课后巩固。"
+      eyebrow="PROBLEM GENERATION"
+      title="AI 题目生成"
     >
-      <form className="grid gap-5 border border-[#d7d0c3] bg-white/80 p-5" onSubmit={submit}>
+      <form
+        className="grid gap-5 rounded-lg border border-[#dbeafe] bg-white/90 p-5 shadow-sm shadow-blue-100/60"
+        onSubmit={submit}
+      >
         {topicsError ? (
-          <p className="text-sm font-semibold text-red-700">Failed to load topics: {topicsError}</p>
+          <p className="text-sm font-semibold text-red-700">知识点加载失败：{topicsError}</p>
         ) : null}
         <TopicSelect onChange={setTopicId} topics={topicsData?.data ?? []} value={topicId} />
-        <label className="block text-sm font-medium text-[#344250]">
-          Difficulty
+        <label className="block text-sm font-medium text-[#334155]">
+          选择难度
           <select
-            className="mt-2 w-full border border-[#c9c1b4] bg-white px-3 py-2"
+            className="mt-2 w-full rounded-md border border-[#bfdbfe] bg-white px-3 py-2 text-[#0f172a] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
             onChange={(event) =>
               setDifficulty(event.target.value as ProblemGenerationPayload["difficulty"])
             }
             value={difficulty}
           >
-            <option value="beginner">Beginner</option>
-            <option value="basic">Basic</option>
-            <option value="intermediate">Intermediate</option>
+            <option value="beginner">入门</option>
+            <option value="basic">基础</option>
+            <option value="intermediate">提高</option>
           </select>
         </label>
-        <label className="block text-sm font-medium text-[#344250]">
-          Requirements
+        <label className="block text-sm font-medium text-[#334155]">
+          补充要求
           <textarea
-            className="mt-2 min-h-40 w-full border border-[#c9c1b4] bg-white px-3 py-2 leading-7"
+            className="mt-2 min-h-40 w-full rounded-md border border-[#bfdbfe] bg-white px-3 py-2 leading-7 text-[#0f172a] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
             maxLength={1500}
             onChange={(event) => setRequirements(event.target.value)}
-            placeholder="Optional: ask for a specific pattern, story, or constraint style."
+            placeholder="可选：说明题目场景、数据范围风格，或希望重点练习的思路。"
             value={requirements}
           />
         </label>
         <button
-          className="w-fit bg-[#1f2933] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="w-fit rounded-md bg-[#2563eb] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:opacity-60"
           disabled={loading}
           type="submit"
         >
-          {loading ? "Generating..." : "Generate problem"}
+          {loading ? "正在生成..." : "生成题目"}
         </button>
-        {error ? <p className="text-sm font-semibold text-red-700">{error}</p> : null}
+        {error ? <AIErrorNotice message={error} /> : null}
       </form>
       {!result && !loading && !error ? (
-        <p className="mt-6 text-sm text-[#50606f]">Generated problem JSON will appear here.</p>
+        <p className="mt-6 text-sm text-[#64748b]">生成后的题目会显示在这里。</p>
       ) : null}
       {result ? (
         <div className="mt-6">
@@ -99,7 +94,7 @@ export function ProblemGeneratePage() {
             outputTokens={result.usage.output_tokens}
             promptType={result.prompt_type}
             result={result.result}
-            title="Generated problem"
+            title="生成结果"
           />
         </div>
       ) : null}

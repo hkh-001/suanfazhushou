@@ -58,13 +58,16 @@ Risk signals:
 
 Questions:
 
-- Is the MVP too large?
+- Is MVP v0.1 too large?
 - Are we trying to build auth, OJ, admin, recommendation, and AI all at once?
-- Can the MVP be completed in small, verifiable phases?
+- Can MVP v0.1 be completed in small, verifiable phases?
 
 Pass criteria:
 
-- Full auth is not core MVP.
+- MVP v0.1 is limited to Phase 0 through Phase 4.
+- Phase 4.5 is stabilization only and does not add business features.
+- Phase 5 and later are clearly treated as Post-MVP roadmap work.
+- Full auth is not core MVP v0.1.
 - OJ and code sandbox are deferred.
 - Admin console is deferred.
 - Recommendation engine starts as simple rules or placeholder.
@@ -72,10 +75,11 @@ Pass criteria:
 
 Risk signals:
 
-- MVP includes complete OJ.
-- MVP includes full admin UI.
-- MVP includes complex multi-user permissions.
-- MVP cannot be manually verified after each phase.
+- MVP v0.1 includes complete OJ.
+- MVP v0.1 includes full admin UI.
+- MVP v0.1 includes complex multi-user permissions.
+- MVP v0.1 treats Phase 5+ as required completion work.
+- MVP v0.1 cannot be manually verified after each phase.
 
 ## 1.4 Learning Loop Pressure
 
@@ -128,6 +132,29 @@ Risk signals:
 - Dashboard recommendations call AI Provider in Phase 4.
 - Phase 4 creates new tables or migrations for review features.
 - Empty states do not guide users back to the knowledge map.
+
+## 1.8 Phase 4.5 MVP Stabilization Pressure
+
+Questions:
+
+- Can the MVP v0.1 loop be demonstrated end to end without adding new features?
+- Are README, docs, environment notes, and manual demo steps aligned?
+- Do the required commands pass in a clean local setup?
+- Is demo seed data sufficient for the main loop?
+
+Pass criteria:
+
+- Phase 4.5 changes documentation, validation steps, and demo readiness only.
+- No business API, schema, AI Provider behavior, auth, OJ, RAG, or problem persistence is added.
+- The manual demo flow covers topic learning, AI help, code diagnosis, learning record update, Dashboard, and next step.
+- Known limitations are documented clearly.
+
+Risk signals:
+
+- Phase 4.5 expands into Phase 5 features.
+- Stabilization creates new tables or migrations.
+- README commands do not match the implemented project.
+- Demo flow requires undocumented manual setup.
 
 ## 1.5 Content Quality And Copyright
 
@@ -321,6 +348,30 @@ Pass criteria:
 - Retry is bounded.
 - AI error is returned as safe API response.
 - Full prompt, full code, and API keys are not saved in `ai_call_logs` by default.
+
+## 2.6.1 Runtime AI Settings Safety
+
+Checks:
+
+- Runtime AI settings are disabled by default with `ENABLE_RUNTIME_AI_SETTINGS=false`.
+- `PUT /api/settings/ai`, `DELETE /api/settings/ai`, and `POST /api/settings/ai/test` return `FEATURE_DISABLED` unless explicitly enabled.
+- Runtime settings are stored only in backend process memory.
+- API keys are not returned to the frontend, stored in the database, written to files, logged, or stored in browser storage.
+- `base_url` accepts only `http` and `https`, and query string / fragment are removed.
+- Docker Compose is not expanded in Phase 4.5; runtime settings are primarily for local backend startup mode.
+
+Pass criteria:
+
+- `/settings` clearly shows whether runtime editing is enabled.
+- `/settings` distinguishes runtime, env, and missing configuration sources.
+- Provider calls pick up runtime config changes without restarting the app.
+- Settings tests clear runtime config after execution.
+
+Risk signals:
+
+- Runtime settings become a production secret-management system.
+- API keys appear in responses, logs, browser storage, or committed files.
+- Runtime settings require database tables or migrations.
 
 ## 2.7 Redis Readiness
 

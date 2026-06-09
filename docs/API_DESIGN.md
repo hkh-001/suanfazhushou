@@ -72,7 +72,7 @@ offset
 
 MVP can implement `page` and `page_size` first.
 
-## MVP API List
+## MVP v0.1 API List
 
 Health:
 
@@ -148,7 +148,32 @@ Phase 3 AI rules:
 - Missing runtime prompt templates return `PROMPT_TEMPLATE_NOT_FOUND`.
 - The backend must not expose provider stack traces or full provider responses.
 
-Future APIs:
+Settings:
+
+- `GET /api/settings/ai`
+- `PUT /api/settings/ai`
+- `DELETE /api/settings/ai`
+- `POST /api/settings/ai/test`
+
+Phase 4.5 AI settings rules:
+
+- `GET /api/settings/ai` returns the current effective AI configuration status and never returns an API key.
+- Settings response includes:
+  - `configured`
+  - `source`: `runtime`, `env`, or `none`
+  - `provider`
+  - `base_url`
+  - `model`
+  - `api_key_set`
+  - `runtime_settings_enabled`
+- `base_url` must be displayed without query string or fragment.
+- `PUT`, `DELETE`, and `POST /api/settings/ai/test` require `ENABLE_RUNTIME_AI_SETTINGS=true`.
+- If runtime settings are disabled, mutating/test endpoints return `403` with `FEATURE_DISABLED`.
+- `PUT /api/settings/ai` stores configuration only in backend process memory.
+- Runtime settings are for local development and demos, not production secret management.
+- `POST /api/settings/ai/test` sends a minimal provider request and must not log API keys, full prompts, or full provider responses.
+
+Post-MVP future APIs:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
@@ -169,6 +194,7 @@ Rules:
 - Never expose stack traces to frontend users.
 - AI provider errors should return safe API errors.
 - Validation errors should identify invalid fields where practical.
+- Disabled runtime AI settings should return `FEATURE_DISABLED`.
 
 ## API Versioning
 
