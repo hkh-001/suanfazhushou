@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AlgoMentor AI",
-  description: "Phase 1 engineering skeleton for AlgoMentor AI"
+  description: "Phase 2 knowledge map for AlgoMentor AI"
 };
 
 export default function RootLayout({

@@ -1,6 +1,6 @@
 # AlgoMentor Backend
 
-Phase 1 FastAPI skeleton for AlgoMentor AI.
+Phase 2 FastAPI backend with knowledge map for AlgoMentor AI.
 
 Run locally:
 

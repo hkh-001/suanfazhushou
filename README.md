@@ -57,7 +57,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, and `docker-compose.yml` now contain only Phase 1 engineering skeletons.
+`frontend/`, `backend/`, and `docker-compose.yml` now contain the Phase 2 knowledge map loop.
 
 ## MVP Focus
 
@@ -112,7 +112,7 @@ AI:
 
 ## Runtime Versions
 
-Current local versions used for Phase 1:
+Current local versions used for development:
 
 - Node.js: `v24.14.0`
 - pnpm: `10.33.0`

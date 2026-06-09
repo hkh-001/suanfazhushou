@@ -4,6 +4,7 @@ from app.main import app
 
 
 def test_health_check_returns_ok() -> None:
+    # Health check does not touch the database, so we use a plain TestClient without DB override.
     client = TestClient(app)
 
     response = client.get("/api/health")

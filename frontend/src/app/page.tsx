@@ -4,7 +4,7 @@ const checks = [
   "Next.js 15 frontend skeleton",
   "FastAPI backend health endpoint",
   "Docker Compose service plan",
-  "Phase 1 scope only"
+  "Phase 2 knowledge map"
 ];
 
 export default function Home() {
@@ -15,12 +15,12 @@ export default function Home() {
           AlgoMentor AI
         </p>
         <h1 className="max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
-          Phase 1 engineering skeleton is ready for product implementation.
+          Phase 2 knowledge map is ready for structured learning.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4a5563]">
-          This frontend intentionally contains only the project status page.
-          Business pages, AI workflows, authentication, and algorithm content
-          are deferred to later phases.
+          The platform now includes published topic browsing and learning status
+          updates. AI workflows, authentication, and OJ features are deferred to
+          later phases.
         </p>
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2">
@@ -45,7 +45,7 @@ export default function Home() {
           className="mt-6 inline-flex w-fit bg-[#1f2933] px-5 py-3 text-sm font-semibold text-white"
           href="/topics"
         >
-          进入知识地图
+          Open knowledge map
         </Link>
       </section>
     </main>
