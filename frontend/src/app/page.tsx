@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const checks = [
   "Next.js 15 frontend skeleton",
   "FastAPI backend health endpoint",
@@ -38,6 +40,13 @@ export default function Home() {
             http://localhost:8000/api/health
           </code>
         </div>
+
+        <Link
+          className="mt-6 inline-flex w-fit bg-[#1f2933] px-5 py-3 text-sm font-semibold text-white"
+          href="/topics"
+        >
+          进入知识地图
+        </Link>
       </section>
     </main>
   );

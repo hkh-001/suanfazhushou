@@ -29,7 +29,7 @@ services:
       POSTGRES_DB: algomentor
       POSTGRES_USER: algomentor
       POSTGRES_PASSWORD: algomentor_password
-      DATABASE_URL: postgresql+psycopg://algomentor:algomentor_password@postgres:5432/algomentor
+      DATABASE_URL: postgresql+psycopg://algomentor:algomentor_password@postgres:5432/algomentor?connect_timeout=5
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_URL: redis://redis:6379/0
@@ -46,8 +46,8 @@ services:
     volumes:
       - ./backend:/app
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
 
   postgres:
     image: postgres:16-alpine
@@ -59,6 +59,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U algomentor -d algomentor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine

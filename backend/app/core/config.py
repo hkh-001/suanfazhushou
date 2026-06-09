@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
+    database_url: str = "postgresql+psycopg://algomentor:algomentor_password@localhost:5432/algomentor?connect_timeout=5"
+    enable_dev_user: bool = True
+    dev_user_id: str = "00000000-0000-0000-0000-000000000001"
     cors_origins_raw: str = Field(
         default="http://localhost:3000",
         validation_alias="CORS_ORIGINS",

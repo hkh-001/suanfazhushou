@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Phase 1: engineering skeleton initialization.
+The project is currently in Phase 2: database and knowledge map minimum loop.
 
 This repository currently contains:
 
@@ -22,15 +22,16 @@ This repository currently contains:
 - frontend engineering skeleton
 - backend engineering skeleton
 - Docker Compose service definitions
+- PostgreSQL schema for users, topics, topic dependencies, and learning records
+- knowledge map APIs and pages
 
 It does not yet contain:
 
-- business APIs
-- business pages
-- database migrations
-- database business tables
 - AI Provider implementation
 - authentication implementation
+- problem system
+- mistake notebook
+- Dashboard frontend page
 - OJ or code execution
 
 ## Planned Directory Structure
@@ -125,6 +126,37 @@ Version hint files:
 
 ## Local Development
 
+Database:
+
+```bash
+docker compose up -d postgres redis
+```
+
+Docker Compose services use internal service names as hosts:
+
+- `postgres`
+- `redis`
+
+When running Alembic or FastAPI directly from the host machine, use `localhost` for PostgreSQL. The default backend settings already use:
+
+```text
+postgresql+psycopg://algomentor:algomentor_password@localhost:5432/algomentor?connect_timeout=5
+```
+
+When running inside Docker Compose, `docker-compose.yml` injects:
+
+```text
+postgresql+psycopg://algomentor:algomentor_password@postgres:5432/algomentor?connect_timeout=5
+```
+
+Migrations and seed:
+
+```bash
+cd backend
+uv run alembic upgrade head
+uv run python scripts/seed_topics.py
+```
+
 Frontend:
 
 ```bash
@@ -153,11 +185,29 @@ Backend health check:
 http://localhost:8000/api/health
 ```
 
+Phase 2 APIs:
+
+```text
+GET http://localhost:8000/api/topics
+GET http://localhost:8000/api/topics/{id}
+POST http://localhost:8000/api/learning/records
+GET http://localhost:8000/api/dashboard/summary
+```
+
+Phase 2 frontend pages:
+
+```text
+http://localhost:3000
+http://localhost:3000/topics
+http://localhost:3000/topics/{id}
+```
+
 ## Testing
 
 Backend:
 
 ```bash
+docker compose up -d postgres
 cd backend
 uv run pytest
 ```
@@ -184,18 +234,8 @@ docker compose up --build
 
 ## Environment Notes
 
-Docker Compose services use internal service names as hosts:
-
-- `postgres`
-- `redis`
-
-When connecting from the local host machine, use:
-
-- `localhost:5432` for PostgreSQL
-- `localhost:6379` for Redis
-
 Do not commit a real `.env` file. Use `.env.example` as the template.
 
 ## Next Step
 
-The next product implementation step is Phase 2: database and knowledge map planning and implementation. Before creating database schema or business APIs, confirm the exact scope according to `AGENTS.md`.
+The next product implementation step is Phase 3: AI core features planning and implementation. Before creating AI Provider code or prompt templates, confirm the exact scope according to `AGENTS.md`.

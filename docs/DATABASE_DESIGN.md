@@ -28,6 +28,15 @@ MVP core tables:
 - `ai_call_logs`
 - `recommendation_logs`
 
+Phase 2 creates only:
+
+- `users`
+- `topics`
+- `topic_dependencies`
+- `learning_records`
+
+The remaining MVP tables are intentionally deferred.
+
 ## users
 
 ```text

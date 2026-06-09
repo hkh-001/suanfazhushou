@@ -158,6 +158,9 @@ Implement core database schema and knowledge map APIs/pages.
 - frontend lists topics
 - topic detail page displays content
 - learning records can be updated for default dev user
+- Phase 2 only creates `users`, `topics`, `topic_dependencies`, and `learning_records`
+- `/api/topics` returns only published topics with current user learning status
+- `POST /api/learning/records` upserts by `(user_id, topic_id)`
 
 ### Not Included
 
@@ -165,6 +168,10 @@ Implement core database schema and knowledge map APIs/pages.
 - OJ judging
 - code execution
 - complex recommendation
+- AI Provider
+- problem system
+- mistake notebook
+- Dashboard frontend page
 
 ## Phase 3: AI Core Features
 

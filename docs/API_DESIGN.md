@@ -83,10 +83,25 @@ Topics:
 - `GET /api/topics`
 - `GET /api/topics/{id}`
 
+Phase 2 topic rules:
+
+- `GET /api/topics` supports `page` and `page_size`.
+- Topic list responses include current user learning status.
+- Only `published` topics are returned.
+- `GET /api/topics/{id}` uses UUID `id`, not slug.
+- Missing topics return a safe `TOPIC_NOT_FOUND` error.
+
 Learning:
 
 - `POST /api/learning/records`
 - `GET /api/dashboard/summary`
+
+Phase 2 learning rules:
+
+- `POST /api/learning/records` uses backend `get_current_user`.
+- The frontend must not send `user_id`.
+- Learning records are upserted by `(user_id, topic_id)`.
+- Allowed statuses are `not_started`, `learning`, and `mastered`.
 
 AI:
 
