@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Phase 3: AI core features minimum loop.
+The project is currently in Phase 4: Dashboard and review loop.
 
 This repository currently contains:
 
@@ -26,13 +26,13 @@ This repository currently contains:
 - knowledge map APIs and pages
 - AI tutoring, code diagnosis, and AI-generated practice prompt APIs and pages
 - prompt template runtime loading and AI call metadata logs
+- Dashboard page with learning progress, review queue, and rule-based next steps
 
 It does not yet contain:
 
 - authentication implementation
 - persisted problem system
 - mistake notebook
-- Dashboard frontend page
 - OJ or code execution
 
 ## Planned Directory Structure
@@ -58,7 +58,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, and `docker-compose.yml` now contain the Phase 3 AI learning loop.
+`frontend/`, `backend/`, and `docker-compose.yml` now contain the Phase 4 learning dashboard loop.
 
 ## MVP Focus
 
@@ -196,6 +196,8 @@ POST http://localhost:8000/api/learning/records
 GET http://localhost:8000/api/dashboard/summary
 ```
 
+Phase 4 expands `GET /api/dashboard/summary` while keeping the Phase 2 top-level fields compatible. It now returns learning progress counts, estimated minutes, category progress, recent activity, review queue, and rule-based next steps. Recommendations do not call the AI provider.
+
 Phase 3 APIs:
 
 ```text
@@ -218,6 +220,12 @@ Phase 3 frontend pages:
 http://localhost:3000/chat
 http://localhost:3000/code-review
 http://localhost:3000/problems/generate
+```
+
+Phase 4 frontend page:
+
+```text
+http://localhost:3000/dashboard
 ```
 
 ## Testing
@@ -256,4 +264,4 @@ Do not commit a real `.env` file. Use `.env.example` as the template.
 
 ## Next Step
 
-The next product implementation step is Phase 4: Dashboard and review loop planning. Do not add auth, OJ, code execution, or persistent problem storage without a separate phase plan.
+The next product implementation step is Phase 5 planning. Do not add auth, OJ, code execution, persistent problem storage, mistake notebook, or AI usage summary without a separate phase plan.

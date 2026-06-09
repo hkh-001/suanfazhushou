@@ -217,31 +217,37 @@ Implement AI service/provider abstraction and MVP AI capabilities.
 
 ### Goal
 
-Make the learning loop visible through dashboard statistics and review records.
+Make the learning loop visible through a Dashboard-first review loop.
 
 ### Expected Features
 
 - learning progress summary
 - topic completion statistics
-- basic weak-point or mistake summary
 - recent learning activity
+- review queue based on existing learning records
+- rule-based next steps
 
 ### Expected APIs
 
 - `GET /api/dashboard/summary`
-- mistake note APIs if included in this phase
 
 ### Completion Criteria
 
 - Dashboard reflects learning records
 - user can see progress after updating topic status
-- review and next-step placeholders are visible
+- `/dashboard` page displays progress, category progress, recent activity, review queue, and next steps
+- `GET /api/dashboard/summary` keeps Phase 2 fields and only appends Phase 4 fields
+- next steps are rule-based and do not call AI Provider
+- Phase 4 does not add database tables or migrations
 
 ### Not Included
 
+- mistake notebook or `mistake_notes`
+- recommendation logs
 - complex recommendation engine
 - full spaced repetition algorithm
 - teacher/admin analytics
+- AI usage summary
 
 ## Phase Acceptance Rule
 

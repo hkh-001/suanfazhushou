@@ -4,11 +4,12 @@ const checks = [
   "Next.js 15 frontend skeleton",
   "FastAPI backend health endpoint",
   "Docker Compose service plan",
-  "Phase 3 AI core features"
+  "Phase 4 dashboard review loop"
 ];
 
 const links = [
   { href: "/topics", label: "Open knowledge map" },
+  { href: "/dashboard", label: "View dashboard" },
   { href: "/chat", label: "Ask AI tutor" },
   { href: "/code-review", label: "Review code" },
   { href: "/problems/generate", label: "Generate problem" }
@@ -22,12 +23,13 @@ export default function Home() {
           AlgoMentor AI
         </p>
         <h1 className="max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
-          Phase 3 AI learning loop is ready for structured practice.
+          Phase 4 learning dashboard is ready for review-focused practice.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4a5563]">
           The platform now includes topic browsing, learning status updates,
-          AI tutoring, code diagnosis, and AI-generated practice prompts.
-          Authentication and OJ features remain deferred.
+          AI tutoring, code diagnosis, AI-generated practice prompts, and a
+          rule-based dashboard for progress and next steps. Authentication and
+          OJ features remain deferred.
         </p>
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2">

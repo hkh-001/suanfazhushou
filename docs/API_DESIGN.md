@@ -103,6 +103,32 @@ Phase 2 learning rules:
 - Learning records are upserted by `(user_id, topic_id)`.
 - Allowed statuses are `not_started`, `learning`, and `mastered`.
 
+Phase 4 dashboard rules:
+
+- `GET /api/dashboard/summary` keeps the Phase 2 top-level fields:
+  - `total_topics`
+  - `started_topics`
+  - `learning_topics`
+  - `mastered_topics`
+  - `progress_percent`
+- Phase 4 only appends structured fields:
+  - `not_started_topics`
+  - `total_estimated_minutes`
+  - `completed_estimated_minutes`
+  - `status_counts`
+  - `category_progress`
+  - `recent_activity`
+  - `review_queue`
+  - `next_steps`
+- Dashboard data is scoped to the current backend user.
+- Dashboard statistics only include `published` topics.
+- `review_queue` is derived from existing `learning_records`; no `mistake_notes` table is required in Phase 4.
+- `next_steps` are rule-based:
+  - recommend published topics without a current user learning record first
+  - if all topics are started, recommend non-mastered topics
+  - if all topics are mastered, return an empty list
+- Dashboard recommendations do not call the AI Provider and do not query `prompt_templates`.
+
 AI:
 
 - `POST /api/ai/chat`

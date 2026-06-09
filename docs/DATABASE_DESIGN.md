@@ -44,6 +44,14 @@ Phase 3 adds only:
 
 Phase 3 still does not create `problems`, `chat_sessions`, `chat_messages`, `code_reviews`, or `mistake_notes`.
 
+Phase 4 adds no database tables and no schema migration. It reuses:
+
+- `topics`
+- `learning_records`
+- `users`
+
+Phase 4 Dashboard data is computed from published topics and the current user's learning records. `mistake_notes`, `recommendation_logs`, `problems`, `code_reviews`, `chat_sessions`, and `chat_messages` remain deferred.
+
 ## users
 
 ```text

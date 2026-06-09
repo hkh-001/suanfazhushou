@@ -106,6 +106,29 @@ Risk signals:
 - Learning records are not connected to topics.
 - AI responses are not connected to learning context.
 
+## 1.7 Phase 4 Dashboard Loop Pressure
+
+Questions:
+
+- Does the Dashboard change after a topic learning status is updated?
+- Can the user see overall progress, recent activity, review queue, and next steps?
+- Are next steps deterministic and understandable?
+- Is the Dashboard useful without becoming a flashy analytics screen?
+
+Pass criteria:
+
+- `/dashboard` reads real `GET /api/dashboard/summary` data.
+- Status counts and category progress reflect current user learning records.
+- Review queue uses existing learning records only.
+- Next steps are rule-based and link back to topic detail pages.
+
+Risk signals:
+
+- Dashboard displays static placeholder numbers.
+- Dashboard recommendations call AI Provider in Phase 4.
+- Phase 4 creates new tables or migrations for review features.
+- Empty states do not guide users back to the knowledge map.
+
 ## 1.5 Content Quality And Copyright
 
 Questions:
@@ -342,6 +365,14 @@ Pass criteria:
 - No page is a blank shell.
 - User can understand the next action.
 - UI is not a flashy dashboard without learning utility.
+
+Phase 4 Dashboard checks:
+
+- `/dashboard` handles loading, empty, error, and normal states.
+- Overview stats include total, started, learning, mastered, not started, progress percent, and estimated minutes.
+- Progress distribution and category progress use CSS progress bars, not a chart dependency.
+- Recent activity, review queue, and next steps link to topic detail pages.
+- The homepage links to `/dashboard` without adding auth, OJ, or admin entry points.
 
 ## 2.9 Future Concurrency And Rate Limiting
 
