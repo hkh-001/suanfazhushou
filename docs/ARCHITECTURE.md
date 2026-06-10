@@ -111,6 +111,8 @@ AI provider requirements:
 - metadata logging
 - safe error handling
 
+Frontend must never call model providers directly. New AI features, including Post-MVP judging diagnosis and RAG-enhanced tutoring, must continue to use the backend service/provider layer.
+
 ## Prompt Template Architecture
 
 Prompt templates should be stored as files for seed/default versions and in the database for active runtime versions.
@@ -127,6 +129,48 @@ The database table `prompt_templates` should reference:
 - `file_path`
 - `version`
 - `enabled`
+
+## Post-MVP Dependency Architecture
+
+Post-MVP work should follow these dependency paths:
+
+```text
+Auth -> Personal Data Ownership
+Problem Bank -> ZIP Import -> Test Cases -> Judging
+Judging -> Failed Submission -> AI Diagnosis
+Mistake Notebook -> Weakness Analysis -> Recommendation
+Content Scale -> RAG
+```
+
+Architecture boundaries:
+
+- Auth should be introduced before personal problem banks, mistake notebooks, and submission history.
+- Problem bank should exist before ZIP import and judging.
+- ZIP import should validate problem packages and test cases before judging consumes them.
+- Judging should be isolated as a sandbox or judge service. It must not be mixed into the normal AI code review service.
+- AI diagnosis after failed judgement should consume judge results and limited failure context. It must not replace judge verdicts.
+- Recommendation should build from owned user data such as learning records, mistakes, problems, and submissions.
+- RAG should extend the existing ContextBuilder path through a RetrievalService. It should not rewrite AIService or bypass prompt template rules.
+
+Future RAG shape:
+
+```text
+AIService
+-> ContextBuilder
+-> RetrievalService
+-> PromptRenderer
+-> Provider Adapter
+```
+
+Future judging shape:
+
+```text
+Backend API
+-> Submission Service
+-> Judge/Sandbox Service
+-> Result Persistence
+-> Optional AI Diagnosis Service
+```
 
 ## Docker Service Planning
 
@@ -156,3 +200,5 @@ Security requirements:
 - user input validated by backend schemas
 - internal stack traces not exposed to frontend
 - AI logs store metadata only by default
+- untrusted user code must never run on the host machine
+- code execution remains disabled until a sandbox/judge service is explicitly designed and approved

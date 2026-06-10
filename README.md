@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Phase 4: Dashboard and review loop.
+The project is currently in MVP v0.1 / Phase 4.5 Stabilization.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -20,7 +20,7 @@ MVP v0.1 is defined as Phase 0 through Phase 4:
 - Phase 3: AI Core Features
 - Phase 4: Dashboard And Review Loop
 
-The next step is Phase 4.5: MVP Stabilization. Phase 5 and later are Post-MVP roadmap items, not required for MVP v0.1 completion.
+Phase 4.5 focuses on stabilization, documentation sync, command verification, demo readiness, and frontend experience polish. Phase 5 and later are Post-MVP roadmap items, not required for MVP v0.1 completion.
 
 This repository currently contains:
 
@@ -98,10 +98,16 @@ MVP v0.1 should not prioritize:
 
 Post-MVP roadmap:
 
-- Phase 5: Code Review Persistence And Mistake Notebook
-- Phase 6: Problem System And Practice Flow
-- Phase 7: RAG Knowledge Retrieval
-- Phase 8: Code Execution / OJ Sandbox
+- Phase 5: Minimal Auth And User System
+- Phase 6: Personal Problem Bank Basic
+- Phase 7: Save AI-Generated Problems To Problem Bank
+- Phase 8: Code Review Persistence And Mistake Notebook
+- Phase 9: ZIP Problem Import With Test Cases
+- Phase 10: Minimal Judging System
+- Phase 11: AI Diagnosis After Failed Judgement
+- Phase 12: Learning Recommendation And Weakness Analysis
+- Phase 13: RAG Knowledge Retrieval
+- Phase 14: Deployment, Security, Permissions, Production Hardening
 
 ## Planned Engineering Standards
 
@@ -305,8 +311,12 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-The next product implementation step is Phase 4.5: MVP Stabilization.
+Current: MVP v0.1 / Phase 4.5 Stabilization.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
+
+Next: Phase 5 Minimal Auth And User System.
+
+Later: Problem Bank, Mistake Notebook, ZIP Import, Judging, AI Diagnosis, RAG, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add auth, OJ, code execution, persistent problem storage, mistake notebook, RAG, or AI usage summary to MVP v0.1 without a separate phase plan.

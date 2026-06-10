@@ -136,6 +136,10 @@ Do not:
 - Change existing user files without checking context.
 - Expose internal stack traces to frontend users.
 - Copy full third-party problem statements or solutions without license permission.
+- Implement OJ or code execution unless the current phase explicitly authorizes it.
+- Add database tables or Alembic migrations unless the current phase explicitly requires schema changes.
+- Treat Post-MVP planned APIs as implemented APIs.
+- Store API keys in frontend storage, database tables, logs, screenshots, or committed files.
 
 ## Dependency Management
 
@@ -381,6 +385,21 @@ Code execution rules:
 - Do not run user-submitted code on the host machine.
 - Docker sandbox execution is a future feature.
 - Sandbox must include timeout, memory limits, network restrictions, and filesystem restrictions.
+
+## Post-MVP Development Boundaries
+
+Phase 5 and later are Post-MVP work. Each Post-MVP phase must be planned, implemented, tested, and committed separately.
+
+Rules:
+
+- Do not start auth, ZIP upload, judging, code execution, RAG, problem bank persistence, or mistake notebook work without a dedicated phase plan.
+- Before auth work, define ownership rules and unauthenticated access behavior.
+- Before ZIP upload work, define file size, file count, extension allowlist, and path traversal protections.
+- Before judging work, define sandbox architecture. Never run submitted code directly on the host.
+- Before AI diagnosis after judging, ensure judge verdicts are stable and AI is used only for explanation.
+- Before RAG work, confirm content scale, retrieval quality goals, and ContextBuilder/RetrievalService extension shape.
+- Do not modify Docker, dependencies, database schema, or API contracts for Post-MVP features unless that phase explicitly includes the change.
+- Do not mix multiple Post-MVP phases in one commit unless the user explicitly asks after reviewing the risk.
 
 ## Environment Configuration
 

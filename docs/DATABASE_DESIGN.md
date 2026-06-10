@@ -19,14 +19,18 @@ Long-term product tables:
 - `topic_dependencies`
 - `problems`
 - `problem_tags`
+- `test_cases`
 - `learning_records`
 - `mistake_notes`
 - `chat_sessions`
 - `chat_messages`
 - `code_reviews`
+- `submissions`
 - `prompt_templates`
 - `ai_call_logs`
 - `recommendation_logs`
+- `knowledge_chunks`
+- `retrieval_logs`
 
 MVP v0.1 implemented tables:
 
@@ -52,6 +56,24 @@ Phase 4 adds no database tables and no schema migration. It reuses:
 Phase 4 Dashboard data is computed from published topics and the current user's learning records. `mistake_notes`, `recommendation_logs`, `problems`, `code_reviews`, `chat_sessions`, and `chat_messages` remain deferred.
 
 Phase 5 and later are Post-MVP roadmap work. They are not required for MVP v0.1 completion.
+
+Current database reality is the Phase 0-4 implemented schema. Deferred tables below are planning notes only. They must not be treated as existing tables until their Post-MVP phase creates an Alembic migration.
+
+## Deferred Post-MVP Tables
+
+| Table | Planned Phase | Purpose | Boundary |
+| --- | --- | --- | --- |
+| `problems` | Phase 6 | Personal problem bank records | Not implemented in MVP v0.1 |
+| `problem_tags` | Phase 6 | Connect problems to topics/tags | Not implemented in MVP v0.1 |
+| `test_cases` | Phase 9 | Imported or authored problem test cases | Wait for ZIP/test-case validation policy |
+| `submissions` | Phase 10 | Judge submissions and verdicts | Wait for sandbox/judge design |
+| `code_reviews` | Phase 8 | Explicitly saved AI code review results | Do not auto-store all user code |
+| `mistake_notes` | Phase 8 | User-owned mistake notebook entries | Not required for MVP v0.1 Dashboard |
+| `recommendation_logs` | Phase 12 | Recommendation events and explanations | Wait for weakness analysis model |
+| `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
+| `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
+
+Judging-related tables such as `test_cases` and `submissions` must wait until the sandbox approach is defined. Do not add these tables only to satisfy UI placeholders.
 
 ## users
 
@@ -122,6 +144,8 @@ created_at
 
 ## problems
 
+Planned for Post-MVP Phase 6. Not implemented in MVP v0.1.
+
 ```text
 id
 title
@@ -157,6 +181,8 @@ Notes:
 
 ## problem_tags
 
+Planned for Post-MVP Phase 6. Not implemented in MVP v0.1.
+
 ```text
 id
 problem_id
@@ -189,6 +215,8 @@ Notes:
 - `next_review_at` supports future spaced repetition.
 
 ## mistake_notes
+
+Planned for Post-MVP Phase 8. Not implemented in MVP v0.1.
 
 ```text
 id
@@ -238,6 +266,8 @@ created_at
 ```
 
 ## code_reviews
+
+Planned for Post-MVP Phase 8. Not implemented in MVP v0.1.
 
 ```text
 id
@@ -299,6 +329,8 @@ By default, do not store:
 - API keys
 
 ## recommendation_logs
+
+Planned for Post-MVP Phase 12. Not implemented in MVP v0.1.
 
 ```text
 id

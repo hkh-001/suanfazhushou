@@ -468,3 +468,148 @@ Future requirements:
 - network disabled
 - filesystem restrictions
 - language-specific runners
+
+---
+
+# 3. Post-MVP Pressure Tests
+
+These checks apply to Phase 5 and later. They are not MVP v0.1 requirements.
+
+## 3.1 Auth Pressure Test
+
+Questions:
+
+- Do users really need login for the current phase?
+- Is the default dev user still development-only?
+- Can `get_current_user` switch from dev user to real users without rewriting routers?
+- Are unauthenticated users blocked from personal data?
+- Are learning records, problems, mistakes, and submissions scoped to the current user?
+
+Pass criteria:
+
+- Auth is introduced before personal problem bank, mistake notebook, and submissions.
+- `ENABLE_DEV_USER` is safe for development and disabled for production.
+- Unauthenticated users cannot access personal resources.
+- Tests cover user isolation.
+
+Risk signals:
+
+- Dev user is accidentally available in production.
+- Frontend sends `user_id` to claim ownership.
+- Personal data endpoints work without authentication.
+
+## 3.2 Problem Bank Pressure Test
+
+Questions:
+
+- Can AI-generated problems be saved explicitly by the user?
+- Are problem ids and slugs stable?
+- Does every personal problem belong to the current user?
+- Does the system distinguish AI-generated, ZIP-imported, manually created, and external-source problems?
+- Are external sources attributed without copying licensed content blindly?
+
+Pass criteria:
+
+- Problem ownership is enforced.
+- Problem source/type is explicit.
+- AI-generated problems are marked `is_ai_generated=true`.
+- Problem bank exists before ZIP import and judging.
+
+Risk signals:
+
+- Saved problems have no ownership.
+- AI-generated content is silently persisted.
+- Third-party statements are copied without license review.
+
+## 3.3 ZIP Import Pressure Test
+
+Questions:
+
+- Is ZIP size limited?
+- Is file count limited?
+- Is path traversal blocked?
+- Are only safe file types allowed, such as `.md`, `.json`, `.in`, and `.out`?
+- Are uploaded files never executed?
+- Are malformed archives rejected safely?
+
+Pass criteria:
+
+- Import validates size, count, path, extension, and metadata.
+- Uploaded content is stored as data only.
+- No scripts, binaries, or arbitrary paths are accepted.
+- Error responses are safe and user-facing.
+
+Risk signals:
+
+- ZIP extraction writes outside the intended directory.
+- Uploaded files are executed or interpreted as code.
+- Import has no size or count limits.
+
+## 3.4 Judge Safety Pressure Test
+
+Questions:
+
+- Is host-machine execution forbidden?
+- Is a sandbox or isolated judge service used?
+- Are timeout, memory, network, filesystem, and process limits enforced?
+- Is `ENABLE_CODE_EXECUTION=false` still the default?
+- Can malicious code be handled safely?
+
+Pass criteria:
+
+- Judge is isolated from the normal backend process.
+- User code never runs directly on the host.
+- Sandbox constraints are tested.
+- Failed or malicious submissions do not compromise the service.
+
+Risk signals:
+
+- The backend runs user code with `subprocess` on the host.
+- Network or filesystem access is unrestricted.
+- Judge code is mixed into the AI code review service.
+
+## 3.5 AI Diagnosis After Judge Pressure Test
+
+Questions:
+
+- Does AI explain judge failures without replacing the judge verdict?
+- Does AI avoid executing user code?
+- Are failed test cases and code length limited before prompt construction?
+- Are full code, full prompts, and sensitive data kept out of logs by default?
+- Are provider failures isolated from judging correctness?
+
+Pass criteria:
+
+- AI diagnosis runs only after a stable judge result exists.
+- Input context is bounded and sanitized.
+- AI logs remain metadata-only by default.
+- Provider errors return safe API errors.
+
+Risk signals:
+
+- AI is used as the judge.
+- Failed test context is unbounded.
+- Sensitive code is stored in logs without explicit policy.
+
+## 3.6 RAG Pressure Test
+
+Questions:
+
+- Is there enough content scale to justify RAG?
+- Does ContextBuilder already provide the extension point?
+- Is pgvector or embedding actually needed?
+- Can retrieval quality be evaluated?
+- Are sensitive user-generated contents excluded or governed by policy?
+
+Pass criteria:
+
+- RAG extends ContextBuilder through RetrievalService.
+- AIService and provider contracts remain stable.
+- Retrieval is justified by content volume and measurable quality needs.
+- Sensitive content boundaries are explicit.
+
+Risk signals:
+
+- RAG is added before enough data exists.
+- AI service is rewritten instead of extended.
+- Vector storage is introduced without evaluation criteria.

@@ -37,6 +37,8 @@ MVP v0.1 includes only:
 
 Phase 5 and later are Post-MVP roadmap items. They are not required for MVP v0.1 completion.
 
+Phase 4.5 is MVP Stabilization. It may improve acceptance readiness, documentation, command verification, demo seed data, and frontend experience, but it must not add large new business capabilities.
+
 ## MVP v0.1 Completion Criteria
 
 MVP v0.1 is complete when the main learning loop can be demonstrated end to end:
@@ -366,58 +368,17 @@ Each phase must end with:
 
 ## Post-MVP Roadmap
 
-The following phases are Post-MVP work. They are not required for MVP v0.1 completion.
+The following phases are Post-MVP work. They are not required for MVP v0.1 completion and must be planned, implemented, tested, and committed separately.
 
-### Phase 5: Code Review Persistence And Mistake Notebook
+- Phase 5: Minimal Auth And User System
+- Phase 6: Personal Problem Bank Basic
+- Phase 7: Save AI-Generated Problems To Problem Bank
+- Phase 8: Code Review Persistence And Mistake Notebook
+- Phase 9: ZIP Problem Import With Test Cases
+- Phase 10: Minimal Judging System
+- Phase 11: AI Diagnosis After Failed Judgement
+- Phase 12: Learning Recommendation And Weakness Analysis
+- Phase 13: RAG Knowledge Retrieval
+- Phase 14: Deployment, Security, Permissions, Production Hardening
 
-Planned direction:
-
-- persist selected code review results only when explicitly saved by the user
-- introduce mistake note workflows
-- support root cause, fix suggestion, reflection, and review status
-- connect mistake review back to Dashboard and review loop
-
-Boundary:
-
-- do not automatically store full user code without explicit product decision
-- keep AI logs metadata-only by default
-
-### Phase 6: Problem System And Practice Flow
-
-Planned direction:
-
-- introduce persisted `problems`
-- connect problems to topics
-- support AI-generated original problems as saved practice items
-- add practice list/detail pages
-
-Boundary:
-
-- avoid copying third-party problem statements unless license allows
-- keep external source metadata and attribution
-
-### Phase 7: RAG Knowledge Retrieval
-
-Planned direction:
-
-- add retrieval-ready knowledge chunks
-- improve AI context beyond single `topic_id`
-- evaluate embeddings or PostgreSQL-compatible vector retrieval
-
-Boundary:
-
-- do not introduce RAG into MVP v0.1
-- keep ContextBuilder extensible
-
-### Phase 8: Code Execution / OJ Sandbox
-
-Planned direction:
-
-- add sandboxed code execution
-- support timeout, memory limits, network restrictions, and filesystem isolation
-- evaluate submission and judging workflow
-
-Boundary:
-
-- never execute untrusted user code on the host machine
-- keep `ENABLE_CODE_EXECUTION=false` until sandboxing is explicitly implemented
+See `docs/POST_MVP_ROADMAP.md` for detailed phase dependencies and boundaries.

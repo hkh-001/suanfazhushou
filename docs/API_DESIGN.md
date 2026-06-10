@@ -173,17 +173,53 @@ Phase 4.5 AI settings rules:
 - Runtime settings are for local development and demos, not production secret management.
 - `POST /api/settings/ai/test` sends a minimal provider request and must not log API keys, full prompts, or full provider responses.
 
-Post-MVP future APIs:
+## Post-MVP Planned APIs
+
+The APIs in this section are deferred/planned. They are not implemented in MVP v0.1 and must not be treated as current contracts.
+
+Auth, planned for Phase 5:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
-- `GET /api/users/me`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
+Problem bank, planned for Phase 6 and Phase 7:
+
 - `GET /api/problems`
+- `POST /api/problems`
 - `GET /api/problems/{id}`
+- `PUT /api/problems/{id}`
+- `DELETE /api/problems/{id}`
+- `POST /api/problems/{id}/save-ai-generated`
+
+ZIP import, planned for Phase 9:
+
+- `POST /api/problems/import/zip`
+
+Judging and submissions, planned for Phase 10:
+
+- `POST /api/submissions`
+- `GET /api/submissions/{id}`
+
+AI diagnosis after failed judgement, planned for Phase 11:
+
+- `POST /api/submissions/{id}/ai-diagnose`
+
+Mistake notebook, planned for Phase 8:
+
 - `GET /api/mistakes`
 - `POST /api/mistakes`
+- `GET /api/mistakes/{id}`
 - `PUT /api/mistakes/{id}`
 - `DELETE /api/mistakes/{id}`
+
+Planning boundaries:
+
+- Code execution and judge APIs must wait for an approved sandbox design.
+- Upload APIs must include file size, file count, file type, and path traversal controls.
+- Post-MVP APIs must preserve `/api` prefix and the existing success/error response structure.
+- Current MVP v0.1 APIs must not be changed to accommodate planned APIs prematurely.
 
 ## Error Handling
 
