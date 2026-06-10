@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { useTopics } from "@/features/topics/hooks";
 
 import { submitCodeReview } from "./api";
-import { AIErrorNotice, FormShell, ResultPanel, TopicSelect, friendlyAIError } from "./shared";
+import { AIErrorNotice, EmptyResult, FormShell, ResultPanel, TopicSelect, friendlyAIError } from "./shared";
 import type { AIResponseData, CodeReviewPayload } from "./types";
 
 export function CodeReviewPage() {
@@ -41,11 +41,11 @@ export function CodeReviewPage() {
   return (
     <FormShell
       description="AI 会从算法思路、潜在错误、复杂度和修改建议几个角度分析你的代码。"
-      eyebrow="CODE DIAGNOSIS"
+      gridClassName="lg:grid-cols-[420px_1fr]"
       title="代码诊断"
     >
       <form
-        className="grid gap-5 rounded-lg border border-[#dbeafe] bg-white/90 p-5 shadow-sm shadow-blue-100/60"
+        className="grid gap-5 rounded-xl border border-[#dbeafe] bg-white/95 p-5 shadow-sm shadow-blue-100/60"
         onSubmit={submit}
       >
         {topicsError ? (
@@ -91,13 +91,24 @@ export function CodeReviewPage() {
         >
           {loading ? "正在诊断..." : "开始诊断"}
         </button>
-        {error ? <AIErrorNotice message={error} /> : null}
       </form>
-      {!result && !loading && !error ? (
-        <p className="mt-6 text-sm text-[#64748b]">提交代码后，诊断结果会显示在这里。</p>
-      ) : null}
-      {result ? (
-        <div className="mt-6">
+
+      <section className="min-w-0">
+        {error ? <AIErrorNotice message={error} /> : null}
+        {!result && !loading && !error ? (
+          <EmptyResult>
+            <div>
+              <p className="font-semibold text-[#334155]">等待代码诊断</p>
+              <p className="mt-2">提交代码后，诊断结果会显示在这里。</p>
+            </div>
+          </EmptyResult>
+        ) : null}
+        {loading ? (
+          <EmptyResult>
+            <p>AI 正在分析代码...</p>
+          </EmptyResult>
+        ) : null}
+        {result ? (
           <ResultPanel
             inputTokens={result.usage.input_tokens}
             model={result.model}
@@ -106,8 +117,8 @@ export function CodeReviewPage() {
             result={result.result}
             title="诊断结果"
           />
-        </div>
-      ) : null}
+        ) : null}
+      </section>
     </FormShell>
   );
 }

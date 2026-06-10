@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useState, type ReactNode } from "react";
 
+import { AppShell } from "@/components/AppShell";
+import { PageHeader } from "@/components/PageHeader";
 import type { TopicListItem } from "@/features/topics/types";
 
 export function friendlyAIError(error: unknown) {
@@ -26,7 +28,10 @@ export function AIErrorNotice({ message }: { message: string }) {
     <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
       <p>{message}</p>
       {showSettingsLink ? (
-        <Link className="mt-3 inline-flex text-[#1d4ed8] underline-offset-4 hover:underline" href="/settings">
+        <Link
+          className="mt-3 inline-flex rounded-md text-[#1d4ed8] underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+          href="/settings"
+        >
           去配置 AI 服务
         </Link>
       ) : null}
@@ -86,49 +91,53 @@ export function ResultPanel({
   }
 
   return (
-    <section className="rounded-lg border border-[#dbeafe] bg-white/90 p-5 shadow-sm shadow-blue-100/60">
+    <section className="rounded-xl border border-[#dbeafe] bg-white/95 p-5 shadow-sm shadow-blue-100/60">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e2e8f0] pb-3">
-        <div>
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <div className="mt-1 text-xs text-[#64748b]">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold text-[#0f172a]">{title}</h2>
+          <div className="mt-1 break-words text-xs text-[#64748b]">
             模板：{promptType} / 模型：{model} / 输入 token：{inputTokens ?? "-"} / 输出 token：
             {outputTokens ?? "-"}
           </div>
         </div>
         <button
-          className="rounded-md border border-[#bfdbfe] bg-white px-3 py-2 text-xs font-semibold text-[#1d4ed8] hover:bg-[#eff6ff]"
+          className="rounded-md border border-[#bfdbfe] bg-white px-3 py-2 text-xs font-semibold text-[#1d4ed8] outline-none hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
           onClick={() => void copyResult()}
           type="button"
         >
           {copied ? "已复制" : "复制"}
         </button>
       </div>
-      <pre className="mt-4 whitespace-pre-wrap break-words font-sans text-sm leading-7 text-[#334155]">
+      <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-words font-sans text-sm leading-7 text-[#334155]">
         {result}
       </pre>
     </section>
   );
 }
 
+export function EmptyResult({ children }: { children: ReactNode }) {
+  return (
+    <section className="flex min-h-72 items-center justify-center rounded-xl border border-dashed border-[#bfdbfe] bg-white/70 p-6 text-center text-sm leading-6 text-[#64748b]">
+      {children}
+    </section>
+  );
+}
+
 export function FormShell({
-  eyebrow,
   title,
   description,
-  children
+  children,
+  gridClassName = "lg:grid-cols-[360px_1fr]"
 }: {
-  eyebrow: string;
   title: string;
   description: string;
   children: ReactNode;
+  gridClassName?: string;
 }) {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#eff6ff] via-[#f8fbff] to-white text-[#0f172a]">
-      <section className="mx-auto max-w-5xl px-6 py-12">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2563eb]">{eyebrow}</p>
-        <h1 className="mt-3 text-4xl font-semibold">{title}</h1>
-        <p className="mt-4 max-w-2xl leading-7 text-[#475569]">{description}</p>
-        <div className="mt-8">{children}</div>
-      </section>
-    </main>
+    <AppShell>
+      <PageHeader description={description} title={title} />
+      <div className={`grid gap-6 ${gridClassName}`}>{children}</div>
+    </AppShell>
   );
 }

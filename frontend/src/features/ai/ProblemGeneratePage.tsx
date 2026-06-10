@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { useTopics } from "@/features/topics/hooks";
 
 import { submitProblemGeneration } from "./api";
-import { AIErrorNotice, FormShell, ResultPanel, TopicSelect, friendlyAIError } from "./shared";
+import { AIErrorNotice, EmptyResult, FormShell, ResultPanel, TopicSelect, friendlyAIError } from "./shared";
 import type { AIResponseData, ProblemGenerationPayload } from "./types";
 
 export function ProblemGeneratePage() {
@@ -39,11 +39,10 @@ export function ProblemGeneratePage() {
   return (
     <FormShell
       description="根据知识点和难度生成一题原创练习题，用于课后巩固。"
-      eyebrow="PROBLEM GENERATION"
       title="AI 题目生成"
     >
       <form
-        className="grid gap-5 rounded-lg border border-[#dbeafe] bg-white/90 p-5 shadow-sm shadow-blue-100/60"
+        className="grid gap-5 rounded-xl border border-[#dbeafe] bg-white/95 p-5 shadow-sm shadow-blue-100/60"
         onSubmit={submit}
       >
         {topicsError ? (
@@ -81,13 +80,24 @@ export function ProblemGeneratePage() {
         >
           {loading ? "正在生成..." : "生成题目"}
         </button>
-        {error ? <AIErrorNotice message={error} /> : null}
       </form>
-      {!result && !loading && !error ? (
-        <p className="mt-6 text-sm text-[#64748b]">生成后的题目会显示在这里。</p>
-      ) : null}
-      {result ? (
-        <div className="mt-6">
+
+      <section className="min-w-0">
+        {error ? <AIErrorNotice message={error} /> : null}
+        {!result && !loading && !error ? (
+          <EmptyResult>
+            <div>
+              <p className="font-semibold text-[#334155]">等待生成题目</p>
+              <p className="mt-2">生成后的题目描述、样例和题解思路会显示在这里。</p>
+            </div>
+          </EmptyResult>
+        ) : null}
+        {loading ? (
+          <EmptyResult>
+            <p>AI 正在生成练习题...</p>
+          </EmptyResult>
+        ) : null}
+        {result ? (
           <ResultPanel
             inputTokens={result.usage.input_tokens}
             model={result.model}
@@ -96,8 +106,8 @@ export function ProblemGeneratePage() {
             result={result.result}
             title="生成结果"
           />
-        </div>
-      ) : null}
+        ) : null}
+      </section>
     </FormShell>
   );
 }

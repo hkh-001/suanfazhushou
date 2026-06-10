@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { useTopics } from "@/features/topics/hooks";
 
 import { submitChat } from "./api";
-import { AIErrorNotice, FormShell, ResultPanel, TopicSelect, friendlyAIError } from "./shared";
+import { AIErrorNotice, EmptyResult, FormShell, ResultPanel, TopicSelect, friendlyAIError } from "./shared";
 import type { AIResponseData, ChatPayload } from "./types";
 
 export function ChatPage() {
@@ -39,11 +39,10 @@ export function ChatPage() {
   return (
     <FormShell
       description="选择知识点后提问，AI 会结合当前知识点进行分步骤讲解。"
-      eyebrow="AI TUTOR"
       title="AI 算法问答"
     >
       <form
-        className="grid gap-5 rounded-lg border border-[#dbeafe] bg-white/90 p-5 shadow-sm shadow-blue-100/60"
+        className="grid gap-5 rounded-xl border border-[#dbeafe] bg-white/95 p-5 shadow-sm shadow-blue-100/60"
         onSubmit={submit}
       >
         {topicsError ? (
@@ -79,13 +78,24 @@ export function ChatPage() {
         >
           {loading ? "正在发送..." : "发送问题"}
         </button>
-        {error ? <AIErrorNotice message={error} /> : null}
       </form>
-      {!result && !loading && !error ? (
-        <p className="mt-6 text-sm text-[#64748b]">提交问题后，AI 回答会显示在这里。</p>
-      ) : null}
-      {result ? (
-        <div className="mt-6">
+
+      <section className="min-w-0">
+        {error ? <AIErrorNotice message={error} /> : null}
+        {!result && !loading && !error ? (
+          <EmptyResult>
+            <div>
+              <p className="font-semibold text-[#334155]">等待你的问题</p>
+              <p className="mt-2">提交问题后，AI 回答会显示在这里。</p>
+            </div>
+          </EmptyResult>
+        ) : null}
+        {loading ? (
+          <EmptyResult>
+            <p>AI 正在整理回答...</p>
+          </EmptyResult>
+        ) : null}
+        {result ? (
           <ResultPanel
             inputTokens={result.usage.input_tokens}
             model={result.model}
@@ -94,8 +104,8 @@ export function ChatPage() {
             result={result.result}
             title="AI 回答"
           />
-        </div>
-      ) : null}
+        ) : null}
+      </section>
     </FormShell>
   );
 }
