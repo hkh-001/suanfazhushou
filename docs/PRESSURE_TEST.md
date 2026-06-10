@@ -507,6 +507,15 @@ Risk signals:
 
 ## 3.2 Problem Bank Pressure Test
 
+Phase 6 implemented baseline:
+
+- Manual problem CRUD exists for the current authenticated user.
+- Problems are scoped by `created_by_user_id`.
+- Users cannot view, update, or delete other users' problems.
+- `slug` is unique within one user's problem bank, not globally.
+- Topic association follows the existing visible published topics rule.
+- ZIP import, judging, submissions, and AI-generated problem persistence remain deferred.
+
 Questions:
 
 - Can AI-generated problems be saved explicitly by the user?

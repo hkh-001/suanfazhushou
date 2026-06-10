@@ -73,6 +73,8 @@ medium
 
 Introduce a user-owned problem bank for manually created and curated practice problems.
 
+Status: implemented as Post-MVP Phase 6 with manual CRUD, per-user ownership, and topic associations.
+
 ### Dependencies
 
 - Phase 5 auth
@@ -80,7 +82,7 @@ Introduce a user-owned problem bank for manually created and curated practice pr
 
 ### Expected Features
 
-- Create, list, view, update, and archive personal problems
+- Create, list, view, update, and delete personal problems
 - Link problems to topics
 - Store source metadata, difficulty, tags, and estimated time
 - Distinguish user-created problems from future AI-generated and imported problems
@@ -102,6 +104,8 @@ medium
 - Users cannot access other users' problems.
 - External sources store metadata and attribution without copying licensed statements blindly.
 - Problem list/detail pages are usable without judging.
+- `problems` and `problem_tags` migrations are reproducible and rollbackable.
+- Frontend `/problems`, `/problems/new`, and `/problems/{id}` build successfully.
 
 ## Phase 7: Save AI-Generated Problems To Problem Bank
 

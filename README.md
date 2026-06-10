@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 5: Minimal Auth And User System.
+The project is currently in Post-MVP Phase 6: Personal Problem Bank Basic.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -39,10 +39,10 @@ This repository currently contains:
 - Dashboard page with learning progress, review queue, and rule-based next steps
 - local-only runtime AI settings page and API guarded by `ENABLE_RUNTIME_AI_SETTINGS`
 - minimal auth with register, login, logout, current user, HttpOnly Cookie, and JWT
+- personal problem bank with manual create, list, edit, delete, and topic association
 
 It does not yet contain:
 
-- persisted problem system
 - mistake notebook
 - OJ or code execution
 - RBAC, OAuth, refresh token rotation, password reset, or production-grade permissions
@@ -288,7 +288,32 @@ Minimal auth notes:
 - `ENABLE_DEV_USER=true` keeps the development user fallback when no Cookie is present.
 - If a Cookie exists but is expired, invalid, or points to a missing user, the backend returns a safe auth error and does not fallback to the dev user.
 - `SECRET_KEY=change-me-in-production-32-bytes-long!!` is for local development only. Production must use a unique strong secret of at least 32 bytes.
-- Phase 5 does not implement RBAC, OAuth, refresh tokens, password reset, personal problem bank, ZIP import, judging, OJ, or RAG.
+- Phase 5 does not implement RBAC, OAuth, refresh tokens, password reset, ZIP import, judging, OJ, or RAG.
+
+Phase 6 problem bank APIs:
+
+```text
+POST http://localhost:8000/api/problems
+GET http://localhost:8000/api/problems
+GET http://localhost:8000/api/problems/{id}
+PUT http://localhost:8000/api/problems/{id}
+DELETE http://localhost:8000/api/problems/{id}
+```
+
+Phase 6 frontend pages:
+
+```text
+http://localhost:3000/problems
+http://localhost:3000/problems/new
+http://localhost:3000/problems/{id}
+```
+
+Problem bank notes:
+
+- Problems are owned by the current authenticated user.
+- The frontend does not send `user_id`; ownership comes from the backend session.
+- `DELETE /api/problems/{id}` hard-deletes the user's own problem.
+- Phase 6 does not save AI-generated problems, import ZIP files, run submissions, or judge code.
 
 Runtime AI settings:
 
@@ -337,12 +362,12 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 5 Minimal Auth And User System.
+Current: Post-MVP Phase 6 Personal Problem Bank Basic.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
 
-Next: Phase 6 Personal Problem Bank Basic.
+Next: Phase 7 Save AI-Generated Problems To Problem Bank.
 
-Later: Problem Bank, Mistake Notebook, ZIP Import, Judging, AI Diagnosis, RAG, and production hardening.
+Later: Mistake Notebook, ZIP Import, Judging, AI Diagnosis, RAG, and production hardening.
 
-Phase 5 and later belong to the Post-MVP roadmap. Do not add auth, OJ, code execution, persistent problem storage, mistake notebook, RAG, or AI usage summary to MVP v0.1 without a separate phase plan.
+Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

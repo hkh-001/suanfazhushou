@@ -26,3 +26,4 @@ class User(Base):
     )
 
     learning_records = relationship("LearningRecord", back_populates="user")
+    problems = relationship("Problem", back_populates="created_by_user")

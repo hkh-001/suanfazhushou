@@ -63,8 +63,8 @@ Current database reality is the Phase 0-4 implemented schema. Deferred tables be
 
 | Table | Planned Phase | Purpose | Boundary |
 | --- | --- | --- | --- |
-| `problems` | Phase 6 | Personal problem bank records | Not implemented in MVP v0.1 |
-| `problem_tags` | Phase 6 | Connect problems to topics/tags | Not implemented in MVP v0.1 |
+| `problems` | Phase 6 | Personal problem bank records | Implemented in Post-MVP Phase 6 |
+| `problem_tags` | Phase 6 | Connect problems to topics | Implemented in Post-MVP Phase 6 |
 | `test_cases` | Phase 9 | Imported or authored problem test cases | Wait for ZIP/test-case validation policy |
 | `submissions` | Phase 10 | Judge submissions and verdicts | Wait for sandbox/judge design |
 | `code_reviews` | Phase 8 | Explicitly saved AI code review results | Do not auto-store all user code |
@@ -144,7 +144,7 @@ created_at
 
 ## problems
 
-Planned for Post-MVP Phase 6. Not implemented in MVP v0.1.
+Implemented in Post-MVP Phase 6. Not part of MVP v0.1.
 
 ```text
 id
@@ -176,12 +176,15 @@ Notes:
 
 - `source_url` stores external attribution.
 - `is_ai_generated=true` is required for AI-generated problems.
-- `is_published` controls whether the problem is visible.
+- `is_published` is reserved for future publishing; Phase 6 problem bank shows only the current user's own problems.
+- `created_by_user_id` owns the problem and must come from backend auth, not frontend input.
+- `(created_by_user_id, slug)` is unique; slug is not globally unique.
 - Avoid copying complete third-party statements unless the license allows it.
+- Phase 6 does not create submissions, test cases, judging records, or mistake notes.
 
 ## problem_tags
 
-Planned for Post-MVP Phase 6. Not implemented in MVP v0.1.
+Implemented in Post-MVP Phase 6. Not part of MVP v0.1.
 
 ```text
 id

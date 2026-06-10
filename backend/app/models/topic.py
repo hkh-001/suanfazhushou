@@ -42,6 +42,7 @@ class Topic(Base):
 
     parent = relationship("Topic", remote_side=[id])
     learning_records = relationship("LearningRecord", back_populates="topic")
+    problem_tags = relationship("ProblemTag", back_populates="topic")
 
 
 class TopicDependency(Base):

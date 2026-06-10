@@ -194,17 +194,41 @@ Phase 4.5 AI settings rules:
 - Runtime settings are for local development and demos, not production secret management.
 - `POST /api/settings/ai/test` sends a minimal provider request and must not log API keys, full prompts, or full provider responses.
 
+## Phase 6 Problem Bank APIs
+
+Implemented in Post-MVP Phase 6. These APIs are not part of MVP v0.1, but are current Post-MVP contracts.
+
+- `POST /api/problems`
+- `GET /api/problems?page=1&page_size=20`
+- `GET /api/problems/{id}`
+- `PUT /api/problems/{id}`
+- `DELETE /api/problems/{id}`
+
+Rules:
+
+- All problem APIs require `get_current_user`.
+- Ownership comes from the backend session; the frontend must not send `user_id`.
+- List and detail endpoints only return problems owned by the current user.
+- Other users' problems return `PROBLEM_NOT_FOUND`.
+- `GET /api/problems` returns `PaginatedResponse` and sorts by `created_at DESC, id DESC`.
+- `slug` is unique per user through `(created_by_user_id, slug)`.
+- `DELETE /api/problems/{id}` hard-deletes the current user's problem.
+- `topic_ids` can associate problems with currently visible published topics.
+- Phase 6 does not persist AI-generated problems, import ZIP files, create submissions, or judge code.
+
+Problem errors:
+
+- `PROBLEM_NOT_FOUND`
+- `PROBLEM_SLUG_ALREADY_EXISTS`
+- `TOPIC_NOT_FOUND`
+- inherited auth errors such as `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `TOKEN_INVALID`, `INVALID_SESSION`
+
 ## Post-MVP Planned APIs
 
 The APIs in this section are deferred/planned. They are not implemented in MVP v0.1 and must not be treated as current contracts.
 
-Problem bank, planned for Phase 6 and Phase 7:
+AI-generated problem persistence, planned for Phase 7:
 
-- `GET /api/problems`
-- `POST /api/problems`
-- `GET /api/problems/{id}`
-- `PUT /api/problems/{id}`
-- `DELETE /api/problems/{id}`
 - `POST /api/problems/{id}/save-ai-generated`
 
 ZIP import, planned for Phase 9:

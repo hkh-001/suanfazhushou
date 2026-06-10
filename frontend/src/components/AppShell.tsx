@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard", label: "学习看板" },
   { href: "/chat", label: "AI 问答" },
   { href: "/code-review", label: "代码诊断" },
+  { href: "/problems", label: "个人题库" },
   { href: "/problems/generate", label: "题目生成" },
   { href: "/settings", label: "设置" }
 ];
@@ -18,6 +19,9 @@ const navItems = [
 function isActive(pathname: string, href: string) {
   if (href === "/topics") {
     return pathname === "/topics" || pathname.startsWith("/topics/");
+  }
+  if (href === "/problems") {
+    return pathname === "/problems" || (pathname.startsWith("/problems/") && pathname !== "/problems/generate");
   }
   return pathname === href;
 }

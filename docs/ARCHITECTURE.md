@@ -114,6 +114,23 @@ Phase 5 auth boundaries:
 - no password reset
 - no production-grade permission system
 
+## Personal Problem Bank Architecture
+
+Post-MVP Phase 6 adds a user-owned problem bank using the existing backend layering pattern:
+
+```text
+router -> schema -> service -> repository -> model
+```
+
+Rules:
+
+- Problem ownership is enforced with `created_by_user_id` from `get_current_user`.
+- The frontend never sends `user_id` to choose ownership.
+- Problem bank CRUD is independent from judging, submissions, ZIP import, and AI generation persistence.
+- `problem_tags` links personal problems to currently visible published topics.
+- Future AI-generated problem saving should reuse the problem service instead of bypassing ownership checks.
+- Future judging must remain a separate sandbox/judge service and must not be mixed into ordinary problem CRUD.
+
 ## AI Provider Abstraction
 
 All AI calls must go through backend services.
