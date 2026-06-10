@@ -297,7 +297,7 @@ AI_API_KEY=
 AI_MODEL=
 AI_TIMEOUT_SECONDS=60
 AI_MAX_RETRIES=1
-SECRET_KEY=change_me_in_production
+SECRET_KEY=change-me-in-production-32-bytes-long!!
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
 
@@ -491,12 +491,19 @@ Pass criteria:
 - `ENABLE_DEV_USER` is safe for development and disabled for production.
 - Unauthenticated users cannot access personal resources.
 - Tests cover user isolation.
+- Login state uses HttpOnly Cookie and JWT.
+- The frontend sends credentials but does not store or read tokens.
+- Dev user fallback happens only when the Cookie is missing.
+- Expired, invalid, or missing-user tokens return safe auth errors and do not fallback to dev user.
 
 Risk signals:
 
 - Dev user is accidentally available in production.
 - Frontend sends `user_id` to claim ownership.
 - Personal data endpoints work without authentication.
+- Token is stored in localStorage or sessionStorage.
+- Login failure reveals whether an email exists.
+- Logout fails to clear the Cookie because Cookie attributes do not match.
 
 ## 3.2 Problem Bank Pressure Test
 

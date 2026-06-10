@@ -81,6 +81,39 @@ Backend rules:
 - Use Alembic for schema migrations.
 - Keep business logic out of routers where practical.
 
+## Minimal Auth Architecture
+
+Post-MVP Phase 5 adds minimal auth without adding new database tables.
+
+Auth components:
+
+```text
+Auth Router
+-> Auth Schemas
+-> Auth Service
+-> User Repository
+-> User Model
+```
+
+Session model:
+
+- Backend issues an HttpOnly `algomentor_session` Cookie.
+- Cookie value is a JWT access token.
+- Frontend sends requests with `credentials: include`.
+- Frontend must not read, store, or log the token.
+- `get_current_user` reads the Cookie and returns a real `User` ORM object.
+- Dev user fallback is allowed only when the Cookie is missing and `ENABLE_DEV_USER=true`.
+- Expired, invalid, or missing-user tokens return auth errors and do not fallback to the dev user.
+
+Phase 5 auth boundaries:
+
+- no RBAC
+- no OAuth
+- no refresh token rotation
+- no sessions table
+- no password reset
+- no production-grade permission system
+
 ## AI Provider Abstraction
 
 All AI calls must go through backend services.

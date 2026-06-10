@@ -182,13 +182,23 @@ export function DashboardPage() {
           <h1 className="text-2xl font-semibold text-[#0f172a]">学习看板</h1>
           <p className="mt-4 text-sm font-semibold text-red-700">学习看板加载失败</p>
           <p className="mt-2 text-[#475569]">{error ?? "暂时无法获取学习看板数据。"}</p>
-          <button
-            className="mt-5 rounded-md bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white outline-none hover:bg-[#1d4ed8] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
-            onClick={() => void reload()}
-            type="button"
-          >
-            重试
-          </button>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {error === "请先登录后继续使用。" ? (
+              <Link
+                className="rounded-md bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white outline-none hover:bg-[#1d4ed8] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+                href="/login"
+              >
+                去登录
+              </Link>
+            ) : null}
+            <button
+              className="rounded-md border border-[#bfdbfe] bg-white px-4 py-2 text-sm font-semibold text-[#1d4ed8] outline-none hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+              onClick={() => void reload()}
+              type="button"
+            >
+              重试
+            </button>
+          </div>
         </section>
       </AppShell>
     );

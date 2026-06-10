@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.dashboard import router as dashboard_router
 from app.api.health import router as health_router
 from app.api.ai import router as ai_router
+from app.api.auth import router as auth_router
 from app.api.learning import router as learning_router
 from app.api.settings import router as settings_router
 from app.api.topics import router as topics_router
@@ -22,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(health_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 app.include_router(topics_router, prefix="/api")
 app.include_router(learning_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")

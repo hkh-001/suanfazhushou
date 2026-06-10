@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in MVP v0.1 / Phase 4.5 Stabilization.
+The project is currently in Post-MVP Phase 5: Minimal Auth And User System.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -20,7 +20,7 @@ MVP v0.1 is defined as Phase 0 through Phase 4:
 - Phase 3: AI Core Features
 - Phase 4: Dashboard And Review Loop
 
-Phase 4.5 focuses on stabilization, documentation sync, command verification, demo readiness, and frontend experience polish. Phase 5 and later are Post-MVP roadmap items, not required for MVP v0.1 completion.
+MVP v0.1 remains complete at Phase 0 through Phase 4. Phase 4.5 focuses on stabilization, documentation sync, command verification, demo readiness, and frontend experience polish. Phase 5 and later are Post-MVP roadmap items, not required for MVP v0.1 completion.
 
 This repository currently contains:
 
@@ -38,13 +38,14 @@ This repository currently contains:
 - prompt template runtime loading and AI call metadata logs
 - Dashboard page with learning progress, review queue, and rule-based next steps
 - local-only runtime AI settings page and API guarded by `ENABLE_RUNTIME_AI_SETTINGS`
+- minimal auth with register, login, logout, current user, HttpOnly Cookie, and JWT
 
 It does not yet contain:
 
-- authentication implementation
 - persisted problem system
 - mistake notebook
 - OJ or code execution
+- RBAC, OAuth, refresh token rotation, password reset, or production-grade permissions
 
 ## Planned Directory Structure
 
@@ -264,6 +265,31 @@ Phase 4.5 settings page:
 http://localhost:3000/settings
 ```
 
+Phase 5 auth APIs:
+
+```text
+POST http://localhost:8000/api/auth/register
+POST http://localhost:8000/api/auth/login
+POST http://localhost:8000/api/auth/logout
+GET http://localhost:8000/api/auth/me
+```
+
+Phase 5 frontend pages:
+
+```text
+http://localhost:3000/login
+http://localhost:3000/register
+```
+
+Minimal auth notes:
+
+- Login state is stored in the backend-issued `algomentor_session` HttpOnly Cookie.
+- The frontend sends API requests with credentials included and does not read or store the JWT.
+- `ENABLE_DEV_USER=true` keeps the development user fallback when no Cookie is present.
+- If a Cookie exists but is expired, invalid, or points to a missing user, the backend returns a safe auth error and does not fallback to the dev user.
+- `SECRET_KEY=change-me-in-production-32-bytes-long!!` is for local development only. Production must use a unique strong secret of at least 32 bytes.
+- Phase 5 does not implement RBAC, OAuth, refresh tokens, password reset, personal problem bank, ZIP import, judging, OJ, or RAG.
+
 Runtime AI settings:
 
 - `GET /api/settings/ai` reports the current effective AI configuration source without returning the API key.
@@ -311,11 +337,11 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: MVP v0.1 / Phase 4.5 Stabilization.
+Current: Post-MVP Phase 5 Minimal Auth And User System.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
 
-Next: Phase 5 Minimal Auth And User System.
+Next: Phase 6 Personal Problem Bank Basic.
 
 Later: Problem Bank, Mistake Notebook, ZIP Import, Judging, AI Diagnosis, RAG, and production hardening.
 

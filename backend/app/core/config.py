@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     enable_dev_user: bool = True
     dev_user_id: str = "00000000-0000-0000-0000-000000000001"
     enable_runtime_ai_settings: bool = False
+    secret_key: str = "change-me-in-production-32-bytes-long!!"
+    access_token_expire_minutes: int = 1440
     ai_provider: str = "openai_compatible"
     ai_base_url: str = ""
     ai_api_key: str = ""

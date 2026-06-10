@@ -68,6 +68,14 @@ export function TopicsListPage() {
         <section className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
           <p className="font-semibold">知识地图加载失败</p>
           <p className="mt-2 text-sm">{error}</p>
+          {error === "请先登录后继续使用。" ? (
+            <Link
+              className="mt-4 inline-flex font-semibold text-[#1d4ed8] underline-offset-4 hover:underline"
+              href="/login"
+            >
+              去登录
+            </Link>
+          ) : null}
         </section>
       ) : null}
 

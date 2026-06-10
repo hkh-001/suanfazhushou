@@ -148,6 +148,27 @@ Phase 3 AI rules:
 - Missing runtime prompt templates return `PROMPT_TEMPLATE_NOT_FOUND`.
 - The backend must not expose provider stack traces or full provider responses.
 
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
+Phase 5 auth rules:
+
+- Auth uses an HttpOnly `algomentor_session` Cookie with JWT access token.
+- Auth responses return user data only; they do not return JWTs or `hashed_password`.
+- Register accepts `email`, `username`, and `password`; `learning_stage` and `target_track` default to `beginner` and `algorithm_basics`.
+- Register duplicate email returns `EMAIL_ALREADY_REGISTERED`.
+- Register duplicate username returns `USERNAME_ALREADY_TAKEN`.
+- Login invalid email or password returns `INVALID_CREDENTIALS` without revealing whether the user exists.
+- Logout clears the Cookie only; it does not disable development-user fallback.
+- `GET /api/auth/me` returns the real Cookie user first.
+- `GET /api/auth/me` may fallback to dev user only when the Cookie is missing and `ENABLE_DEV_USER=true`.
+- If a Cookie exists but is expired, invalid, or references a missing user, the backend returns `TOKEN_EXPIRED`, `TOKEN_INVALID`, or `INVALID_SESSION` and does not fallback to dev user.
+- Phase 5 does not include RBAC, OAuth, refresh tokens, password reset, sessions table, or production permission management.
+
 Settings:
 
 - `GET /api/settings/ai`
@@ -176,13 +197,6 @@ Phase 4.5 AI settings rules:
 ## Post-MVP Planned APIs
 
 The APIs in this section are deferred/planned. They are not implemented in MVP v0.1 and must not be treated as current contracts.
-
-Auth, planned for Phase 5:
-
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
 
 Problem bank, planned for Phase 6 and Phase 7:
 

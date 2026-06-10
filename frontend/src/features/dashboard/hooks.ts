@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "@/lib/api/client";
+import { isAuthRequiredError } from "@/features/auth/hooks";
 import { fetchDashboardSummary } from "./api";
 import type { DashboardSummary } from "./types";
 
 function getErrorMessage(error: unknown): string {
+  if (isAuthRequiredError(error)) {
+    return "请先登录后继续使用。";
+  }
   if (error instanceof ApiError) {
     return error.message;
   }

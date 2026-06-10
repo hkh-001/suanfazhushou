@@ -29,6 +29,8 @@ Key ordering rules:
 
 Replace dev-user-only behavior with a minimal real user system.
 
+Status: implemented as the first Post-MVP phase with HttpOnly Cookie + JWT and development-user fallback.
+
 ### Dependencies
 
 - MVP v0.1 complete
@@ -42,6 +44,8 @@ Replace dev-user-only behavior with a minimal real user system.
 - Session or token-based authentication
 - User-owned learning records
 - Dev user remains available only for development when explicitly enabled
+- Frontend `/login` and `/register` pages
+- Top navigation login state
 
 ### Not Included
 
@@ -61,6 +65,7 @@ medium
 - Existing learning APIs use real authenticated users.
 - `ENABLE_DEV_USER` remains a development-only escape hatch.
 - Tests cover authenticated and unauthenticated access.
+- The frontend does not store JWTs in browser storage.
 
 ## Phase 6: Personal Problem Bank Basic
 
