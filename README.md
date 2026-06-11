@@ -311,9 +311,12 @@ http://localhost:3000/problems/{id}
 Problem bank notes:
 
 - Problems are owned by the current authenticated user.
+- Problems display a per-user sequence number such as `#1`, `#2`, backed by `display_id`.
+- Deleted problem numbers are not reused.
 - The frontend does not send `user_id`; ownership comes from the backend session.
 - `DELETE /api/problems/{id}` hard-deletes the user's own problem.
 - Phase 6 does not save AI-generated problems, import ZIP files, run submissions, or judge code.
+- Saving AI-generated problems to the problem bank remains planned for Phase 7.
 
 Runtime AI settings:
 

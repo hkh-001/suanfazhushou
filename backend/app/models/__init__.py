@@ -1,5 +1,5 @@
 from app.models.learning_record import LearningRecord
-from app.models.problem import Problem, ProblemTag
+from app.models.problem import Problem, ProblemTag, UserProblemCounter
 from app.models.topic import Topic, TopicDependency
 from app.models.user import User
 from app.models.ai_call_log import AICallLog
@@ -14,4 +14,5 @@ __all__ = [
     "Topic",
     "TopicDependency",
     "User",
+    "UserProblemCounter",
 ]

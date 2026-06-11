@@ -9,6 +9,7 @@ from app.models.problem import Problem
 from app.models.topic import Topic
 from app.models.user import User
 from app.repositories.problems import (
+    allocate_problem_display_id,
     count_user_problems,
     create_problem as insert_problem,
     delete_problem as remove_problem,
@@ -152,6 +153,7 @@ def create_problem(db: Session, *, user: User, payload: ProblemCreate) -> Proble
 
     topics = _resolve_topics(db, payload.topic_ids)
     problem = Problem(
+        display_id=allocate_problem_display_id(db, user_id=user.id),
         title=payload.title,
         slug=slug,
         source=payload.source,

@@ -513,6 +513,7 @@ Phase 6 implemented baseline:
 - Problems are scoped by `created_by_user_id`.
 - Users cannot view, update, or delete other users' problems.
 - `slug` is unique within one user's problem bank, not globally.
+- `display_id` is unique within one user's problem bank and is not reused after hard delete.
 - Topic association follows the existing visible published topics rule.
 - ZIP import, judging, submissions, and AI-generated problem persistence remain deferred.
 

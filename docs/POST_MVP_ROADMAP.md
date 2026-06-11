@@ -105,6 +105,7 @@ medium
 - External sources store metadata and attribution without copying licensed statements blindly.
 - Problem list/detail pages are usable without judging.
 - `problems` and `problem_tags` migrations are reproducible and rollbackable.
+- Personal problems have per-user visible numbering through `display_id`.
 - Frontend `/problems`, `/problems/new`, and `/problems/{id}` build successfully.
 
 ## Phase 7: Save AI-Generated Problems To Problem Bank

@@ -9,6 +9,7 @@ export type ProblemTopicTag = {
 
 export type ProblemListItem = {
   id: string;
+  display_id: number;
   title: string;
   slug: string;
   source: string | null;

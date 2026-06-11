@@ -13,6 +13,7 @@ class Problem(Base):
     __tablename__ = "problems"
     __table_args__ = (
         UniqueConstraint("created_by_user_id", "slug", name="uq_problems_user_slug"),
+        UniqueConstraint("created_by_user_id", "display_id", name="uq_problems_user_display_id"),
         CheckConstraint(
             "difficulty IN ('beginner', 'basic', 'intermediate', 'advanced')",
             name="ck_problems_difficulty",
@@ -21,6 +22,7 @@ class Problem(Base):
     )
 
     id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
+    display_id: Mapped[int] = mapped_column(Integer)
     title: Mapped[str] = mapped_column(String(160))
     slug: Mapped[str] = mapped_column(String(180))
     source: Mapped[str | None] = mapped_column(String(80), nullable=True)
@@ -65,3 +67,19 @@ class ProblemTag(Base):
 
     problem = relationship("Problem", back_populates="problem_tags")
     topic = relationship("Topic", back_populates="problem_tags")
+
+
+class UserProblemCounter(Base):
+    __tablename__ = "user_problem_counters"
+
+    user_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    next_display_id: Mapped[int] = mapped_column(Integer)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )

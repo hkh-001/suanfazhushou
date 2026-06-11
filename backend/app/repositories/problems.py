@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.problem import Problem, ProblemTag
@@ -51,6 +51,20 @@ def get_published_topics_by_ids(db: Session, topic_ids: list[UUID]) -> list[Topi
         return []
     stmt = select(Topic).where(Topic.id.in_(topic_ids), Topic.status == "published")
     return list(db.scalars(stmt).all())
+
+
+def allocate_problem_display_id(db: Session, *, user_id: UUID) -> int:
+    stmt = text(
+        """
+        INSERT INTO user_problem_counters (user_id, next_display_id, updated_at)
+        VALUES (:user_id, 2, now())
+        ON CONFLICT (user_id) DO UPDATE
+        SET next_display_id = user_problem_counters.next_display_id + 1,
+            updated_at = now()
+        RETURNING user_problem_counters.next_display_id - 1
+        """
+    )
+    return int(db.execute(stmt, {"user_id": user_id}).scalar_one())
 
 
 def create_problem(db: Session, problem: Problem, topics: list[Topic]) -> Problem:

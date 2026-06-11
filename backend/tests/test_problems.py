@@ -2,11 +2,11 @@ from datetime import datetime, timezone
 from uuid import UUID
 from uuid import uuid4
 
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 
 from app.core.config import settings
 from app.core.security import SESSION_COOKIE_NAME
-from app.models.problem import Problem
+from app.models.problem import Problem, UserProblemCounter
 from app.models.topic import Topic
 from app.models.user import User
 
@@ -60,6 +60,7 @@ def test_create_problem_success_and_owner(client, db_session) -> None:
     problem = _create_problem(client)
 
     assert problem["title"] == "Two Sum Practice"
+    assert problem["display_id"] == 1
     assert problem["slug"] == "two-sum-practice"
     assert problem["created_by_user_id"] == user["id"]
     assert problem["is_ai_generated"] is False
@@ -68,6 +69,43 @@ def test_create_problem_success_and_owner(client, db_session) -> None:
     db_problem = db_session.get(Problem, problem["id"])
     assert db_problem is not None
     assert str(db_problem.created_by_user_id) == user["id"]
+    assert db_problem.display_id == 1
+
+
+def test_display_id_increments_per_user(client) -> None:
+    _register(client)
+
+    first = _create_problem(client, title="First")
+    second = _create_problem(client, title="Second")
+
+    assert first["display_id"] == 1
+    assert second["display_id"] == 2
+
+
+def test_display_id_is_independent_per_user(client) -> None:
+    _register(client, _user_payload("owner-a"))
+    first = _create_problem(client, title="Owner A")
+    client.cookies.clear()
+    _register(client, _user_payload("owner-b"))
+
+    second = _create_problem(client, title="Owner B")
+
+    assert first["display_id"] == 1
+    assert second["display_id"] == 1
+
+
+def test_display_id_not_reused_after_delete(client) -> None:
+    _register(client)
+    first = _create_problem(client, title="First")
+    second = _create_problem(client, title="Second")
+
+    deleted = client.delete(f"/api/problems/{second['id']}")
+    third = _create_problem(client, title="Third")
+
+    assert deleted.status_code == 200
+    assert first["display_id"] == 1
+    assert second["display_id"] == 2
+    assert third["display_id"] == 3
 
 
 def test_create_problem_without_login_returns_auth_required(client, monkeypatch) -> None:
@@ -177,6 +215,7 @@ def test_list_problem_order_is_newest_first(client, db_session) -> None:
     user = _register(client)
     old = Problem(
         id=uuid4(),
+        display_id=1,
         title="Old",
         slug="old",
         difficulty="beginner",
@@ -187,6 +226,7 @@ def test_list_problem_order_is_newest_first(client, db_session) -> None:
     )
     new = Problem(
         id=uuid4(),
+        display_id=2,
         title="New",
         slug="new",
         difficulty="beginner",
@@ -279,6 +319,33 @@ def test_delete_problem_hard_deletes(client) -> None:
     assert deleted.json() == {"data": {"success": True}}
     assert fetched.status_code == 404
     assert fetched.json()["error"]["code"] == "PROBLEM_NOT_FOUND"
+
+
+def test_display_id_unique_constraint_exists(db_session) -> None:
+    rows = db_session.execute(
+        text(
+            """
+            SELECT constraint_name
+            FROM information_schema.table_constraints
+            WHERE table_name = 'problems'
+              AND constraint_type = 'UNIQUE'
+              AND constraint_name = 'uq_problems_user_display_id'
+            """
+        )
+    ).all()
+
+    assert rows
+
+
+def test_problem_counter_initializes_next_display_id(client, db_session) -> None:
+    user = _register(client)
+    first = _create_problem(client)
+
+    counter = db_session.get(UserProblemCounter, UUID(user["id"]))
+
+    assert first["display_id"] == 1
+    assert counter is not None
+    assert counter.next_display_id == 2
 
 
 def test_dev_user_fallback_owns_problem(client, dev_user, db_session) -> None:

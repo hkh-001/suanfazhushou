@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models.ai_call_log import AICallLog
 from app.models.learning_record import LearningRecord
-from app.models.problem import Problem
+from app.models.problem import Problem, UserProblemCounter
 from app.models.topic import Topic
 from app.models.user import User
 from app.services.settings.ai_runtime_settings import clear_runtime_ai_settings
@@ -66,6 +66,7 @@ def dev_user(db_session: Session) -> User:
     db_session.execute(delete(AICallLog).where(AICallLog.user_id == dev_user_id))
     db_session.execute(delete(LearningRecord).where(LearningRecord.user_id == dev_user_id))
     db_session.execute(delete(Problem).where(Problem.created_by_user_id == dev_user_id))
+    db_session.execute(delete(UserProblemCounter).where(UserProblemCounter.user_id == dev_user_id))
     db_session.execute(delete(User).where(User.id == dev_user_id))
     db_session.flush()
     user = User(

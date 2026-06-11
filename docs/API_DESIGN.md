@@ -209,11 +209,15 @@ Rules:
 - All problem APIs require `get_current_user`.
 - Ownership comes from the backend session; the frontend must not send `user_id`.
 - List and detail endpoints only return problems owned by the current user.
+- List and detail responses include `display_id`, a per-user visible sequence number.
 - Other users' problems return `PROBLEM_NOT_FOUND`.
 - `GET /api/problems` returns `PaginatedResponse` and sorts by `created_at DESC, id DESC`.
 - `slug` is unique per user through `(created_by_user_id, slug)`.
+- `display_id` is unique per user through `(created_by_user_id, display_id)`.
 - `DELETE /api/problems/{id}` hard-deletes the current user's problem.
+- Hard delete does not reuse `display_id`; future submissions, mistake notes, or judge records may require a soft-delete strategy.
 - `topic_ids` can associate problems with currently visible published topics.
+- `/api/problems` returns the current user's own problems and does not filter by `is_published`.
 - Phase 6 does not persist AI-generated problems, import ZIP files, create submissions, or judge code.
 
 Problem errors:

@@ -75,7 +75,10 @@ export function ProblemDetailPage({ id }: { id: string }) {
 
   return (
     <AppShell>
-      <PageHeader description={`编辑题目内容、知识点关联和题解信息。当前 slug：${data.slug}`} title="编辑题目" />
+      <PageHeader
+        description={`编辑 #${data.display_id} 的题目内容、知识点关联和题解信息。当前 slug：${data.slug}`}
+        title="编辑题目"
+      />
       <ProblemForm
         error={updateProblem.error ?? deleteProblem.error}
         extraActions={

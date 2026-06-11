@@ -85,7 +85,12 @@ export function ProblemListPage() {
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold text-[#0f172a]">{problem.title}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[#dbeafe] px-3 py-1 text-xs font-semibold text-[#1d4ed8]">
+                      #{problem.display_id}
+                    </span>
+                    <h2 className="text-xl font-semibold text-[#0f172a]">{problem.title}</h2>
+                  </div>
                   <p className="mt-2 text-sm text-[#64748b]">slug: {problem.slug}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs font-semibold">

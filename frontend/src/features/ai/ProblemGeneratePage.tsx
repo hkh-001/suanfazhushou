@@ -45,6 +45,9 @@ export function ProblemGeneratePage() {
         className="grid gap-5 rounded-xl border border-[#dbeafe] bg-white/95 p-5 shadow-sm shadow-blue-100/60"
         onSubmit={submit}
       >
+        <p className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-3 text-sm font-semibold text-[#1d4ed8]">
+          保存 AI 生成题到个人题库将在 Phase 7 支持。本页当前只负责生成题目。
+        </p>
         {topicsError ? (
           <p className="text-sm font-semibold text-red-700">知识点加载失败：{topicsError}</p>
         ) : null}
