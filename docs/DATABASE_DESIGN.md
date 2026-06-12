@@ -144,7 +144,7 @@ created_at
 
 ## problems
 
-Implemented in Post-MVP Phase 6. Not part of MVP v0.1.
+Implemented in Post-MVP Phase 6. Phase 7 reuses this table to store explicitly saved AI-generated problems. Not part of MVP v0.1.
 
 ```text
 id
@@ -176,14 +176,15 @@ updated_at
 Notes:
 
 - `source_url` stores external attribution.
-- `is_ai_generated=true` is required for AI-generated problems.
+- `is_ai_generated=true` is required for AI-generated problems saved in Phase 7.
+- Phase 7 saved generated problems force `source="ai_generated"` and do not accept ownership or publication flags from the frontend.
 - `is_published` is reserved for future publishing; Phase 6 problem bank shows only the current user's own problems.
 - `created_by_user_id` owns the problem and must come from backend auth, not frontend input.
 - `(created_by_user_id, slug)` is unique; slug is not globally unique.
 - `(created_by_user_id, display_id)` is unique and provides a per-user visible sequence such as `#1`.
 - Deleted `display_id` values are not reused.
 - Avoid copying complete third-party statements unless the license allows it.
-- Phase 6 does not create submissions, test cases, judging records, or mistake notes.
+- Phase 6 and Phase 7 do not create submissions, test cases, judging records, or mistake notes.
 
 ## user_problem_counters
 
@@ -198,7 +199,7 @@ updated_at
 Notes:
 
 - Used only to allocate per-user problem `display_id` values.
-- `next_display_id` increments when a problem is created.
+- `next_display_id` increments when a manual or AI-generated problem is created.
 - Hard delete does not decrement the counter, so display ids are not reused.
 
 ## problem_tags

@@ -507,7 +507,7 @@ Risk signals:
 
 ## 3.2 Problem Bank Pressure Test
 
-Phase 6 implemented baseline:
+Phase 6-7 implemented baseline:
 
 - Manual problem CRUD exists for the current authenticated user.
 - Problems are scoped by `created_by_user_id`.
@@ -515,7 +515,8 @@ Phase 6 implemented baseline:
 - `slug` is unique within one user's problem bank, not globally.
 - `display_id` is unique within one user's problem bank and is not reused after hard delete.
 - Topic association follows the existing visible published topics rule.
-- ZIP import, judging, submissions, and AI-generated problem persistence remain deferred.
+- AI-generated problem persistence is supported only through an explicit user save action.
+- ZIP import, judging, and submissions remain deferred.
 
 Questions:
 
@@ -530,6 +531,8 @@ Pass criteria:
 - Problem ownership is enforced.
 - Problem source/type is explicit.
 - AI-generated problems are marked `is_ai_generated=true`.
+- Saved AI-generated problems share the same per-user `display_id` sequence as manual problems.
+- AI-generated problems are not silently persisted without user action.
 - Problem bank exists before ZIP import and judging.
 
 Risk signals:

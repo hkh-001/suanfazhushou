@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 ProblemDifficulty = Literal["beginner", "basic", "intermediate", "advanced"]
+GeneratedProblemDifficulty = Literal["beginner", "basic", "intermediate"]
 
 
 def _strip_or_none(value: str | None) -> str | None:
@@ -119,6 +120,47 @@ class ProblemUpdate(BaseModel):
     @classmethod
     def strip_optional_update_text(cls, value: str | None) -> str | None:
         return _strip_or_none(value)
+
+
+class GeneratedProblemSaveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    topic_id: UUID | None = None
+    difficulty: GeneratedProblemDifficulty
+    title: str = Field(min_length=1, max_length=160)
+    statement: str = Field(min_length=1, max_length=20000)
+    input_format: str = Field(min_length=1, max_length=5000)
+    output_format: str = Field(min_length=1, max_length=5000)
+    constraints: str | None = Field(default=None, max_length=5000)
+    sample_input: str | None = Field(default=None, max_length=5000)
+    sample_output: str | None = Field(default=None, max_length=5000)
+    hints: list[str] = Field(default_factory=list, max_length=10)
+    solution_idea: str | None = Field(default=None, max_length=20000)
+    requirements: str | None = Field(default=None, max_length=1500)
+
+    @field_validator("title", "statement", "input_format", "output_format")
+    @classmethod
+    def strip_generated_required_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Field is required")
+        return stripped
+
+    @field_validator(
+        "constraints",
+        "sample_input",
+        "sample_output",
+        "solution_idea",
+        "requirements",
+    )
+    @classmethod
+    def strip_generated_optional_text(cls, value: str | None) -> str | None:
+        return _strip_or_none(value)
+
+    @field_validator("hints")
+    @classmethod
+    def strip_hints(cls, value: list[str]) -> list[str]:
+        return [hint.strip() for hint in value if hint.strip()]
 
 
 class ProblemListItem(BaseModel):

@@ -21,6 +21,7 @@ from app.repositories.problems import (
 )
 from app.schemas.common import PaginatedResponse, Pagination
 from app.schemas.problem import (
+    GeneratedProblemSaveRequest,
     ProblemCreate,
     ProblemDeleteResult,
     ProblemDetail,
@@ -171,6 +172,34 @@ def create_problem(db: Session, *, user: User, payload: ProblemCreate) -> Proble
         solution_code_cpp=payload.solution_code_cpp,
         solution_code_python=payload.solution_code_python,
         is_ai_generated=False,
+        is_published=False,
+        created_by_user_id=user.id,
+    )
+    return _to_detail(insert_problem(db, problem, topics))
+
+
+def save_ai_generated_problem(db: Session, *, user: User, payload: GeneratedProblemSaveRequest) -> ProblemDetail:
+    topics = _resolve_topics(db, [payload.topic_id] if payload.topic_id else [])
+    hint = "\n".join(f"- {hint}" for hint in payload.hints) or None
+    problem = Problem(
+        display_id=allocate_problem_display_id(db, user_id=user.id),
+        title=payload.title,
+        slug=_generate_slug(db, user_id=user.id, title=payload.title),
+        source="ai_generated",
+        source_url=None,
+        difficulty=payload.difficulty,
+        estimated_minutes=None,
+        description_markdown=payload.statement,
+        input_format=payload.input_format,
+        output_format=payload.output_format,
+        constraints=payload.constraints,
+        sample_input=payload.sample_input,
+        sample_output=payload.sample_output,
+        hint=hint,
+        solution_markdown=payload.solution_idea,
+        solution_code_cpp=None,
+        solution_code_python=None,
+        is_ai_generated=True,
         is_published=False,
         created_by_user_id=user.id,
     )

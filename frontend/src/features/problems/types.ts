@@ -1,4 +1,5 @@
 export type ProblemDifficulty = "beginner" | "basic" | "intermediate" | "advanced";
+export type GeneratedProblemDifficulty = "beginner" | "basic" | "intermediate";
 
 export type ProblemTopicTag = {
   id: string;
@@ -82,4 +83,19 @@ export type ProblemDeleteResponse = {
   data: {
     success: boolean;
   };
+};
+
+export type GeneratedProblemSavePayload = {
+  topic_id?: string | null;
+  difficulty: GeneratedProblemDifficulty;
+  title: string;
+  statement: string;
+  input_format: string;
+  output_format: string;
+  constraints?: string | null;
+  sample_input?: string | null;
+  sample_output?: string | null;
+  hints: string[];
+  solution_idea?: string | null;
+  requirements?: string | null;
 };

@@ -298,6 +298,7 @@ GET http://localhost:8000/api/problems
 GET http://localhost:8000/api/problems/{id}
 PUT http://localhost:8000/api/problems/{id}
 DELETE http://localhost:8000/api/problems/{id}
+POST http://localhost:8000/api/problems/save-ai-generated
 ```
 
 Phase 6 frontend pages:
@@ -315,8 +316,9 @@ Problem bank notes:
 - Deleted problem numbers are not reused.
 - The frontend does not send `user_id`; ownership comes from the backend session.
 - `DELETE /api/problems/{id}` hard-deletes the user's own problem.
-- Phase 6 does not save AI-generated problems, import ZIP files, run submissions, or judge code.
-- Saving AI-generated problems to the problem bank remains planned for Phase 7.
+- Phase 7 supports explicit user-triggered saving from `/problems/generate` into the personal problem bank.
+- Saved AI-generated problems use `is_ai_generated=true`, `source="ai_generated"`, and the same per-user `display_id` sequence as manual problems.
+- ZIP import, submissions, judging, code execution, and batch generation remain deferred.
 
 Runtime AI settings:
 
@@ -365,11 +367,11 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 6 Personal Problem Bank Basic.
+Current: Post-MVP Phase 7 Save AI-Generated Problems To Problem Bank.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
 
-Next: Phase 7 Save AI-Generated Problems To Problem Bank.
+Next: Phase 8 Code Review Persistence And Mistake Notebook.
 
 Later: Mistake Notebook, ZIP Import, Judging, AI Diagnosis, RAG, and production hardening.
 

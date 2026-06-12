@@ -203,6 +203,7 @@ Implemented in Post-MVP Phase 6. These APIs are not part of MVP v0.1, but are cu
 - `GET /api/problems/{id}`
 - `PUT /api/problems/{id}`
 - `DELETE /api/problems/{id}`
+- `POST /api/problems/save-ai-generated`
 
 Rules:
 
@@ -218,7 +219,11 @@ Rules:
 - Hard delete does not reuse `display_id`; future submissions, mistake notes, or judge records may require a soft-delete strategy.
 - `topic_ids` can associate problems with currently visible published topics.
 - `/api/problems` returns the current user's own problems and does not filter by `is_published`.
-- Phase 6 does not persist AI-generated problems, import ZIP files, create submissions, or judge code.
+- Phase 7 persists AI-generated problems only when the user explicitly clicks save.
+- `POST /api/problems/save-ai-generated` must be registered before `/api/problems/{id}` so `save-ai-generated` is not parsed as a problem id.
+- Saved generated problems force `is_ai_generated=true`, `source="ai_generated"`, `is_published=false`, and current-user ownership on the backend.
+- Saved generated problems share the same per-user `display_id` sequence as manually created problems.
+- Problem bank APIs still do not import ZIP files, create submissions, or judge code.
 
 Problem errors:
 
@@ -230,10 +235,6 @@ Problem errors:
 ## Post-MVP Planned APIs
 
 The APIs in this section are deferred/planned. They are not implemented in MVP v0.1 and must not be treated as current contracts.
-
-AI-generated problem persistence, planned for Phase 7:
-
-- `POST /api/problems/{id}/save-ai-generated`
 
 ZIP import, planned for Phase 9:
 

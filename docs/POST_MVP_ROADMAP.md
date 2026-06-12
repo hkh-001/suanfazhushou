@@ -110,6 +110,8 @@ medium
 
 ## Phase 7: Save AI-Generated Problems To Problem Bank
 
+Status: implemented in Post-MVP Phase 7.
+
 ### Goal
 
 Allow users to save generated practice problems into their personal problem bank.
@@ -141,6 +143,7 @@ medium
 
 - AI-generated problems can be saved explicitly by the user.
 - Saved generated problems appear in the user's problem bank.
+- Saved generated problems share the personal problem bank `display_id` sequence.
 - Generated content is not silently persisted without user action.
 - Logs still avoid storing API keys, full prompts, or unrelated sensitive content.
 

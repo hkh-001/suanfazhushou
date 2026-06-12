@@ -7,8 +7,22 @@ from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.common import DataResponse, PaginatedResponse
-from app.schemas.problem import ProblemCreate, ProblemDeleteResult, ProblemDetail, ProblemListItem, ProblemUpdate
-from app.services.problems import create_problem, delete_problem, get_problem, list_problems, update_problem
+from app.schemas.problem import (
+    GeneratedProblemSaveRequest,
+    ProblemCreate,
+    ProblemDeleteResult,
+    ProblemDetail,
+    ProblemListItem,
+    ProblemUpdate,
+)
+from app.services.problems import (
+    create_problem,
+    delete_problem,
+    get_problem,
+    list_problems,
+    save_ai_generated_problem,
+    update_problem,
+)
 
 router = APIRouter(prefix="/problems", tags=["problems"])
 
@@ -30,6 +44,15 @@ def list_problems_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> PaginatedResponse[ProblemListItem]:
     return list_problems(db, user=current_user, page=page, page_size=page_size)
+
+
+@router.post("/save-ai-generated", response_model=DataResponse[ProblemDetail])
+def save_ai_generated_problem_endpoint(
+    payload: GeneratedProblemSaveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DataResponse[ProblemDetail]:
+    return DataResponse(data=save_ai_generated_problem(db, user=current_user, payload=payload))
 
 
 @router.get("/{problem_id}", response_model=DataResponse[ProblemDetail])

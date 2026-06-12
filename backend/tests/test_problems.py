@@ -41,6 +41,23 @@ def _problem_payload(**overrides) -> dict:
     return payload
 
 
+def _generated_problem_payload(**overrides) -> dict:
+    payload = {
+        "title": "AI Prefix Sum Practice",
+        "difficulty": "basic",
+        "statement": "Given an array, answer range sum queries.",
+        "input_format": "The first line contains n and q.",
+        "output_format": "Print one answer per query.",
+        "constraints": "1 <= n, q <= 100000",
+        "sample_input": "5 1\n1 2 3 4 5\n1 3",
+        "sample_output": "6",
+        "hints": ["Build prefix sums.", "Use sum[r] - sum[l - 1]."],
+        "solution_idea": "Precompute prefix sums to answer each query in O(1).",
+    }
+    payload.update(overrides)
+    return payload
+
+
 def _register(client, payload: dict | None = None) -> dict:
     user_payload = payload or _user_payload()
     response = client.post("/api/auth/register", json=user_payload)
@@ -50,6 +67,12 @@ def _register(client, payload: dict | None = None) -> dict:
 
 def _create_problem(client, **overrides) -> dict:
     response = client.post("/api/problems", json=_problem_payload(**overrides))
+    assert response.status_code == 200
+    return response.json()["data"]
+
+
+def _save_generated_problem(client, **overrides) -> dict:
+    response = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(**overrides))
     assert response.status_code == 200
     return response.json()["data"]
 
@@ -70,6 +93,144 @@ def test_create_problem_success_and_owner(client, db_session) -> None:
     assert db_problem is not None
     assert str(db_problem.created_by_user_id) == user["id"]
     assert db_problem.display_id == 1
+
+
+def test_save_ai_generated_problem_success_and_forced_metadata(client, db_session) -> None:
+    user = _register(client)
+
+    problem = _save_generated_problem(client)
+
+    assert problem["title"] == "AI Prefix Sum Practice"
+    assert problem["display_id"] == 1
+    assert problem["created_by_user_id"] == user["id"]
+    assert problem["source"] == "ai_generated"
+    assert problem["source_url"] is None
+    assert problem["is_ai_generated"] is True
+    assert problem["is_published"] is False
+    assert problem["description_markdown"] == "Given an array, answer range sum queries."
+    assert problem["hint"] == "- Build prefix sums.\n- Use sum[r] - sum[l - 1]."
+    assert problem["solution_markdown"] == "Precompute prefix sums to answer each query in O(1)."
+
+    db_problem = db_session.get(Problem, problem["id"])
+    assert db_problem is not None
+    assert str(db_problem.created_by_user_id) == user["id"]
+    assert db_problem.is_ai_generated is True
+
+
+def test_save_ai_generated_problem_rejects_client_owned_fields(client) -> None:
+    _register(client)
+
+    response = client.post(
+        "/api/problems/save-ai-generated",
+        json=_generated_problem_payload(
+            user_id=str(uuid4()),
+            display_id=99,
+            created_by_user_id=str(uuid4()),
+            is_ai_generated=False,
+            source="manual",
+            is_published=True,
+        ),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_save_ai_generated_problem_validates_required_fields_and_difficulty(client) -> None:
+    _register(client)
+
+    title = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(title="   "))
+    statement = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(statement=""))
+    input_format = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(input_format=" "))
+    output_format = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(output_format=""))
+    difficulty = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(difficulty="advanced"))
+
+    for response in (title, statement, input_format, output_format, difficulty):
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_save_ai_generated_problem_can_associate_published_topic(client, published_topic) -> None:
+    _register(client)
+
+    problem = _save_generated_problem(client, topic_id=str(published_topic.id))
+
+    assert len(problem["topic_tags"]) == 1
+    assert problem["topic_tags"][0]["id"] == str(published_topic.id)
+
+
+def test_save_ai_generated_problem_rejects_missing_or_unpublished_topic(client, db_session) -> None:
+    _register(client)
+    unpublished = Topic(
+        title="Draft AI topic",
+        slug=f"draft-ai-{uuid4().hex}",
+        category="Draft",
+        level="beginner",
+        difficulty_score=1,
+        summary="Draft",
+        content_markdown="Draft",
+        estimated_minutes=10,
+        status="draft",
+        order_index=1,
+    )
+    db_session.add(unpublished)
+    db_session.commit()
+
+    missing = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(topic_id=str(uuid4())))
+    draft = client.post(
+        "/api/problems/save-ai-generated",
+        json=_generated_problem_payload(topic_id=str(unpublished.id)),
+    )
+
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "TOPIC_NOT_FOUND"
+    assert draft.status_code == 404
+    assert draft.json()["error"]["code"] == "TOPIC_NOT_FOUND"
+
+
+def test_save_ai_generated_problem_without_login_returns_auth_required(client, monkeypatch) -> None:
+    client.cookies.clear()
+    monkeypatch.setattr(settings, "enable_dev_user", False)
+
+    response = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload())
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTH_REQUIRED"
+
+
+def test_save_ai_generated_problem_uses_shared_display_id_sequence(client) -> None:
+    _register(client)
+    manual = _create_problem(client, title="Manual")
+    generated = _save_generated_problem(client, title="Generated")
+    after = _create_problem(client, title="Manual After")
+
+    assert manual["display_id"] == 1
+    assert generated["display_id"] == 2
+    assert after["display_id"] == 3
+
+
+def test_save_ai_generated_problem_appears_in_list_and_detail(client) -> None:
+    _register(client)
+    problem = _save_generated_problem(client)
+
+    listed = client.get("/api/problems")
+    detail = client.get(f"/api/problems/{problem['id']}")
+
+    assert listed.status_code == 200
+    assert listed.json()["data"][0]["id"] == problem["id"]
+    assert listed.json()["data"][0]["display_id"] == problem["display_id"]
+    assert detail.status_code == 200
+    assert detail.json()["data"]["id"] == problem["id"]
+    assert detail.json()["data"]["is_ai_generated"] is True
+
+
+def test_save_ai_generated_problem_route_is_not_treated_as_problem_id(client) -> None:
+    _register(client)
+
+    response = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload())
+
+    assert response.status_code == 200
+    assert response.json()["data"]["title"] == "AI Prefix Sum Practice"
 
 
 def test_display_id_increments_per_user(client) -> None:

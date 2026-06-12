@@ -1,6 +1,13 @@
 import { apiFetch } from "@/lib/api/client";
 
-import type { PaginatedProblems, ProblemDeleteResponse, ProblemPayload, ProblemResponse, ProblemUpdatePayload } from "./types";
+import type {
+  GeneratedProblemSavePayload,
+  PaginatedProblems,
+  ProblemDeleteResponse,
+  ProblemPayload,
+  ProblemResponse,
+  ProblemUpdatePayload
+} from "./types";
 
 export function fetchProblems(page = 1, pageSize = 20): Promise<PaginatedProblems> {
   return apiFetch<PaginatedProblems>(`/problems?page=${page}&page_size=${pageSize}`);
@@ -12,6 +19,13 @@ export function fetchProblem(id: string): Promise<ProblemResponse> {
 
 export function createProblem(payload: ProblemPayload): Promise<ProblemResponse> {
   return apiFetch<ProblemResponse>("/problems", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function saveGeneratedProblem(payload: GeneratedProblemSavePayload): Promise<ProblemResponse> {
+  return apiFetch<ProblemResponse>("/problems/save-ai-generated", {
     method: "POST",
     body: JSON.stringify(payload)
   });
