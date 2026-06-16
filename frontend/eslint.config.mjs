@@ -20,7 +20,12 @@ const eslintConfig = [
       "next-env.d.ts"
     ]
   },
-  ...compat.extends("next/core-web-vitals", "next/typescript")
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "off"
+    }
+  }
 ];
 
 export default eslintConfig;

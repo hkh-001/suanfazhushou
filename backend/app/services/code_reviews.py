@@ -30,6 +30,7 @@ from app.schemas.common import PaginatedResponse, Pagination
 CODE_REVIEW_NOT_FOUND = {"code": "CODE_REVIEW_NOT_FOUND", "message": "Code review not found"}
 PROBLEM_NOT_FOUND = {"code": "PROBLEM_NOT_FOUND", "message": "Problem not found"}
 TOPIC_NOT_FOUND = {"code": "TOPIC_NOT_FOUND", "message": "Topic not found"}
+LIST_ANALYSIS_SUMMARY_LENGTH = 200
 
 
 def _not_found() -> HTTPException:
@@ -48,14 +49,20 @@ def _problem_ref(problem: Problem | None) -> CodeReviewProblemRef | None:
     return CodeReviewProblemRef(id=problem.id, display_id=problem.display_id, title=problem.title)
 
 
-def _to_list_item(code_review: CodeReview) -> CodeReviewListItem:
+def _analysis_summary(analysis_result: str) -> str:
+    if len(analysis_result) <= LIST_ANALYSIS_SUMMARY_LENGTH:
+        return analysis_result
+    return f"{analysis_result[:LIST_ANALYSIS_SUMMARY_LENGTH]}..."
+
+
+def _to_list_item(code_review: CodeReview, *, full_analysis: bool = False) -> CodeReviewListItem:
     return CodeReviewListItem(
         id=code_review.id,
         topic_id=code_review.topic_id,
         problem_id=code_review.problem_id,
         language=code_review.language,
         question=code_review.question,
-        analysis_result=code_review.analysis_result,
+        analysis_result=code_review.analysis_result if full_analysis else _analysis_summary(code_review.analysis_result),
         model=code_review.model,
         prompt_type=code_review.prompt_type,
         input_tokens=code_review.input_tokens,
@@ -68,7 +75,7 @@ def _to_list_item(code_review: CodeReview) -> CodeReviewListItem:
 
 
 def _to_detail(code_review: CodeReview) -> CodeReviewDetail:
-    return CodeReviewDetail(**_to_list_item(code_review).model_dump(), code=code_review.code)
+    return CodeReviewDetail(**_to_list_item(code_review, full_analysis=True).model_dump(), code=code_review.code)
 
 
 def _ensure_topic(db: Session, topic_id: UUID | None) -> None:

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
@@ -9,7 +9,6 @@ import { PageHeader } from "@/components/PageHeader";
 
 import { formStateFromMistake, MistakeForm, payloadFromMistakeForm } from "./MistakeFormPage";
 import { useDeleteMistakeNote, useMistakeNote, useUpdateMistakeNote } from "./hooks";
-import type { MistakeNotePayload } from "./types";
 
 export function MistakeDetailPage({ id }: { id: string }) {
   const router = useRouter();
@@ -17,7 +16,9 @@ export function MistakeDetailPage({ id }: { id: string }) {
   const { submit: update, loading: updating, error: updateError, success } = useUpdateMistakeNote(id);
   const { submit: remove, loading: deleting, error: deleteError } = useDeleteMistakeNote(id);
   const [state, setState] = useState(() => (data ? formStateFromMistake(data) : null));
-  const canSubmit = useMemo(() => Boolean(state?.title.trim() && state.root_cause.trim()), [state]);
+  const displayData = data;
+  const displayState = state ?? (data ? formStateFromMistake(data) : null);
+  const canSubmit = Boolean(displayState?.title.trim() && displayState.root_cause.trim());
 
   useEffect(() => {
     if (data) {
@@ -27,12 +28,11 @@ export function MistakeDetailPage({ id }: { id: string }) {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!state || !canSubmit) {
+    if (!displayState || !canSubmit) {
       return;
     }
     try {
-      await update(payloadFromMistakeForm(state) as Partial<MistakeNotePayload>);
-      await reload();
+      await update(payloadFromMistakeForm(displayState));
     } catch {
       // The hook owns the user-facing error state.
     }
@@ -58,7 +58,7 @@ export function MistakeDetailPage({ id }: { id: string }) {
     );
   }
 
-  if (error || !data || !state) {
+  if (error || !displayData || !displayState) {
     return (
       <AppShell>
         <section className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
@@ -77,13 +77,13 @@ export function MistakeDetailPage({ id }: { id: string }) {
       <PageHeader
         actions={
           <>
-            {data.problem ? (
-              <Link className="rounded-md border border-[#bfdbfe] bg-white px-4 py-2 text-sm font-semibold text-[#1d4ed8]" href={`/problems/${data.problem.id}`}>
+            {displayData.problem ? (
+              <Link className="rounded-md border border-[#bfdbfe] bg-white px-4 py-2 text-sm font-semibold text-[#1d4ed8]" href={`/problems/${displayData.problem.id}`}>
                 查看关联题目
               </Link>
             ) : null}
-            {data.code_review ? (
-              <Link className="rounded-md border border-[#bfdbfe] bg-white px-4 py-2 text-sm font-semibold text-[#1d4ed8]" href={`/code-reviews/${data.code_review.id}`}>
+            {displayData.code_review ? (
+              <Link className="rounded-md border border-[#bfdbfe] bg-white px-4 py-2 text-sm font-semibold text-[#1d4ed8]" href={`/code-reviews/${displayData.code_review.id}`}>
                 查看诊断记录
               </Link>
             ) : null}
@@ -103,7 +103,7 @@ export function MistakeDetailPage({ id }: { id: string }) {
         loading={updating}
         onSubmit={(event) => void handleSubmit(event)}
         setState={setState}
-        state={state}
+        state={displayState}
         submitLabel="保存修改"
         success={success ? "复盘笔记已保存。" : null}
       />

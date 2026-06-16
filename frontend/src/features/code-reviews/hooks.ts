@@ -35,17 +35,31 @@ export function useCodeReviews(page: number) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    return fetchCodeReviews(page)
-      .then(setData)
-      .catch((err: unknown) => setError(getCodeReviewErrorMessage(err)))
-      .finally(() => setLoading(false));
+    return fetchCodeReviews(page, 20, { signal })
+      .then((result) => {
+        if (!signal?.aborted) {
+          setData(result);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!signal?.aborted) {
+          setError(getCodeReviewErrorMessage(err));
+        }
+      })
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
   }, [page]);
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   return { data, loading, error, reload: load };
@@ -56,7 +70,7 @@ export function useCodeReview(id: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((signal?: AbortSignal) => {
     if (!id) {
       setData(null);
       setError(null);
@@ -65,14 +79,28 @@ export function useCodeReview(id: string) {
     }
     setLoading(true);
     setError(null);
-    return fetchCodeReview(id)
-      .then((response) => setData(response.data))
-      .catch((err: unknown) => setError(getCodeReviewErrorMessage(err)))
-      .finally(() => setLoading(false));
+    return fetchCodeReview(id, { signal })
+      .then((response) => {
+        if (!signal?.aborted) {
+          setData(response.data);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!signal?.aborted) {
+          setError(getCodeReviewErrorMessage(err));
+        }
+      })
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
   }, [id]);
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   return { data, loading, error, reload: load };

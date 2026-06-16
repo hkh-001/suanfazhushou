@@ -9,8 +9,8 @@ import type {
   ProblemUpdatePayload
 } from "./types";
 
-export function fetchProblems(page = 1, pageSize = 20): Promise<PaginatedProblems> {
-  return apiFetch<PaginatedProblems>(`/problems?page=${page}&page_size=${pageSize}`);
+export function fetchProblems(page = 1, pageSize = 20, init?: RequestInit): Promise<PaginatedProblems> {
+  return apiFetch<PaginatedProblems>(`/problems?page=${page}&page_size=${pageSize}`, init);
 }
 
 export function fetchProblem(id: string): Promise<ProblemResponse> {

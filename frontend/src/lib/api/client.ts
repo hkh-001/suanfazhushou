@@ -27,7 +27,18 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
 
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const externalSignal = init?.signal;
+  const abortFromExternal = () => controller.abort();
+  if (externalSignal?.aborted) {
+    controller.abort();
+  } else {
+    externalSignal?.addEventListener("abort", abortFromExternal);
+  }
+  let timedOut = false;
+  const timeoutId = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, API_TIMEOUT_MS);
   let response: Response;
 
   try {
@@ -39,11 +50,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
+      if (!timedOut) {
+        throw new ApiError("请求已取消。", "REQUEST_ABORTED", 0);
+      }
       throw new ApiError("请求超时，请确认后端服务和数据库是否正常运行。", "REQUEST_TIMEOUT", 0);
     }
     throw new ApiError("无法连接后端服务，请确认后端已启动。", "NETWORK_ERROR", 0);
   } finally {
     window.clearTimeout(timeoutId);
+    externalSignal?.removeEventListener("abort", abortFromExternal);
   }
 
   if (!response.ok) {

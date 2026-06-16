@@ -30,28 +30,36 @@ export function getProblemErrorMessage(error: unknown): string {
   return "请求失败，请稍后重试。";
 }
 
-export function useProblems(page: number) {
+export function useProblems(page: number, pageSize = 20) {
   const [data, setData] = useState<PaginatedProblems | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    return fetchProblems(page)
+    return fetchProblems(page, pageSize, { signal })
       .then((result) => {
-        setData(result);
+        if (!signal?.aborted) {
+          setData(result);
+        }
       })
       .catch((err: unknown) => {
-        setError(getProblemErrorMessage(err));
+        if (!signal?.aborted) {
+          setError(getProblemErrorMessage(err));
+        }
       })
       .finally(() => {
-        setLoading(false);
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
       });
-  }, [page]);
+  }, [page, pageSize]);
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   return { data, loading, error, reload: load };

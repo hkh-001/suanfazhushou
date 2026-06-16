@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.code_review import CodeReviewProblemRef, CodeReviewTopicRef
 
@@ -93,6 +93,13 @@ class MistakeNoteUpdate(BaseModel):
     def strip_optional_update_text(cls, value: str | None) -> str | None:
         return _strip_or_none(value)
 
+    @model_validator(mode="after")
+    def validate_required_fields_when_provided(self) -> "MistakeNoteUpdate":
+        for field_name in ("title", "root_cause"):
+            if field_name in self.model_fields_set and getattr(self, field_name) is None:
+                raise ValueError(f"{field_name} cannot be null when provided")
+        return self
+
 
 class MistakeCodeReviewRef(BaseModel):
     id: UUID
@@ -109,7 +116,7 @@ class MistakeNoteListItem(BaseModel):
     title: str
     error_type: str | None = None
     root_cause: str
-    review_status: str
+    review_status: ReviewStatus
     resolved_at: datetime | None = None
     problem: CodeReviewProblemRef | None = None
     topic: CodeReviewTopicRef | None = None

@@ -175,17 +175,14 @@ def update_mistake_note(db: Session, *, user: User, mistake_note_id: UUID, paylo
         raise _not_found()
 
     fields = payload.model_fields_set
-    for required_field in ("title", "root_cause"):
-        if required_field in fields and getattr(payload, required_field) is None:
-            raise _validation_error()
 
-    if "topic_id" in fields:
+    if "topic_id" in fields and payload.topic_id != note.topic_id:
         _ensure_topic(db, payload.topic_id)
         note.topic_id = payload.topic_id
-    if "problem_id" in fields:
+    if "problem_id" in fields and payload.problem_id != note.problem_id:
         _ensure_problem(db, problem_id=payload.problem_id, user_id=user.id)
         note.problem_id = payload.problem_id
-    if "code_review_id" in fields:
+    if "code_review_id" in fields and payload.code_review_id != note.code_review_id:
         _ensure_code_review(db, code_review_id=payload.code_review_id, user_id=user.id)
         note.code_review_id = payload.code_review_id
 
@@ -213,10 +210,9 @@ def update_mistake_note(db: Session, *, user: User, mistake_note_id: UUID, paylo
             note.resolved_at = None
 
     db.commit()
+    db.refresh(note)
     refreshed = get_user_mistake_note(db, mistake_note_id=note.id, user_id=user.id)
-    if refreshed is None:
-        raise _not_found()
-    return _to_detail(refreshed)
+    return _to_detail(refreshed or note)
 
 
 def delete_mistake_note(db: Session, *, user: User, mistake_note_id: UUID) -> MistakeNoteDeleteResult:

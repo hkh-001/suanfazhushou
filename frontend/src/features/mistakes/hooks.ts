@@ -38,17 +38,31 @@ export function useMistakeNotes(page: number, status: ReviewStatus | "all") {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    return fetchMistakeNotes(page, 20, status)
-      .then(setData)
-      .catch((err: unknown) => setError(getMistakeErrorMessage(err)))
-      .finally(() => setLoading(false));
+    return fetchMistakeNotes(page, 20, status, { signal })
+      .then((result) => {
+        if (!signal?.aborted) {
+          setData(result);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!signal?.aborted) {
+          setError(getMistakeErrorMessage(err));
+        }
+      })
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
   }, [page, status]);
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   return { data, loading, error, reload: load };
@@ -59,17 +73,31 @@ export function useMistakeNote(id: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    return fetchMistakeNote(id)
-      .then((response) => setData(response.data))
-      .catch((err: unknown) => setError(getMistakeErrorMessage(err)))
-      .finally(() => setLoading(false));
+    return fetchMistakeNote(id, { signal })
+      .then((response) => {
+        if (!signal?.aborted) {
+          setData(response.data);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!signal?.aborted) {
+          setError(getMistakeErrorMessage(err));
+        }
+      })
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
   }, [id]);
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   return { data, loading, error, reload: load };
@@ -108,7 +136,7 @@ export function useUpdateMistakeNote(id: string) {
       try {
         const response = await updateMistakeNote(id, payload);
         setSuccess(true);
-        return response;
+        return response.data;
       } catch (err) {
         setError(getMistakeErrorMessage(err));
         throw err;

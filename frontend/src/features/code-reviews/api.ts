@@ -14,12 +14,12 @@ export function createSavedCodeReview(payload: CodeReviewPayload): Promise<CodeR
   });
 }
 
-export function fetchCodeReviews(page = 1, pageSize = 20): Promise<PaginatedCodeReviews> {
-  return apiFetch<PaginatedCodeReviews>(`/code-reviews?page=${page}&page_size=${pageSize}`);
+export function fetchCodeReviews(page = 1, pageSize = 20, init?: RequestInit): Promise<PaginatedCodeReviews> {
+  return apiFetch<PaginatedCodeReviews>(`/code-reviews?page=${page}&page_size=${pageSize}`, init);
 }
 
-export function fetchCodeReview(id: string): Promise<CodeReviewResponse> {
-  return apiFetch<CodeReviewResponse>(`/code-reviews/${id}`);
+export function fetchCodeReview(id: string, init?: RequestInit): Promise<CodeReviewResponse> {
+  return apiFetch<CodeReviewResponse>(`/code-reviews/${id}`, init);
 }
 
 export function deleteCodeReview(id: string): Promise<CodeReviewDeleteResponse> {

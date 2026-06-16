@@ -9,16 +9,16 @@ import type {
   ReviewStatus
 } from "./types";
 
-export function fetchMistakeNotes(page = 1, pageSize = 20, status?: ReviewStatus | "all"): Promise<PaginatedMistakeNotes> {
+export function fetchMistakeNotes(page = 1, pageSize = 20, status?: ReviewStatus | "all", init?: RequestInit): Promise<PaginatedMistakeNotes> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (status && status !== "all") {
     query.set("status", status);
   }
-  return apiFetch<PaginatedMistakeNotes>(`/mistakes?${query.toString()}`);
+  return apiFetch<PaginatedMistakeNotes>(`/mistakes?${query.toString()}`, init);
 }
 
-export function fetchMistakeNote(id: string): Promise<MistakeNoteResponse> {
-  return apiFetch<MistakeNoteResponse>(`/mistakes/${id}`);
+export function fetchMistakeNote(id: string, init?: RequestInit): Promise<MistakeNoteResponse> {
+  return apiFetch<MistakeNoteResponse>(`/mistakes/${id}`, init);
 }
 
 export function createMistakeNote(payload: MistakeNotePayload): Promise<MistakeNoteResponse> {
