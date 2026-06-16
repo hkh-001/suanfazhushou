@@ -67,8 +67,8 @@ Current database reality is the Phase 0-4 implemented schema. Deferred tables be
 | `problem_tags` | Phase 6 | Connect problems to topics | Implemented in Post-MVP Phase 6 |
 | `test_cases` | Phase 9 | Imported or authored problem test cases | Wait for ZIP/test-case validation policy |
 | `submissions` | Phase 10 | Judge submissions and verdicts | Wait for sandbox/judge design |
-| `code_reviews` | Phase 8 | Explicitly saved AI code review results | Do not auto-store all user code |
-| `mistake_notes` | Phase 8 | User-owned mistake notebook entries | Not required for MVP v0.1 Dashboard |
+| `code_reviews` | Phase 8 | Explicitly saved AI code review results | Implemented in Post-MVP Phase 8 |
+| `mistake_notes` | Phase 8 | User-owned mistake notebook entries | Implemented in Post-MVP Phase 8 |
 | `recommendation_logs` | Phase 12 | Recommendation events and explanations | Wait for weakness analysis model |
 | `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
 | `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
@@ -239,13 +239,14 @@ Notes:
 
 ## mistake_notes
 
-Planned for Post-MVP Phase 8. Not implemented in MVP v0.1.
+Implemented in Post-MVP Phase 8. Not part of MVP v0.1.
 
 ```text
 id
 user_id
 problem_id
 topic_id
+code_review_id
 title
 error_type
 root_cause
@@ -265,6 +266,9 @@ Notes:
 - `root_cause` records the underlying reason.
 - `fix_suggestion` records concrete repair guidance.
 - `review_status` can be `open`, `reviewing`, or `resolved`.
+- `problem_id`, `topic_id`, and `code_review_id` are optional links and use `on delete set null`.
+- Mistake notes are user-owned and must be queried by current backend user.
+- Phase 8 does not use mistake notes for Dashboard recommendation or RAG.
 
 ## chat_sessions
 
@@ -290,18 +294,32 @@ created_at
 
 ## code_reviews
 
-Planned for Post-MVP Phase 8. Not implemented in MVP v0.1.
+Implemented in Post-MVP Phase 8. Not part of MVP v0.1.
 
 ```text
 id
 user_id
+topic_id
+problem_id
 language
+question
 code
 analysis_result
+model
+prompt_type
+input_tokens
+output_tokens
 created_at
+updated_at
 ```
 
-Note: store full submitted code only where the product explicitly requires it. AI logs should not duplicate full code by default.
+Notes:
+
+- Code reviews are saved only when the user explicitly clicks save.
+- Storing full code and full AI analysis is allowed here because this is user-owned product data.
+- `ai_call_logs` must not duplicate full code, full prompts, API keys, or provider responses.
+- `problem_id` and `topic_id` are optional links and use `on delete set null`.
+- Phase 8 does not run code or judge submissions.
 
 ## prompt_templates
 

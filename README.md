@@ -320,6 +320,39 @@ Problem bank notes:
 - Saved AI-generated problems use `is_ai_generated=true`, `source="ai_generated"`, and the same per-user `display_id` sequence as manual problems.
 - ZIP import, submissions, judging, code execution, and batch generation remain deferred.
 
+Phase 8 code review and mistake notebook APIs:
+
+```text
+POST http://localhost:8000/api/code-reviews
+GET http://localhost:8000/api/code-reviews
+GET http://localhost:8000/api/code-reviews/{id}
+DELETE http://localhost:8000/api/code-reviews/{id}
+
+POST http://localhost:8000/api/mistakes
+GET http://localhost:8000/api/mistakes
+GET http://localhost:8000/api/mistakes/{id}
+PUT http://localhost:8000/api/mistakes/{id}
+DELETE http://localhost:8000/api/mistakes/{id}
+```
+
+Phase 8 frontend pages:
+
+```text
+http://localhost:3000/code-reviews
+http://localhost:3000/code-reviews/{id}
+http://localhost:3000/mistakes
+http://localhost:3000/mistakes/new
+http://localhost:3000/mistakes/{id}
+```
+
+Phase 8 notes:
+
+- Code review records are saved only when the user explicitly clicks "save".
+- Saved code reviews may store full code and full AI analysis as user-owned product data.
+- `ai_call_logs` still store metadata only and must not store full code, prompts, or provider responses.
+- Mistake notes are scoped to the current user and can optionally link to topics, personal problems, and saved code reviews.
+- Phase 8 does not implement judging, submissions, test cases, ZIP import, RAG, OJ, code execution, or Dashboard recommendation analysis.
+
 Runtime AI settings:
 
 - `GET /api/settings/ai` reports the current effective AI configuration source without returning the API key.
@@ -367,12 +400,12 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 7 Save AI-Generated Problems To Problem Bank.
+Current: Post-MVP Phase 8 Code Review Persistence And Mistake Notebook.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
 
-Next: Phase 8 Code Review Persistence And Mistake Notebook.
+Next: Phase 9 ZIP Problem Import With Test Cases.
 
-Later: Mistake Notebook, ZIP Import, Judging, AI Diagnosis, RAG, and production hardening.
+Later: ZIP Import, Judging, AI Diagnosis, RAG, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

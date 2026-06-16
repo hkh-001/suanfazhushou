@@ -232,6 +232,47 @@ Problem errors:
 - `TOPIC_NOT_FOUND`
 - inherited auth errors such as `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `TOKEN_INVALID`, `INVALID_SESSION`
 
+## Phase 8 Code Review And Mistake Notebook APIs
+
+Implemented in Post-MVP Phase 8. These APIs are not part of MVP v0.1, but are current Post-MVP contracts.
+
+Code review persistence:
+
+- `POST /api/code-reviews`
+- `GET /api/code-reviews?page=1&page_size=20`
+- `GET /api/code-reviews/{id}`
+- `DELETE /api/code-reviews/{id}`
+
+Mistake notebook:
+
+- `POST /api/mistakes`
+- `GET /api/mistakes?page=1&page_size=20&status=open`
+- `GET /api/mistakes/{id}`
+- `PUT /api/mistakes/{id}`
+- `DELETE /api/mistakes/{id}`
+
+Rules:
+
+- All endpoints require `get_current_user`.
+- Ownership comes from the backend session; the frontend must not send `user_id`.
+- Code reviews are saved only when users explicitly click save.
+- Saved code reviews may store full code and full AI analysis as user-owned product data.
+- `ai_call_logs` remain metadata-only and must not store full code, prompts, API keys, or provider responses.
+- `problem_id`, when present, must belong to the current user.
+- `code_review_id`, when present on mistake notes, must belong to the current user.
+- `topic_id`, when present, must point to a published topic.
+- Mistake note status can be `open`, `reviewing`, or `resolved`.
+- Updating a mistake note to `resolved` sets `resolved_at`; moving it back to `open` or `reviewing` clears `resolved_at`.
+- Phase 8 does not implement judging, submissions, test cases, ZIP import, RAG, code execution, or Dashboard recommendation analysis.
+
+Phase 8 errors:
+
+- `CODE_REVIEW_NOT_FOUND`
+- `MISTAKE_NOTE_NOT_FOUND`
+- `PROBLEM_NOT_FOUND`
+- `TOPIC_NOT_FOUND`
+- inherited auth errors such as `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `TOKEN_INVALID`, `INVALID_SESSION`
+
 ## Post-MVP Planned APIs
 
 The APIs in this section are deferred/planned. They are not implemented in MVP v0.1 and must not be treated as current contracts.
@@ -248,14 +289,6 @@ Judging and submissions, planned for Phase 10:
 AI diagnosis after failed judgement, planned for Phase 11:
 
 - `POST /api/submissions/{id}/ai-diagnose`
-
-Mistake notebook, planned for Phase 8:
-
-- `GET /api/mistakes`
-- `POST /api/mistakes`
-- `GET /api/mistakes/{id}`
-- `PUT /api/mistakes/{id}`
-- `DELETE /api/mistakes/{id}`
 
 Planning boundaries:
 

@@ -27,3 +27,5 @@ class User(Base):
 
     learning_records = relationship("LearningRecord", back_populates="user")
     problems = relationship("Problem", back_populates="created_by_user")
+    code_reviews = relationship("CodeReview", back_populates="user")
+    mistake_notes = relationship("MistakeNote", back_populates="user")

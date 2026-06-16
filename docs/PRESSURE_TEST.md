@@ -541,6 +541,42 @@ Risk signals:
 - AI-generated content is silently persisted.
 - Third-party statements are copied without license review.
 
+## 3.2.1 Code Review And Mistake Notebook Pressure Test
+
+Phase 8 implemented baseline:
+
+- Code reviews are saved only when the user explicitly clicks save.
+- Saved code reviews are scoped by current authenticated user.
+- Saved code reviews may store full code and full AI analysis as user-owned product data.
+- `ai_call_logs` remain metadata-only and do not store full code, prompts, API keys, or provider responses.
+- Mistake notes are scoped by current authenticated user.
+- Mistake notes can optionally link to published topics, current-user problems, and current-user saved code reviews.
+- Deleting a linked problem or saved code review does not delete the mistake note.
+- Dashboard weakness analysis and recommendations remain deferred to Phase 12.
+
+Questions:
+
+- Is every saved code review explicitly user-triggered?
+- Can one user access another user's saved code review or mistake note?
+- Are full code and AI analysis kept out of logs?
+- Does deleting a problem or code review preserve the user's reflection record?
+- Are status transitions clear for `open`, `reviewing`, and `resolved`?
+
+Pass criteria:
+
+- There is no auto-save path for all code reviews.
+- User ownership is enforced on list, detail, update, and delete endpoints.
+- `problem_id`, `topic_id`, and `code_review_id` are validated before association.
+- `resolved_at` is set only for resolved mistake notes and cleared when reopened.
+- No judge, submission, ZIP import, RAG, or code execution behavior is introduced.
+
+Risk signals:
+
+- Full user code appears in logs or AI call metadata tables.
+- A mistake note can be linked to another user's problem or code review.
+- `/mistakes/{id}` save redirects to a problem page instead of staying in the mistake workflow.
+- Dashboard starts presenting unreviewed weakness analysis as if it were implemented.
+
 ## 3.3 ZIP Import Pressure Test
 
 Questions:

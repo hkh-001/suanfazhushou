@@ -13,6 +13,7 @@ const navItems = [
   { href: "/code-review", label: "代码诊断" },
   { href: "/problems", label: "个人题库" },
   { href: "/problems/generate", label: "题目生成" },
+  { href: "/mistakes", label: "错题本" },
   { href: "/settings", label: "设置" }
 ];
 
@@ -22,6 +23,9 @@ function isActive(pathname: string, href: string) {
   }
   if (href === "/problems") {
     return pathname === "/problems" || (pathname.startsWith("/problems/") && pathname !== "/problems/generate");
+  }
+  if (href === "/mistakes") {
+    return pathname === "/mistakes" || pathname.startsWith("/mistakes/") || pathname.startsWith("/code-reviews");
   }
   return pathname === href;
 }

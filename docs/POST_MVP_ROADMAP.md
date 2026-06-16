@@ -149,6 +149,8 @@ medium
 
 ## Phase 8: Code Review Persistence And Mistake Notebook
 
+Status: implemented in Post-MVP Phase 8.
+
 ### Goal
 
 Persist selected code review results and support a structured mistake notebook.
@@ -183,6 +185,7 @@ medium
 - Mistake notes are scoped to the current user.
 - Sensitive code retention is documented and minimized.
 - Dashboard can link to saved mistake review items without changing AI logs into content storage.
+- Saved code reviews and mistake notes do not introduce judging, submissions, ZIP import, RAG, or code execution.
 
 ## Phase 9: ZIP Problem Import With Test Cases
 
