@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
@@ -15,6 +15,8 @@ from app.schemas.problem import (
     ProblemListItem,
     ProblemUpdate,
 )
+from app.schemas.problem_import import ProblemImportResult
+from app.services.problem_imports import ZIP_MAX_BYTES, import_problem_zip
 from app.services.problems import (
     create_problem,
     delete_problem,
@@ -53,6 +55,21 @@ def save_ai_generated_problem_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> DataResponse[ProblemDetail]:
     return DataResponse(data=save_ai_generated_problem(db, user=current_user, payload=payload))
+
+
+@router.post("/import/zip", response_model=DataResponse[ProblemImportResult], status_code=status.HTTP_201_CREATED)
+async def import_problem_zip_endpoint(
+    file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DataResponse[ProblemImportResult]:
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "ZIP_FILE_REQUIRED", "message": "ZIP file is required"},
+        )
+    content = await file.read(ZIP_MAX_BYTES + 1)
+    return DataResponse(data=import_problem_zip(db, user=current_user, zip_bytes=content))
 
 
 @router.get("/{problem_id}", response_model=DataResponse[ProblemDetail])

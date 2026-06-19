@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 6: Personal Problem Bank Basic.
+The project is currently in Post-MVP Phase 9: ZIP Problem Import With Test Cases.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -70,7 +70,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, and `docker-compose.yml` now contain the Phase 4 learning dashboard loop.
+`frontend/`, `backend/`, and `docker-compose.yml` now contain the Post-MVP Phase 9 learning and personal problem-bank loop.
 
 ## MVP v0.1 Focus
 
@@ -290,7 +290,7 @@ Minimal auth notes:
 - `SECRET_KEY=change-me-in-production-32-bytes-long!!` is for local development only. Production must use a unique strong secret of at least 32 bytes.
 - Phase 5 does not implement RBAC, OAuth, refresh tokens, password reset, ZIP import, judging, OJ, or RAG.
 
-Phase 6 problem bank APIs:
+Phase 6-9 problem bank APIs:
 
 ```text
 POST http://localhost:8000/api/problems
@@ -299,14 +299,16 @@ GET http://localhost:8000/api/problems/{id}
 PUT http://localhost:8000/api/problems/{id}
 DELETE http://localhost:8000/api/problems/{id}
 POST http://localhost:8000/api/problems/save-ai-generated
+POST http://localhost:8000/api/problems/import/zip
 ```
 
-Phase 6 frontend pages:
+Phase 6-9 problem bank frontend pages:
 
 ```text
 http://localhost:3000/problems
 http://localhost:3000/problems/new
 http://localhost:3000/problems/{id}
+http://localhost:3000/problems/import
 ```
 
 Problem bank notes:
@@ -318,7 +320,10 @@ Problem bank notes:
 - `DELETE /api/problems/{id}` hard-deletes the user's own problem.
 - Phase 7 supports explicit user-triggered saving from `/problems/generate` into the personal problem bank.
 - Saved AI-generated problems use `is_ai_generated=true`, `source="ai_generated"`, and the same per-user `display_id` sequence as manual problems.
-- ZIP import, submissions, judging, code execution, and batch generation remain deferred.
+- Phase 9 supports explicit ZIP import into the current user's personal problem bank.
+- Imported ZIP problems use `source="zip_import"`, `is_ai_generated=false`, `is_published=false`, and the same per-user `display_id` sequence.
+- ZIP imports persist `.in` / `.out` files as `test_cases`, but do not execute them.
+- Submissions, judging, code execution, and batch generation remain deferred.
 
 Phase 8 code review and mistake notebook APIs:
 
@@ -352,6 +357,14 @@ Phase 8 notes:
 - `ai_call_logs` still store metadata only and must not store full code, prompts, or provider responses.
 - Mistake notes are scoped to the current user and can optionally link to topics, personal problems, and saved code reviews.
 - Phase 8 does not implement judging, submissions, test cases, ZIP import, RAG, OJ, code execution, or Dashboard recommendation analysis.
+
+Phase 9 ZIP import notes:
+
+- `POST /api/problems/import/zip` accepts a single `multipart/form-data` file field named `file`.
+- ZIP packages must include `problem.json`, `statement.md`, and at least one `tests/{name}.in` / `tests/{name}.out` pair.
+- Supported text files are `.json`, `.md`, `.in`, and `.out`; all text content must be UTF-8.
+- The backend rejects path traversal, absolute paths, Windows drive paths, symbolic links, encrypted ZIP entries, duplicate logical paths, oversized archives, excessive file counts, and abnormal compression ratios.
+- Phase 9 does not store the original ZIP file, run judging, create submissions, or execute uploaded content.
 
 Runtime AI settings:
 
@@ -400,12 +413,12 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 8 Code Review Persistence And Mistake Notebook.
+Current: Post-MVP Phase 9 ZIP Problem Import With Test Cases.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
 
-Next: Phase 9 ZIP Problem Import With Test Cases.
+Next: Phase 10 Minimal Judging System.
 
-Later: ZIP Import, Judging, AI Diagnosis, RAG, and production hardening.
+Later: Judging, AI Diagnosis, RAG, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

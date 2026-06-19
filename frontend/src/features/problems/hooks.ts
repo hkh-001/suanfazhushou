@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { isAuthRequiredError } from "@/features/auth/hooks";
 import { ApiError } from "@/lib/api/client";
 
-import { createProblem, deleteProblem, fetchProblem, fetchProblems, updateProblem } from "./api";
+import { createProblem, deleteProblem, fetchProblem, fetchProblems, importProblemZip, updateProblem } from "./api";
 import type { PaginatedProblems, ProblemDetail, ProblemPayload, ProblemUpdatePayload } from "./types";
 
 export function getProblemErrorMessage(error: unknown): string {
@@ -101,6 +101,26 @@ export function useCreateProblem() {
     setError(null);
     try {
       return await createProblem(payload);
+    } catch (err) {
+      setError(getProblemErrorMessage(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { submit, loading, error };
+}
+
+export function useImportProblemZip() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = useCallback(async (file: File) => {
+    setLoading(true);
+    setError(null);
+    try {
+      return await importProblemZip(file);
     } catch (err) {
       setError(getProblemErrorMessage(err));
       throw err;

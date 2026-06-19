@@ -196,7 +196,7 @@ Phase 4.5 AI settings rules:
 
 ## Phase 6 Problem Bank APIs
 
-Implemented in Post-MVP Phase 6. These APIs are not part of MVP v0.1, but are current Post-MVP contracts.
+Implemented across Post-MVP Phase 6-9. These APIs are not part of MVP v0.1, but are current Post-MVP contracts.
 
 - `POST /api/problems`
 - `GET /api/problems?page=1&page_size=20`
@@ -204,6 +204,7 @@ Implemented in Post-MVP Phase 6. These APIs are not part of MVP v0.1, but are cu
 - `PUT /api/problems/{id}`
 - `DELETE /api/problems/{id}`
 - `POST /api/problems/save-ai-generated`
+- `POST /api/problems/import/zip`
 
 Rules:
 
@@ -223,13 +224,26 @@ Rules:
 - `POST /api/problems/save-ai-generated` must be registered before `/api/problems/{id}` so `save-ai-generated` is not parsed as a problem id.
 - Saved generated problems force `is_ai_generated=true`, `source="ai_generated"`, `is_published=false`, and current-user ownership on the backend.
 - Saved generated problems share the same per-user `display_id` sequence as manually created problems.
-- Problem bank APIs still do not import ZIP files, create submissions, or judge code.
+- Phase 9 imports ZIP problem packages only through explicit user upload.
+- ZIP imports force `source="zip_import"`, `is_ai_generated=false`, `is_published=false`, and current-user ownership on the backend.
+- ZIP imports persist `.in` / `.out` files as `test_cases`; Phase 9 does not execute those files.
+- Problem bank APIs still do not create submissions or judge code.
+
+ZIP import contract:
+
+- Request: `multipart/form-data`, field name `file`.
+- Response: `DataResponse[{ problem, test_cases_count }]`.
+- `problem` uses the same `ProblemDetail` shape as manual and AI-saved problem APIs.
+- The endpoint must be registered before `/api/problems/{id}` so `import/zip` is not parsed as a problem id.
+- Accepted package files: `problem.json`, `statement.md`, optional `.md` support files, and paired `tests/{name}.in` / `tests/{name}.out`.
+- The backend rejects invalid ZIP archives, path traversal, unsafe paths, symbolic links, encrypted entries, duplicate logical paths, unsupported extensions, unsafe compression ratios, oversized files, invalid JSON, invalid UTF-8, missing statement, and unmatched test-case pairs.
 
 Problem errors:
 
 - `PROBLEM_NOT_FOUND`
 - `PROBLEM_SLUG_ALREADY_EXISTS`
 - `TOPIC_NOT_FOUND`
+- ZIP import errors such as `ZIP_INVALID_ARCHIVE`, `ZIP_ARCHIVE_EMPTY`, `ZIP_PATH_NOT_ALLOWED`, `ZIP_FILE_TYPE_NOT_ALLOWED`, `ZIP_TEST_CASE_PAIR_MISMATCH`, and `ZIP_PROBLEM_METADATA_INVALID`
 - inherited auth errors such as `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `TOKEN_INVALID`, `INVALID_SESSION`
 
 ## Phase 8 Code Review And Mistake Notebook APIs
@@ -276,10 +290,6 @@ Phase 8 errors:
 ## Post-MVP Planned APIs
 
 The APIs in this section are deferred/planned. They are not implemented in MVP v0.1 and must not be treated as current contracts.
-
-ZIP import, planned for Phase 9:
-
-- `POST /api/problems/import/zip`
 
 Judging and submissions, planned for Phase 10:
 

@@ -189,6 +189,8 @@ medium
 
 ## Phase 9: ZIP Problem Import With Test Cases
 
+Status: implemented.
+
 ### Goal
 
 Import user-owned problem packages and test cases safely from ZIP files.
@@ -206,11 +208,15 @@ Import user-owned problem packages and test cases safely from ZIP files.
 - Enforce ZIP size and file count limits
 - Prevent path traversal
 - Store imported source as user-owned problem data
+- Persist imported `.in` / `.out` pairs as `test_cases`
+- Keep `source="zip_import"` and current-user ownership on imported problems
 
 ### Not Included
 
 - Executing uploaded files
 - Running judge
+- Creating submissions
+- Sandbox or OJ behavior
 - Accepting arbitrary scripts or binaries
 - Public sharing or marketplace import
 
@@ -224,6 +230,8 @@ high
 - Oversized archives and too many files are rejected.
 - Only allowed file types are accepted.
 - Uploaded content is never executed.
+- Imported problems share the same per-user `display_id` sequence as manual and AI-saved problems.
+- Imported test cases are available as stored text data for a future Phase 10 judge.
 
 ## Phase 10: Minimal Judging System
 

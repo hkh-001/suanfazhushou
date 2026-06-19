@@ -24,12 +24,20 @@ export function ProblemListPage() {
     <AppShell>
       <PageHeader
         actions={
-          <Link
-            className="rounded-md bg-[#2563eb] px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-200 outline-none transition hover:bg-[#1d4ed8] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
-            href="/problems/new"
-          >
-            新建题目
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              className="rounded-md border border-[#bfdbfe] bg-white px-4 py-2 text-sm font-semibold text-[#1d4ed8] outline-none transition hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+              href="/problems/import"
+            >
+              导入 ZIP
+            </Link>
+            <Link
+              className="rounded-md bg-[#2563eb] px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-200 outline-none transition hover:bg-[#1d4ed8] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+              href="/problems/new"
+            >
+              新建题目
+            </Link>
+          </div>
         }
         description="整理你手动创建的练习题，按知识点归类，沉淀自己的算法训练材料。"
         title="个人题库"

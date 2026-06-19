@@ -52,6 +52,7 @@ class Problem(Base):
 
     created_by_user = relationship("User", back_populates="problems")
     problem_tags = relationship("ProblemTag", back_populates="problem", cascade="all, delete-orphan")
+    test_cases = relationship("TestCase", back_populates="problem", cascade="all, delete-orphan")
     code_reviews = relationship("CodeReview", back_populates="problem")
     mistake_notes = relationship("MistakeNote", back_populates="problem")
 

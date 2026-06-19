@@ -79,6 +79,13 @@ export type ProblemResponse = {
   data: ProblemDetail;
 };
 
+export type ProblemImportResponse = {
+  data: {
+    problem: ProblemDetail;
+    test_cases_count: number;
+  };
+};
+
 export type ProblemDeleteResponse = {
   data: {
     success: boolean;

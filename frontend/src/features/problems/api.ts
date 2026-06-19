@@ -4,6 +4,7 @@ import type {
   GeneratedProblemSavePayload,
   PaginatedProblems,
   ProblemDeleteResponse,
+  ProblemImportResponse,
   ProblemPayload,
   ProblemResponse,
   ProblemUpdatePayload
@@ -28,6 +29,15 @@ export function saveGeneratedProblem(payload: GeneratedProblemSavePayload): Prom
   return apiFetch<ProblemResponse>("/problems/save-ai-generated", {
     method: "POST",
     body: JSON.stringify(payload)
+  });
+}
+
+export function importProblemZip(file: File): Promise<ProblemImportResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<ProblemImportResponse>("/problems/import/zip", {
+    method: "POST",
+    body: formData
   });
 }
 

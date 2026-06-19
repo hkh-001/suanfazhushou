@@ -587,11 +587,19 @@ Questions:
 - Are only safe file types allowed, such as `.md`, `.json`, `.in`, and `.out`?
 - Are uploaded files never executed?
 - Are malformed archives rejected safely?
+- Are `.in` and `.out` test case files paired and naturally sorted?
+- Does import run in one transaction so partial failures roll back?
+- Does imported content stay owned by the current user?
 
 Pass criteria:
 
 - Import validates size, count, path, extension, and metadata.
+- Limits include ZIP size, file count, total uncompressed size, single file size, compression ratio, and test case count.
+- Path traversal, absolute paths, Windows drive paths, backslash bypasses, symbolic links, encrypted entries, duplicate logical paths, and unsupported extensions are rejected.
 - Uploaded content is stored as data only.
+- Imported problems use `source="zip_import"`, `is_ai_generated=false`, and `is_published=false`.
+- Imported test cases are persisted as text data and are not executed.
+- Import shares the user's existing `display_id` sequence.
 - No scripts, binaries, or arbitrary paths are accepted.
 - Error responses are safe and user-facing.
 
@@ -600,6 +608,8 @@ Risk signals:
 - ZIP extraction writes outside the intended directory.
 - Uploaded files are executed or interpreted as code.
 - Import has no size or count limits.
+- A failed import leaves behind a problem without complete test cases.
+- ZIP import silently bypasses current-user ownership.
 
 ## 3.4 Judge Safety Pressure Test
 

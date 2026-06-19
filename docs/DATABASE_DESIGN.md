@@ -57,7 +57,7 @@ Phase 4 Dashboard data is computed from published topics and the current user's 
 
 Phase 5 and later are Post-MVP roadmap work. They are not required for MVP v0.1 completion.
 
-Current database reality is the Phase 0-4 implemented schema. Deferred tables below are planning notes only. They must not be treated as existing tables until their Post-MVP phase creates an Alembic migration.
+Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-9 tables. Deferred tables below remain planning notes only until their Post-MVP phase creates an Alembic migration.
 
 ## Deferred Post-MVP Tables
 
@@ -65,7 +65,7 @@ Current database reality is the Phase 0-4 implemented schema. Deferred tables be
 | --- | --- | --- | --- |
 | `problems` | Phase 6 | Personal problem bank records | Implemented in Post-MVP Phase 6 |
 | `problem_tags` | Phase 6 | Connect problems to topics | Implemented in Post-MVP Phase 6 |
-| `test_cases` | Phase 9 | Imported or authored problem test cases | Wait for ZIP/test-case validation policy |
+| `test_cases` | Phase 9 | Imported problem test cases | Implemented in Post-MVP Phase 9 |
 | `submissions` | Phase 10 | Judge submissions and verdicts | Wait for sandbox/judge design |
 | `code_reviews` | Phase 8 | Explicitly saved AI code review results | Implemented in Post-MVP Phase 8 |
 | `mistake_notes` | Phase 8 | User-owned mistake notebook entries | Implemented in Post-MVP Phase 8 |
@@ -73,7 +73,7 @@ Current database reality is the Phase 0-4 implemented schema. Deferred tables be
 | `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
 | `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
 
-Judging-related tables such as `test_cases` and `submissions` must wait until the sandbox approach is defined. Do not add these tables only to satisfy UI placeholders.
+Judging-related tables such as `submissions` must wait until the sandbox approach is defined. `test_cases` exists from Phase 9 as imported text data only; it does not imply judging or code execution.
 
 ## users
 
@@ -144,7 +144,7 @@ created_at
 
 ## problems
 
-Implemented in Post-MVP Phase 6. Phase 7 reuses this table to store explicitly saved AI-generated problems. Not part of MVP v0.1.
+Implemented in Post-MVP Phase 6. Phase 7 reuses this table to store explicitly saved AI-generated problems. Phase 9 reuses it for ZIP-imported problems. Not part of MVP v0.1.
 
 ```text
 id
@@ -178,13 +178,14 @@ Notes:
 - `source_url` stores external attribution.
 - `is_ai_generated=true` is required for AI-generated problems saved in Phase 7.
 - Phase 7 saved generated problems force `source="ai_generated"` and do not accept ownership or publication flags from the frontend.
+- Phase 9 ZIP imports force `source="zip_import"`, `is_ai_generated=false`, and `is_published=false`.
 - `is_published` is reserved for future publishing; Phase 6 problem bank shows only the current user's own problems.
 - `created_by_user_id` owns the problem and must come from backend auth, not frontend input.
 - `(created_by_user_id, slug)` is unique; slug is not globally unique.
 - `(created_by_user_id, display_id)` is unique and provides a per-user visible sequence such as `#1`.
 - Deleted `display_id` values are not reused.
 - Avoid copying complete third-party statements unless the license allows it.
-- Phase 6 and Phase 7 do not create submissions, test cases, judging records, or mistake notes.
+- Phase 9 creates `test_cases` as stored input/output text only. It does not create submissions, judging records, or code execution behavior.
 
 ## user_problem_counters
 
@@ -199,7 +200,7 @@ updated_at
 Notes:
 
 - Used only to allocate per-user problem `display_id` values.
-- `next_display_id` increments when a manual or AI-generated problem is created.
+- `next_display_id` increments when a manual, AI-generated, or ZIP-imported problem is created.
 - Hard delete does not decrement the counter, so display ids are not reused.
 
 ## problem_tags
@@ -212,6 +213,32 @@ problem_id
 topic_id
 created_at
 ```
+
+## test_cases
+
+Implemented in Post-MVP Phase 9. Not part of MVP v0.1.
+
+```text
+id
+problem_id
+case_index
+name
+input_text
+expected_output_text
+is_sample
+is_hidden
+created_at
+updated_at
+```
+
+Notes:
+
+- `problem_id` references `problems.id` with `on delete cascade`.
+- `(problem_id, case_index)` is unique.
+- `case_index` is positive and assigned from natural-sorted ZIP test-case names.
+- `is_sample` marks sample cases used to populate `problems.sample_input` and `problems.sample_output`.
+- `is_hidden` is reserved for Phase 10 judging and defaults to `false` in Phase 9.
+- Test cases are stored as UTF-8 text data and are never executed in Phase 9.
 
 ## learning_records
 
