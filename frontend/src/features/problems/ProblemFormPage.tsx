@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { useTopics } from "@/features/topics/hooks";
 
+import { difficultyLabels } from "./constants";
 import { useCreateProblem } from "./hooks";
 import type { ProblemDetail, ProblemDifficulty, ProblemPayload } from "./types";
 
@@ -49,13 +50,6 @@ export const emptyProblemForm: FormState = {
   solution_code_cpp: "",
   solution_code_python: "",
   topic_ids: []
-};
-
-const difficultyLabels: Record<ProblemDifficulty, string> = {
-  beginner: "入门",
-  basic: "基础",
-  intermediate: "提高",
-  advanced: "进阶"
 };
 
 function optionalText(value: string): string | null {
