@@ -17,6 +17,8 @@ from app.schemas.ai import (
     GeneratedProblem,
     ProblemGenerationRequest,
 )
+from app.models.submission import Submission
+from app.schemas.submission import SubmissionDiagnosisResponse
 from app.services.ai.context_builder import ContextBuilder
 from app.services.ai.prompt_renderer import PromptRenderer
 from app.services.settings.ai_runtime_settings import get_effective_ai_settings
@@ -117,6 +119,32 @@ class AIService:
                 input_tokens=provider_result.usage.input_tokens,
                 output_tokens=provider_result.usage.output_tokens,
             ),
+        )
+
+    def diagnose_submission(
+        self,
+        *,
+        user: User,
+        submission: Submission,
+    ) -> SubmissionDiagnosisResponse:
+        context = self.context_builder.build_submission_diagnosis_context(submission)
+        prompt = self.prompt_renderer.render(
+            template_key="submission_diagnosis",
+            values=context.values,
+        )
+        result = self._complete(
+            user=user,
+            prompt=prompt,
+            prompt_type="submission_diagnosis",
+        )
+        return SubmissionDiagnosisResponse(
+            submission_id=submission.id,
+            verdict=submission.verdict,
+            result=result.result,
+            prompt_type="submission_diagnosis",
+            model=result.model,
+            usage=result.usage,
+            context_info=context.info,
         )
 
     def _complete(self, *, user: User, prompt: str, prompt_type: str) -> AIResponseData:

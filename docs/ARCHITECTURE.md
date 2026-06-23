@@ -218,7 +218,25 @@ Frontend
 - Runner containers have no network, a read-only root filesystem, bounded tmpfs workspace, and CPU/memory/PID/output/time limits.
 - `ENABLE_CODE_EXECUTION=false` is the default and `/api/health` does not depend on Judge.
 - The Docker socket approach is limited to local development and controlled deployments; production should isolate Judge on a separate host or stronger sandbox platform.
-- Phase 11 AI diagnosis must consume persisted verdicts and must not replace Judge truth.
+
+## Phase 11 Failed Submission Diagnosis
+
+```text
+Submission Detail
+-> Submission ownership and verdict validation
+-> ContextBuilder bounded diagnosis context
+-> PromptRenderer database template
+-> AI Provider
+-> Temporary frontend result
+-> Optional explicit code_review save
+```
+
+- Phase 11 consumes only persisted verdicts and never calls Judge or executes code.
+- Judge truth remains authoritative; accepted and internal-error results are not diagnosed.
+- ContextBuilder excludes hidden case names and content before Prompt rendering.
+- Problem solutions, standard code, and hints are not included in diagnosis context.
+- AI results are temporary by default and reuse the Phase 8 explicit code-review save path.
+- No diagnosis table, submission-to-code-review foreign key, RAG, or automatic mistake-note creation is introduced.
 
 Future RAG shape:
 

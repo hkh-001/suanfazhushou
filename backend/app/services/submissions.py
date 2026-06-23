@@ -10,6 +10,7 @@ from app.models.problem import Problem
 from app.models.submission import Submission, SubmissionCaseResult
 from app.models.test_case import TestCase
 from app.models.user import User
+from app.providers.ai.base import AIProvider
 from app.repositories.problems import get_user_problem_with_test_cases
 from app.repositories.submissions import create_submission as insert_submission
 from app.repositories.submissions import get_user_submission
@@ -18,8 +19,10 @@ from app.schemas.submission import (
     SubmissionCaseResultDetail,
     SubmissionCreate,
     SubmissionDetail,
+    SubmissionDiagnosisResponse,
     SubmissionProblemRef,
 )
+from app.services.ai.service import AIService
 from app.services.judge.client import JudgeClient
 from app.services.submission_limiter import SubmissionLimiter
 
@@ -32,6 +35,18 @@ TEST_CASES_REQUIRED = {
 INVALID_JUDGE_RESPONSE = {
     "code": "JUDGE_INVALID_RESPONSE",
     "message": "Judge returned an invalid response",
+}
+DIAGNOSIS_NOT_AVAILABLE = {
+    "code": "SUBMISSION_DIAGNOSIS_NOT_AVAILABLE",
+    "message": "AI diagnosis is not available for this submission verdict",
+}
+DIAGNOSABLE_VERDICTS = {
+    "compile_error",
+    "wrong_answer",
+    "runtime_error",
+    "time_limit_exceeded",
+    "memory_limit_exceeded",
+    "output_limit_exceeded",
 }
 
 
@@ -212,3 +227,21 @@ def get_submission(db: Session, *, user: User, submission_id: UUID) -> Submissio
     if submission is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=SUBMISSION_NOT_FOUND)
     return _to_detail(submission)
+
+
+def diagnose_submission(
+    db: Session,
+    *,
+    user: User,
+    submission_id: UUID,
+    provider: AIProvider,
+) -> SubmissionDiagnosisResponse:
+    submission = get_user_submission(db, submission_id=submission_id, user_id=user.id)
+    if submission is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=SUBMISSION_NOT_FOUND)
+    if submission.verdict not in DIAGNOSABLE_VERDICTS:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=DIAGNOSIS_NOT_AVAILABLE,
+        )
+    return AIService(db, provider).diagnose_submission(user=user, submission=submission)

@@ -24,7 +24,10 @@ def create_submission(
 def get_user_submission(db: Session, *, submission_id: UUID, user_id: UUID) -> Submission | None:
     stmt = (
         select(Submission)
-        .options(selectinload(Submission.case_results))
+        .options(
+            selectinload(Submission.case_results),
+            selectinload(Submission.problem),
+        )
         .where(Submission.id == submission_id, Submission.user_id == user_id)
     )
     return db.scalar(stmt)

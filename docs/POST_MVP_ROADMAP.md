@@ -276,6 +276,8 @@ high
 
 ## Phase 11: AI Diagnosis After Failed Judgement
 
+Status: implemented.
+
 ### Goal
 
 Use AI to explain failed submissions after the judge returns a stable result.
@@ -288,7 +290,7 @@ Use AI to explain failed submissions after the judge returns a stable result.
 
 ### Expected Features
 
-- Diagnose wrong answer, runtime error, and time limit exceeded cases
+- Diagnose compile, wrong-answer, runtime, time-limit, memory-limit, and output-limit failures
 - Include limited failed test context
 - Explain likely bug cause and next debugging steps
 - Keep AI as explanation, not the source of judgement truth
@@ -310,6 +312,9 @@ high
 - Prompt input length is bounded.
 - Logs store metadata only by default.
 - Provider failures do not affect judge verdict correctness.
+- Hidden test content is excluded before Prompt rendering.
+- Diagnosis is temporary unless the user explicitly saves a code review.
+- Accepted and Judge internal-error results are not sent to AI.
 
 ## Phase 12: Learning Recommendation And Weakness Analysis
 

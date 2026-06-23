@@ -46,3 +46,26 @@ export type SubmissionDetail = {
 export type SubmissionResponse = {
   data: SubmissionDetail;
 };
+
+export type DiagnosisContextInfo = {
+  code_truncated: boolean;
+  problem_context_included: boolean;
+  failed_case_count_included: number;
+};
+
+export type SubmissionDiagnosis = {
+  submission_id: string;
+  verdict: SubmissionVerdict;
+  result: string;
+  prompt_type: "submission_diagnosis";
+  model: string;
+  usage: {
+    input_tokens: number | null;
+    output_tokens: number | null;
+  };
+  context_info: DiagnosisContextInfo;
+};
+
+export type SubmissionDiagnosisResponse = {
+  data: SubmissionDiagnosis;
+};

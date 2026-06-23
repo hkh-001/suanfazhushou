@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 10: Minimal Isolated Judging System.
+The project is currently in Post-MVP Phase 11: AI Diagnosis After Failed Judgement.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -70,7 +70,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` now contain the Post-MVP Phase 10 isolated judging loop.
+`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions.
 
 ## MVP v0.1 Focus
 
@@ -390,7 +390,17 @@ Phase 10 safety notes:
 - Only sample test-case content is returned to users; hidden inputs and expected outputs remain private.
 - Full source code is stored as current-user-owned submission data and is not written to AI logs or sent to an AI provider.
 - The Docker socket Judge design is for local development and controlled deployments. Production should use a separate Judge host or stronger sandbox boundary.
-- Phase 10 does not implement AI diagnosis; that remains Phase 11.
+- Phase 11 AI diagnosis is user-triggered, consumes only persisted Judge results, and never reruns code.
+- Hidden test-case input, expected output, actual output, and names are not sent to the AI provider.
+- AI diagnosis is temporary by default. Full source and diagnosis are saved only after an explicit second action through the existing code review records.
+
+Phase 11 diagnosis API:
+
+```text
+POST http://localhost:8000/api/submissions/{id}/ai-diagnose
+```
+
+The endpoint supports compile error, wrong answer, runtime error, time limit, memory limit, and output limit failures. Accepted submissions and Judge internal errors are not sent to AI.
 
 To enable local judging, configure a strong shared token and explicitly enable execution before starting Compose:
 
@@ -467,12 +477,12 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 10 Minimal Isolated Judging System.
+Current: Post-MVP Phase 11 AI Diagnosis After Failed Judgement.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
 
-Next: Phase 11 AI Diagnosis After Failed Judgement.
+Next: Phase 12 Learning Recommendation And Weakness Analysis.
 
-Later: AI Diagnosis, learning recommendation, RAG, and production hardening.
+Later: learning recommendation, RAG, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

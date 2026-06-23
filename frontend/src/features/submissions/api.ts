@@ -1,6 +1,10 @@
 import { apiFetch } from "@/lib/api/client";
 
-import type { SubmissionLanguage, SubmissionResponse } from "./types";
+import type {
+  SubmissionDiagnosisResponse,
+  SubmissionLanguage,
+  SubmissionResponse
+} from "./types";
 
 export function createSubmission(payload: {
   problem_id: string;
@@ -15,4 +19,11 @@ export function createSubmission(payload: {
 
 export function fetchSubmission(id: string): Promise<SubmissionResponse> {
   return apiFetch<SubmissionResponse>(`/submissions/${id}`);
+}
+
+export function diagnoseSubmission(id: string): Promise<SubmissionDiagnosisResponse> {
+  return apiFetch<SubmissionDiagnosisResponse>(`/submissions/${id}/ai-diagnose`, {
+    method: "POST",
+    timeoutMs: 65000
+  });
 }

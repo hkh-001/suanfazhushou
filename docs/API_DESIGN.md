@@ -317,13 +317,42 @@ Errors:
 - `PROBLEM_TEST_CASES_REQUIRED`
 - `SUBMISSION_NOT_FOUND`
 
-## Post-MVP Planned APIs
+## Phase 11 Submission Diagnosis API
 
-The APIs below remain deferred.
-
-AI diagnosis after failed judgement, planned for Phase 11:
+Implemented in Post-MVP Phase 11:
 
 - `POST /api/submissions/{id}/ai-diagnose`
+
+Rules:
+
+- Requires the owning current user and a persisted submission.
+- Accepts no request body and never accepts source code, verdict, case data, or user id from the frontend.
+- Supports `compile_error`, `wrong_answer`, `runtime_error`, `time_limit_exceeded`, `memory_limit_exceeded`, and `output_limit_exceeded`.
+- `accepted` and `internal_error` return `SUBMISSION_DIAGNOSIS_NOT_AVAILABLE`.
+- Does not check Judge availability, rerun code, or modify the stored verdict.
+- Source, problem, compiler, and failed-case context are bounded before the Prompt is rendered.
+- Hidden case names and content are never included in the Prompt.
+- The result is not persisted automatically; users may explicitly save it through `POST /api/code-reviews`.
+
+Response includes:
+
+- `submission_id`
+- authoritative `verdict`
+- Markdown `result`
+- model and token usage metadata
+- `context_info.code_truncated`
+- `context_info.problem_context_included`
+- `context_info.failed_case_count_included`
+
+Errors:
+
+- `SUBMISSION_NOT_FOUND`
+- `SUBMISSION_DIAGNOSIS_NOT_AVAILABLE`
+- `PROMPT_TEMPLATE_NOT_FOUND`
+- existing AI configuration/provider errors
+- inherited auth errors
+
+## Post-MVP Planned APIs
 
 Planning boundaries:
 

@@ -59,6 +59,23 @@ TEMPLATES = [
             "is_ai_generated": True,
         },
     },
+    {
+        "name": "Submission Diagnosis",
+        "type": "submission_diagnosis",
+        "version": 1,
+        "template_key": "submission_diagnosis",
+        "file_path": "submission_diagnosis.md",
+        "input_schema_json": {
+            "verdict": "string",
+            "language": "string",
+            "problem_context": "string",
+            "source_code": "string",
+            "compile_output": "string",
+            "error_message": "string",
+            "case_context": "string",
+        },
+        "output_schema_json": None,
+    },
 ]
 
 

@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.judge import CaseVerdict, SubmissionVerdict
+from app.schemas.ai import AIUsage
 
 
 class SubmissionCreate(BaseModel):
@@ -56,3 +57,19 @@ class SubmissionDetail(BaseModel):
     case_results: list[SubmissionCaseResultDetail]
     created_at: datetime
     finished_at: datetime
+
+
+class DiagnosisContextInfo(BaseModel):
+    code_truncated: bool
+    problem_context_included: bool
+    failed_case_count_included: int
+
+
+class SubmissionDiagnosisResponse(BaseModel):
+    submission_id: UUID
+    verdict: SubmissionVerdict
+    result: str
+    prompt_type: Literal["submission_diagnosis"]
+    model: str
+    usage: AIUsage
+    context_info: DiagnosisContextInfo

@@ -19,7 +19,7 @@ class CodeReviewCreate(BaseModel):
     problem_id: UUID | None = None
     language: Literal["cpp", "python"]
     question: str | None = Field(default=None, max_length=1000)
-    code: str = Field(min_length=1, max_length=12000)
+    code: str = Field(min_length=1, max_length=20000)
     analysis_result: str = Field(min_length=1, max_length=20000)
     model: str | None = Field(default=None, max_length=120)
     prompt_type: str | None = Field(default=None, max_length=80)

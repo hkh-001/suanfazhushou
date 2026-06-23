@@ -647,6 +647,14 @@ Risk signals:
 
 ## 3.5 AI Diagnosis After Judge Pressure Test
 
+Phase 11 implemented baseline:
+
+- Diagnosis is triggered explicitly from a persisted submission.
+- Accepted and Judge internal errors are not sent to AI.
+- ContextBuilder bounds source, problem, compiler, and failed-case context.
+- Hidden case names, inputs, expected outputs, and actual outputs are excluded.
+- Diagnosis is temporary until the user explicitly saves a code review.
+
 Questions:
 
 - Does AI explain judge failures without replacing the judge verdict?
@@ -661,12 +669,16 @@ Pass criteria:
 - Input context is bounded and sanitized.
 - AI logs remain metadata-only by default.
 - Provider errors return safe API errors.
+- Judge verdict and persisted submission data remain unchanged after AI failure.
+- Saving a diagnosis requires a separate explicit action.
 
 Risk signals:
 
 - AI is used as the judge.
 - Failed test context is unbounded.
 - Sensitive code is stored in logs without explicit policy.
+- Hidden test content reaches the Prompt or frontend.
+- Diagnosis is generated or persisted automatically.
 
 ## 3.6 RAG Pressure Test
 

@@ -1,6 +1,10 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";
 const API_TIMEOUT_MS = 15000;
 
+export type ApiFetchInit = RequestInit & {
+  timeoutMs?: number;
+};
+
 type ApiErrorBody = {
   error?: {
     code?: string;
@@ -20,15 +24,17 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = new Headers(init?.headers);
-  const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
-  if (init?.body && !headers.has("Content-Type") && !isFormData) {
+export async function apiFetch<T>(path: string, init?: ApiFetchInit): Promise<T> {
+  const { timeoutMs = API_TIMEOUT_MS, ...requestInit } = init ?? {};
+  const headers = new Headers(requestInit.headers);
+  const isFormData =
+    typeof FormData !== "undefined" && requestInit.body instanceof FormData;
+  if (requestInit.body && !headers.has("Content-Type") && !isFormData) {
     headers.set("Content-Type", "application/json");
   }
 
   const controller = new AbortController();
-  const externalSignal = init?.signal;
+  const externalSignal = requestInit.signal;
   const abortFromExternal = () => controller.abort();
   if (externalSignal?.aborted) {
     controller.abort();
@@ -39,13 +45,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const timeoutId = window.setTimeout(() => {
     timedOut = true;
     controller.abort();
-  }, API_TIMEOUT_MS);
+  }, timeoutMs);
   let response: Response;
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
-      credentials: init?.credentials ?? "include",
+      ...requestInit,
+      credentials: requestInit.credentials ?? "include",
       headers,
       signal: controller.signal
     });

@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { MarkdownContent } from "@/components/MarkdownContent";
 import { PageHeader } from "@/components/PageHeader";
+import { useCreateCodeReview } from "@/features/code-reviews/hooks";
+import type { CodeReviewDetail } from "@/features/code-reviews/types";
+import { AIErrorNotice } from "@/features/ai/shared";
 
-import { useSubmission } from "./hooks";
+import { useSubmission, useSubmissionDiagnosis } from "./hooks";
 
 const verdictLabels: Record<string, string> = {
   accepted: "通过",
@@ -19,12 +24,55 @@ const verdictLabels: Record<string, string> = {
   not_run: "未执行"
 };
 
+const diagnosableVerdicts = new Set([
+  "compile_error",
+  "wrong_answer",
+  "runtime_error",
+  "time_limit_exceeded",
+  "memory_limit_exceeded",
+  "output_limit_exceeded"
+]);
+
 function metric(value: number | null, unit: string) {
   return value === null ? "暂无数据" : `${value} ${unit}`;
 }
 
 export function SubmissionDetailPage({ id }: { id: string }) {
   const { data, loading, error, reload } = useSubmission(id);
+  const diagnosis = useSubmissionDiagnosis(id);
+  const saveReview = useCreateCodeReview();
+  const [savedReview, setSavedReview] = useState<CodeReviewDetail | null>(null);
+
+  async function runDiagnosis() {
+    setSavedReview(null);
+    try {
+      await diagnosis.submit();
+    } catch {
+      // The hook owns the user-facing error state.
+    }
+  }
+
+  async function saveDiagnosis() {
+    if (!data || !diagnosis.data) {
+      return;
+    }
+    try {
+      const response = await saveReview.submit({
+        problem_id: data.problem.id,
+        language: data.language,
+        code: data.source_code,
+        analysis_result: diagnosis.data.result,
+        model: diagnosis.data.model,
+        prompt_type: diagnosis.data.prompt_type,
+        input_tokens: diagnosis.data.usage.input_tokens,
+        output_tokens: diagnosis.data.usage.output_tokens,
+        question: `判题提交 ${data.id} 的 AI 失败诊断，原始 verdict：${data.verdict}`
+      });
+      setSavedReview(response.data);
+    } catch {
+      // The hook owns the user-facing error state.
+    }
+  }
 
   if (loading) {
     return (
@@ -48,6 +96,7 @@ export function SubmissionDetailPage({ id }: { id: string }) {
   }
 
   const accepted = data.verdict === "accepted";
+  const canDiagnose = diagnosableVerdicts.has(data.verdict);
 
   return (
     <AppShell>
@@ -96,6 +145,118 @@ export function SubmissionDetailPage({ id }: { id: string }) {
           </pre>
         </section>
       ) : null}
+
+      <section className="mt-6 overflow-hidden rounded-lg border border-blue-200 bg-white shadow-sm">
+        <div className="border-b border-blue-100 bg-blue-50/70 px-5 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">AI 失败诊断</h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+                AI 只解释已经保存的 Judge 结果，不会重新运行代码或修改判题结论。诊断会发送源码和有限的失败上下文，可能产生少量模型调用费用。
+              </p>
+            </div>
+            {canDiagnose && !diagnosis.data ? (
+              <button
+                className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white outline-none transition hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={diagnosis.loading}
+                onClick={() => void runDiagnosis()}
+                type="button"
+              >
+                {diagnosis.loading ? "AI 正在分析..." : "AI 分析失败原因"}
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="p-5">
+          {accepted ? (
+            <p className="text-sm text-emerald-700">本次提交已通过，无需进行失败诊断。</p>
+          ) : null}
+          {data.verdict === "internal_error" ? (
+            <p className="text-sm text-amber-700">
+              本次结果属于判题基础设施异常，不使用 AI 推测用户代码原因。请稍后重新提交或检查 Judge 服务。
+            </p>
+          ) : null}
+          {diagnosis.error ? <AIErrorNotice message={diagnosis.error} /> : null}
+          {diagnosis.loading ? (
+            <div className="rounded-md border border-dashed border-blue-200 bg-blue-50/40 px-4 py-8 text-center text-sm text-slate-600">
+              正在结合判题结果分析源码，请稍候...
+            </div>
+          ) : null}
+          {canDiagnose && !diagnosis.loading && !diagnosis.data && !diagnosis.error ? (
+            <p className="text-sm text-slate-500">
+              诊断不会自动触发，也不会自动保存。点击上方按钮后才会调用 AI 服务。
+            </p>
+          ) : null}
+          {diagnosis.data ? (
+            <div className="space-y-5">
+              {diagnosis.data.context_info.code_truncated ? (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  源码超过 AI 上下文限制，本次仅分析了源码首尾片段。
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                  <span>模型：{diagnosis.data.model}</span>
+                  <span>失败测试点上下文：{diagnosis.data.context_info.failed_case_count_included} 个</span>
+                  <span>
+                    题目上下文：
+                    {diagnosis.data.context_info.problem_context_included ? "已包含" : "仅使用题目快照"}
+                  </span>
+                  <span>
+                    Token：{diagnosis.data.usage.input_tokens ?? "-"} / {diagnosis.data.usage.output_tokens ?? "-"}
+                  </span>
+                </div>
+                <button
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 outline-none transition hover:border-blue-200 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-300"
+                  onClick={() => void runDiagnosis()}
+                  type="button"
+                >
+                  重新诊断
+                </button>
+              </div>
+              <MarkdownContent content={diagnosis.data.result} />
+              <div className="border-t border-slate-200 pt-5">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-slate-900">保存诊断记录</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      只有再次明确点击保存后，完整源码和 AI 诊断才会写入诊断记录。
+                    </p>
+                  </div>
+                  <button
+                    className="rounded-md border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 outline-none transition hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={saveReview.loading || Boolean(savedReview)}
+                    onClick={() => void saveDiagnosis()}
+                    type="button"
+                  >
+                    {saveReview.loading ? "正在保存..." : savedReview ? "已保存" : "保存诊断记录"}
+                  </button>
+                </div>
+                {saveReview.error ? (
+                  <p className="mt-3 text-sm font-semibold text-red-700">{saveReview.error}</p>
+                ) : null}
+                {savedReview ? (
+                  <div className="mt-4 flex flex-wrap gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <Link
+                      className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white"
+                      href={`/code-reviews/${savedReview.id}`}
+                    >
+                      查看诊断记录
+                    </Link>
+                    <Link
+                      className="rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700"
+                      href={`/mistakes/new?code_review_id=${savedReview.id}`}
+                    >
+                      创建复盘笔记
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       <section className="mt-6 rounded-lg border border-blue-100 bg-white p-5">
         <h2 className="font-semibold text-slate-900">测试点结果</h2>

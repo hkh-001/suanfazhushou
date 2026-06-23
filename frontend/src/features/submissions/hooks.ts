@@ -5,8 +5,12 @@ import { useCallback, useEffect, useState } from "react";
 import { isAuthRequiredError } from "@/features/auth/hooks";
 import { ApiError } from "@/lib/api/client";
 
-import { createSubmission, fetchSubmission } from "./api";
-import type { SubmissionDetail, SubmissionLanguage } from "./types";
+import { createSubmission, diagnoseSubmission, fetchSubmission } from "./api";
+import type {
+  SubmissionDetail,
+  SubmissionDiagnosis,
+  SubmissionLanguage
+} from "./types";
 
 export function getSubmissionErrorMessage(error: unknown): string {
   if (isAuthRequiredError(error)) {
@@ -22,7 +26,12 @@ export function getSubmissionErrorMessage(error: unknown): string {
       JUDGE_INVALID_RESPONSE: "判题服务返回了无效结果。",
       PROBLEM_NOT_FOUND: "题目不存在，或你没有访问权限。",
       PROBLEM_TEST_CASES_REQUIRED: "该题目没有测试用例，暂时无法判题。",
-      SUBMISSION_NOT_FOUND: "提交记录不存在，或你没有访问权限。"
+      SUBMISSION_NOT_FOUND: "提交记录不存在，或你没有访问权限。",
+      SUBMISSION_DIAGNOSIS_NOT_AVAILABLE: "当前判题结果不支持 AI 失败诊断。",
+      AI_CONFIG_MISSING: "当前未配置 AI 服务，请先进入系统设置完成配置。",
+      AI_PROVIDER_TIMEOUT: "AI 服务响应超时，请稍后重试。",
+      AI_PROVIDER_ERROR: "AI 服务暂时返回错误，请稍后重试。",
+      PROMPT_TEMPLATE_NOT_FOUND: "AI 诊断模板尚未初始化，请先运行 Prompt 模板 seed。"
     };
     return messages[error.code] ?? error.message;
   }
@@ -74,4 +83,28 @@ export function useSubmission(id: string) {
   }, [load]);
 
   return { data, loading, error, reload: load };
+}
+
+export function useSubmissionDiagnosis(id: string) {
+  const [data, setData] = useState<SubmissionDiagnosis | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setData(null);
+    try {
+      const response = await diagnoseSubmission(id);
+      setData(response.data);
+      return response;
+    } catch (err) {
+      setError(getSubmissionErrorMessage(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  return { submit, data, loading, error };
 }

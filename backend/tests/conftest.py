@@ -20,7 +20,16 @@ from app.services.settings.ai_runtime_settings import clear_runtime_ai_settings
 
 
 @pytest.fixture(autouse=True)
-def reset_runtime_ai_settings() -> Generator[None, None, None]:
+def reset_runtime_ai_settings(request: pytest.FixtureRequest) -> Generator[None, None, None]:
+    if {
+        "client",
+        "db_session",
+        "dev_user",
+        "published_topic",
+    }.intersection(request.fixturenames):
+        db_session = request.getfixturevalue("db_session")
+        db_session.execute(delete(AICallLog))
+        db_session.commit()
     clear_runtime_ai_settings()
     try:
         yield
