@@ -22,7 +22,11 @@ function isActive(pathname: string, href: string) {
     return pathname === "/topics" || pathname.startsWith("/topics/");
   }
   if (href === "/problems") {
-    return pathname === "/problems" || (pathname.startsWith("/problems/") && pathname !== "/problems/generate");
+    return (
+      pathname === "/problems" ||
+      pathname.startsWith("/submissions/") ||
+      (pathname.startsWith("/problems/") && pathname !== "/problems/generate")
+    );
   }
   if (href === "/mistakes") {
     return pathname === "/mistakes" || pathname.startsWith("/mistakes/") || pathname.startsWith("/code-reviews");

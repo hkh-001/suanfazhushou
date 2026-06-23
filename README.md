@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 9: ZIP Problem Import With Test Cases.
+The project is currently in Post-MVP Phase 10: Minimal Isolated Judging System.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -70,7 +70,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, and `docker-compose.yml` now contain the Post-MVP Phase 9 learning and personal problem-bank loop.
+`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` now contain the Post-MVP Phase 10 isolated judging loop.
 
 ## MVP v0.1 Focus
 
@@ -323,7 +323,8 @@ Problem bank notes:
 - Phase 9 supports explicit ZIP import into the current user's personal problem bank.
 - Imported ZIP problems use `source="zip_import"`, `is_ai_generated=false`, `is_published=false`, and the same per-user `display_id` sequence.
 - ZIP imports persist `.in` / `.out` files as `test_cases`, but do not execute them.
-- Submissions, judging, code execution, and batch generation remain deferred.
+- Phase 10 consumes imported test cases through the isolated Judge service.
+- Batch generation remains deferred.
 
 Phase 8 code review and mistake notebook APIs:
 
@@ -366,6 +367,41 @@ Phase 9 ZIP import notes:
 - The backend rejects path traversal, absolute paths, Windows drive paths, symbolic links, encrypted ZIP entries, duplicate logical paths, oversized archives, excessive file counts, and abnormal compression ratios.
 - Phase 9 does not store the original ZIP file, run judging, create submissions, or execute uploaded content.
 
+Phase 10 submission APIs:
+
+```text
+POST http://localhost:8000/api/submissions
+GET http://localhost:8000/api/submissions/{id}
+```
+
+Phase 10 frontend pages:
+
+```text
+http://localhost:3000/problems/{id}/submit
+http://localhost:3000/submissions/{id}
+```
+
+Phase 10 safety notes:
+
+- `ENABLE_CODE_EXECUTION=false` remains the default.
+- The backend never runs user code and does not mount the Docker socket.
+- The separate Judge service starts one temporary, network-disabled, read-only runner container per submission.
+- Runner containers receive CPU, memory, PID, output, workspace, per-case, and total-time limits.
+- Only sample test-case content is returned to users; hidden inputs and expected outputs remain private.
+- Full source code is stored as current-user-owned submission data and is not written to AI logs or sent to an AI provider.
+- The Docker socket Judge design is for local development and controlled deployments. Production should use a separate Judge host or stronger sandbox boundary.
+- Phase 10 does not implement AI diagnosis; that remains Phase 11.
+
+To enable local judging, configure a strong shared token and explicitly enable execution before starting Compose:
+
+```powershell
+$env:JUDGE_INTERNAL_TOKEN="replace-with-a-strong-random-token"
+$env:ENABLE_CODE_EXECUTION="true"
+docker compose up --build
+```
+
+If the default Debian package mirror is unavailable while building the runner image, the optional `DEBIAN_MIRROR` and `DEBIAN_SECURITY_MIRROR` build variables may be set locally. They are not runtime secrets and are not hardcoded into the project.
+
 Runtime AI settings:
 
 - `GET /api/settings/ai` reports the current effective AI configuration source without returning the API key.
@@ -373,7 +409,7 @@ Runtime AI settings:
 - To enable runtime AI settings for local backend development or demos, set `ENABLE_RUNTIME_AI_SETTINGS=true` before starting FastAPI locally.
 - Runtime AI settings are stored only in the current backend process memory. They are lost when the backend restarts.
 - This feature is not production key management. Do not enable it on a public production deployment without authentication and a proper secret-management design.
-- This phase does not modify `docker-compose.yml`; Docker Compose backend environment values remain explicit, so runtime AI settings are mainly documented for local backend startup mode.
+- Docker Compose does not enable runtime AI settings; that local-demo feature remains off unless the backend is started with `ENABLE_RUNTIME_AI_SETTINGS=true`.
 
 ## Testing
 
@@ -391,6 +427,24 @@ Frontend:
 cd frontend
 pnpm lint
 pnpm build
+```
+
+Judge unit tests:
+
+```bash
+cd judge
+uv run pytest
+```
+
+Judge Docker security tests require Docker Desktop and the runner image:
+
+```powershell
+$env:DEBIAN_MIRROR="https://mirrors.tuna.tsinghua.edu.cn/debian"
+$env:DEBIAN_SECURITY_MIRROR="https://mirrors.tuna.tsinghua.edu.cn/debian-security"
+docker compose build judge-runner-image
+cd judge
+$env:RUN_JUDGE_DOCKER_TESTS="1"
+uv run pytest
 ```
 
 Docker Compose config check:
@@ -413,12 +467,12 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 9 ZIP Problem Import With Test Cases.
+Current: Post-MVP Phase 10 Minimal Isolated Judging System.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
 
-Next: Phase 10 Minimal Judging System.
+Next: Phase 11 AI Diagnosis After Failed Judgement.
 
-Later: Judging, AI Diagnosis, RAG, and production hardening.
+Later: AI Diagnosis, learning recommendation, RAG, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

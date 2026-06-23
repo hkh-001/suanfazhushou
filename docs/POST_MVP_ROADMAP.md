@@ -231,9 +231,11 @@ high
 - Only allowed file types are accepted.
 - Uploaded content is never executed.
 - Imported problems share the same per-user `display_id` sequence as manual and AI-saved problems.
-- Imported test cases are available as stored text data for a future Phase 10 judge.
+- Imported test cases are stored as text data and are consumed by the isolated Phase 10 Judge service.
 
 ## Phase 10: Minimal Judging System
+
+Status: implemented with a separate Docker Judge service; production sandbox hardening remains required.
 
 ### Goal
 
@@ -269,6 +271,8 @@ high
 - `ENABLE_CODE_EXECUTION=false` remains the default.
 - Sandbox limits are enforced and tested.
 - Judge service boundaries are separate from normal AI code review.
+- C++17 and Python 3.11 submissions can be created and viewed by their owner.
+- Hidden test-case content is not exposed through submission APIs.
 
 ## Phase 11: AI Diagnosis After Failed Judgement
 

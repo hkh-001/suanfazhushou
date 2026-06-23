@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     enable_runtime_ai_settings: bool = False
     secret_key: str = "change-me-in-production-32-bytes-long!!"
     access_token_expire_minutes: int = 1440
+    enable_code_execution: bool = False
+    judge_base_url: str = "http://localhost:9000"
+    judge_internal_token: str = ""
+    judge_request_timeout_seconds: int = 60
+    submission_max_in_flight: int = 2
     ai_provider: str = "openai_compatible"
     ai_base_url: str = ""
     ai_api_key: str = ""

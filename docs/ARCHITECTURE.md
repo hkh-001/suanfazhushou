@@ -202,6 +202,24 @@ Architecture boundaries:
 - Recommendation should build from owned user data such as learning records, mistakes, problems, and submissions.
 - RAG should extend the existing ContextBuilder path through a RetrievalService. It should not rewrite AIService or bypass prompt template rules.
 
+## Phase 10 Isolated Judge Architecture
+
+```text
+Frontend
+-> Backend Submission API
+-> Internal Judge HTTP API
+-> Temporary Runner Container
+-> Submission Persistence
+```
+
+- Backend validates auth, problem ownership, feature flags, and response schemas.
+- Judge owns Docker lifecycle and never connects to PostgreSQL or AI providers.
+- Backend and frontend never mount the Docker socket.
+- Runner containers have no network, a read-only root filesystem, bounded tmpfs workspace, and CPU/memory/PID/output/time limits.
+- `ENABLE_CODE_EXECUTION=false` is the default and `/api/health` does not depend on Judge.
+- The Docker socket approach is limited to local development and controlled deployments; production should isolate Judge on a separate host or stronger sandbox platform.
+- Phase 11 AI diagnosis must consume persisted verdicts and must not replace Judge truth.
+
 Future RAG shape:
 
 ```text
@@ -222,23 +240,26 @@ Backend API
 -> Optional AI Diagnosis Service
 ```
 
-## Docker Service Planning
+## Docker Services
 
-Planned Docker Compose services:
+Current Docker Compose services:
 
 - `frontend`
 - `backend`
 - `postgres`
 - `redis`
+- `judge`
+- `judge-runner-image`
 
-Planned ports:
+Ports:
 
 - frontend: `3000`
 - backend: `8000`
 - postgres: `5432`
 - redis: `6379`
+- Judge health/internal API: `127.0.0.1:9000`
 
-Docker Compose is not created in the current documentation-only phase.
+Only `judge` mounts the Docker socket. `backend` reaches Judge through the internal network and never receives Docker control access.
 
 ## Security Architecture
 
@@ -251,4 +272,4 @@ Security requirements:
 - internal stack traces not exposed to frontend
 - AI logs store metadata only by default
 - untrusted user code must never run on the host machine
-- code execution remains disabled until a sandbox/judge service is explicitly designed and approved
+- code execution remains disabled by default and may be enabled only when the isolated Judge service and shared internal token are configured

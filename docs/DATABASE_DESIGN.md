@@ -57,23 +57,24 @@ Phase 4 Dashboard data is computed from published topics and the current user's 
 
 Phase 5 and later are Post-MVP roadmap work. They are not required for MVP v0.1 completion.
 
-Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-9 tables. Deferred tables below remain planning notes only until their Post-MVP phase creates an Alembic migration.
+Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-10 tables. Tables marked deferred below remain planning notes only until their Post-MVP phase creates an Alembic migration.
 
-## Deferred Post-MVP Tables
+## Post-MVP Table Status
 
 | Table | Planned Phase | Purpose | Boundary |
 | --- | --- | --- | --- |
 | `problems` | Phase 6 | Personal problem bank records | Implemented in Post-MVP Phase 6 |
 | `problem_tags` | Phase 6 | Connect problems to topics | Implemented in Post-MVP Phase 6 |
 | `test_cases` | Phase 9 | Imported problem test cases | Implemented in Post-MVP Phase 9 |
-| `submissions` | Phase 10 | Judge submissions and verdicts | Wait for sandbox/judge design |
+| `submissions` | Phase 10 | User-owned source and judge verdict snapshots | Implemented in Post-MVP Phase 10 |
+| `submission_case_results` | Phase 10 | Per-test-case judge results | Implemented in Post-MVP Phase 10 |
 | `code_reviews` | Phase 8 | Explicitly saved AI code review results | Implemented in Post-MVP Phase 8 |
 | `mistake_notes` | Phase 8 | User-owned mistake notebook entries | Implemented in Post-MVP Phase 8 |
 | `recommendation_logs` | Phase 12 | Recommendation events and explanations | Wait for weakness analysis model |
 | `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
 | `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
 
-Judging-related tables such as `submissions` must wait until the sandbox approach is defined. `test_cases` exists from Phase 9 as imported text data only; it does not imply judging or code execution.
+Phase 10 adds `submissions` and `submission_case_results` after defining the separate Judge service and isolated runner-container boundary. `test_cases` remains stored input/output data and is never executed by the backend itself.
 
 ## users
 
@@ -263,6 +264,64 @@ Notes:
 - `progress_percent` ranges from 0 to 100.
 - `mastery_level` can use a 0 to 5 scale.
 - `next_review_at` supports future spaced repetition.
+
+## submissions
+
+Implemented in Post-MVP Phase 10.
+
+```text
+id
+user_id
+problem_id
+problem_title
+problem_display_id
+language
+source_code
+verdict
+passed_case_count
+total_case_count
+execution_time_ms
+memory_kb
+compile_output
+error_message
+created_at
+finished_at
+```
+
+Notes:
+
+- Full source code is current-user-owned product data, not log data.
+- Problem title and display-id snapshots survive hard deletion.
+- `problem_id` uses `on delete set null`.
+- Phase 10 supports `cpp` and `python` only.
+
+## submission_case_results
+
+Implemented in Post-MVP Phase 10.
+
+```text
+id
+submission_id
+test_case_id
+case_index
+name
+is_sample
+verdict
+execution_time_ms
+memory_kb
+input_text
+expected_output_text
+actual_output
+error_message
+created_at
+```
+
+Notes:
+
+- Sample cases may store input, expected output, and actual output.
+- Hidden cases keep those content fields null.
+- `not_run` marks cases skipped after the total execution budget.
+- `test_case_id` uses `on delete set null`.
 
 ## mistake_notes
 

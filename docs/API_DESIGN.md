@@ -287,14 +287,39 @@ Phase 8 errors:
 - `TOPIC_NOT_FOUND`
 - inherited auth errors such as `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `TOKEN_INVALID`, `INVALID_SESSION`
 
-## Post-MVP Planned APIs
+## Phase 10 Submission APIs
 
-The APIs in this section are deferred/planned. They are not implemented in MVP v0.1 and must not be treated as current contracts.
-
-Judging and submissions, planned for Phase 10:
+Implemented in Post-MVP Phase 10:
 
 - `POST /api/submissions`
 - `GET /api/submissions/{id}`
+
+Rules:
+
+- All submission APIs require `get_current_user`.
+- `POST` accepts `problem_id`, `language=cpp|python`, and `source_code` up to 20000 characters.
+- The problem must belong to the current user and contain test cases.
+- `ENABLE_CODE_EXECUTION=false` returns `CODE_EXECUTION_DISABLED` without creating a submission.
+- Backend calls the separate Judge service asynchronously and never executes code directly.
+- Judge requests are not retried.
+- Full source code is returned only to the owning user.
+- Sample case details may be returned; hidden case input, expected output, and actual output are always null.
+- Deleted problems retain title and display-id snapshots in submission history.
+
+Errors:
+
+- `CODE_EXECUTION_DISABLED`
+- `JUDGE_CONFIG_MISSING`
+- `JUDGE_UNAVAILABLE`
+- `JUDGE_TIMEOUT`
+- `JUDGE_BUSY`
+- `JUDGE_INVALID_RESPONSE`
+- `PROBLEM_TEST_CASES_REQUIRED`
+- `SUBMISSION_NOT_FOUND`
+
+## Post-MVP Planned APIs
+
+The APIs below remain deferred.
 
 AI diagnosis after failed judgement, planned for Phase 11:
 
@@ -302,7 +327,7 @@ AI diagnosis after failed judgement, planned for Phase 11:
 
 Planning boundaries:
 
-- Code execution and judge APIs must wait for an approved sandbox design.
+- Further judge capabilities must preserve the approved isolated service and sandbox boundary.
 - Upload APIs must include file size, file count, file type, and path traversal controls.
 - Post-MVP APIs must preserve `/api` prefix and the existing success/error response structure.
 - Current MVP v0.1 APIs must not be changed to accommodate planned APIs prematurely.

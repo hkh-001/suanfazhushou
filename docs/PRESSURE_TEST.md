@@ -613,6 +613,14 @@ Risk signals:
 
 ## 3.4 Judge Safety Pressure Test
 
+Phase 10 implemented baseline:
+
+- Code execution is disabled by default.
+- Backend delegates to a separate Judge service.
+- Each submission uses a temporary network-disabled runner container.
+- Hidden test-case content is not exposed by the API.
+- Submission source is user-owned data and is not written to AI logs.
+
 Questions:
 
 - Is host-machine execution forbidden?
@@ -627,6 +635,9 @@ Pass criteria:
 - User code never runs directly on the host.
 - Sandbox constraints are tested.
 - Failed or malicious submissions do not compromise the service.
+- Busy Judge instances fail fast instead of creating an unbounded queue.
+- Runner containers are removed after success, failure, timeout, or cancellation.
+- C++ and Python fork bombs are constrained by PID limits.
 
 Risk signals:
 

@@ -35,19 +35,27 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENABLE_DEV_USER: "true"
       DEV_USER_ID: 00000000-0000-0000-0000-000000000001
-      ENABLE_CODE_EXECUTION: "false"
+      ENABLE_CODE_EXECUTION: ${ENABLE_CODE_EXECUTION:-false}
+      JUDGE_BASE_URL: http://judge:9000
+      JUDGE_INTERNAL_TOKEN: ${JUDGE_INTERNAL_TOKEN:-}
+      JUDGE_REQUEST_TIMEOUT_SECONDS: "60"
+      SUBMISSION_MAX_IN_FLIGHT: "2"
       AI_PROVIDER: openai_compatible
       AI_TIMEOUT_SECONDS: "60"
       AI_MAX_RETRIES: "1"
-      SECRET_KEY: change_me_in_production
+      SECRET_KEY: change-me-in-production-32-bytes-long!!
       ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - backend_venv:/app/.venv
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - default
+      - judge_internal
 
   postgres:
     image: postgres:16-alpine
@@ -72,7 +80,57 @@ services:
     volumes:
       - redis_data:/data
 
+  judge-runner-image:
+    build:
+      context: ./judge/runner
+      dockerfile: Dockerfile
+      args:
+        DEBIAN_MIRROR: ${DEBIAN_MIRROR:-http://deb.debian.org/debian}
+        DEBIAN_SECURITY_MIRROR: ${DEBIAN_SECURITY_MIRROR:-http://deb.debian.org/debian-security}
+    image: algomentor-judge-runner:phase10
+    command: ["/bin/true"]
+    restart: "no"
+
+  judge:
+    build:
+      context: ./judge
+      dockerfile: Dockerfile
+    environment:
+      JUDGE_INTERNAL_TOKEN: ${JUDGE_INTERNAL_TOKEN:-}
+      JUDGE_MAX_CONCURRENT: "2"
+      JUDGE_COMPILE_TIMEOUT_SECONDS: "10"
+      JUDGE_CASE_TIMEOUT_SECONDS: "2"
+      JUDGE_TOTAL_TIMEOUT_SECONDS: "30"
+      JUDGE_REQUEST_HARD_TIMEOUT_SECONDS: "50"
+      JUDGE_MEMORY_LIMIT_MB: "512"
+      JUDGE_CPU_LIMIT: "1"
+      JUDGE_CONTAINER_PIDS_LIMIT: "128"
+      JUDGE_RUNTIME_PROCESS_LIMIT: "64"
+      JUDGE_WORKSPACE_LIMIT_MB: "64"
+      JUDGE_OUTPUT_LIMIT_BYTES: "65536"
+      JUDGE_RUNNER_IMAGE: algomentor-judge-runner:phase10
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      judge-runner-image:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+      - judge_internal
+
 volumes:
+  backend_venv:
   frontend_node_modules:
   postgres_data:
   redis_data:
+
+networks:
+  judge_internal:
+    internal: true

@@ -1,0 +1,1 @@
+"""AlgoMentor isolated judge service."""

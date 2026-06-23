@@ -4,6 +4,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.problem import Problem, ProblemTag
+from app.models.test_case import TestCase
 from app.models.topic import Topic
 
 
@@ -28,6 +29,18 @@ def get_user_problem(db: Session, *, problem_id: UUID, user_id: UUID) -> Problem
     stmt = (
         select(Problem)
         .options(selectinload(Problem.problem_tags).selectinload(ProblemTag.topic))
+        .where(Problem.id == problem_id, Problem.created_by_user_id == user_id)
+    )
+    return db.scalar(stmt)
+
+
+def get_user_problem_with_test_cases(db: Session, *, problem_id: UUID, user_id: UUID) -> Problem | None:
+    stmt = (
+        select(Problem)
+        .options(
+            selectinload(Problem.problem_tags).selectinload(ProblemTag.topic),
+            selectinload(Problem.test_cases),
+        )
         .where(Problem.id == problem_id, Problem.created_by_user_id == user_id)
     )
     return db.scalar(stmt)
