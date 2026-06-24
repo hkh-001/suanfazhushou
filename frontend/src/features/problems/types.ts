@@ -92,6 +92,13 @@ export type ProblemDeleteResponse = {
   };
 };
 
+export type GeneratedProblemTestCase = {
+  name?: string | null;
+  input: string;
+  expected_output: string;
+  is_sample?: boolean;
+};
+
 export type GeneratedProblemSavePayload = {
   topic_id?: string | null;
   difficulty: GeneratedProblemDifficulty;
@@ -102,6 +109,7 @@ export type GeneratedProblemSavePayload = {
   constraints?: string | null;
   sample_input?: string | null;
   sample_output?: string | null;
+  test_cases: GeneratedProblemTestCase[];
   hints: string[];
   solution_idea?: string | null;
   requirements?: string | null;

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     enable_dev_user: bool = True
     dev_user_id: str = "00000000-0000-0000-0000-000000000001"
     enable_runtime_ai_settings: bool = False
+    enable_persistent_ai_settings: bool = False
+    persistent_ai_settings_path: str = ".runtime-ai-settings.json"
     secret_key: str = "change-me-in-production-32-bytes-long!!"
     access_token_expire_minutes: int = 1440
     enable_code_execution: bool = False

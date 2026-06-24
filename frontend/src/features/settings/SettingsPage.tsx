@@ -11,6 +11,7 @@ import type { AISettingsStatus } from "./types";
 
 const sourceLabels: Record<AISettingsStatus["source"], string> = {
   runtime: "当前使用运行时配置",
+  persistent: "当前使用本地持久化配置",
   env: "当前使用环境变量配置",
   none: "当前未配置 AI 服务"
 };
@@ -85,7 +86,11 @@ export function SettingsPage() {
       setBaseUrl(response.data.base_url ?? "");
       setModel(response.data.model ?? "");
       setApiKey("");
-      setMessage("AI 服务配置已保存到后端运行时内存。");
+      setMessage(
+        response.data.persistent_settings_enabled
+          ? "AI 服务配置已保存到后端运行时内存和本地持久化文件。"
+          : "AI 服务配置已保存到后端运行时内存。"
+      );
     } catch (err) {
       setError(friendlySettingsError(err));
     } finally {
@@ -136,7 +141,7 @@ export function SettingsPage() {
   return (
     <AppShell maxWidth="max-w-6xl">
       <PageHeader
-        description="配置本地开发或演示环境中的 OpenAI-compatible 大模型服务。配置只保存在后端运行时内存中，服务重启后需要重新配置。"
+        description="配置本地开发或演示环境中的 OpenAI-compatible 大模型服务。默认只保存在后端运行时内存中；启用本地持久化后，服务重启仍可恢复。"
         title="系统设置"
       />
 
@@ -235,6 +240,12 @@ export function SettingsPage() {
                   </dd>
                 </div>
                 <div>
+                  <dt className="text-[#64748b]">本地持久化</dt>
+                  <dd className="mt-1 font-semibold text-[#0f172a]">
+                    {status.persistent_settings_enabled ? "已启用" : "未启用"}
+                  </dd>
+                </div>
+                <div>
                   <dt className="text-[#64748b]">配置状态</dt>
                   <dd className="mt-1 font-semibold text-[#0f172a]">
                     {status.configured ? "已配置" : "未配置"}
@@ -267,7 +278,8 @@ export function SettingsPage() {
           <section className="rounded-xl border border-[#dbeafe] bg-[#f8fbff] p-5 text-sm leading-6 text-[#475569] shadow-sm shadow-blue-100/60">
             <h2 className="text-lg font-semibold text-[#0f172a]">安全说明</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5">
-              <li>运行时配置只保存在当前后端进程内存中，服务重启后会丢失。</li>
+              <li>默认运行时配置只保存在当前后端进程内存中，服务重启后会丢失。</li>
+              <li>启用本地持久化后，配置会写入后端本地文件，仅用于开发和演示。</li>
               <li>API 密钥不会在页面明文展示，也不会写入浏览器存储。</li>
               <li>该能力仅用于本地开发和演示，不应在公网无鉴权启用。</li>
             </ul>

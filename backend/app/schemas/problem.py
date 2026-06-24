@@ -122,6 +122,26 @@ class ProblemUpdate(BaseModel):
         return _strip_or_none(value)
 
 
+class GeneratedProblemSaveTestCase(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    input: str = Field(min_length=1, max_length=20000)
+    expected_output: str = Field(min_length=1, max_length=20000)
+    is_sample: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def strip_test_case_name(cls, value: str | None) -> str | None:
+        return _strip_or_none(value)
+
+    @field_validator("input", "expected_output")
+    @classmethod
+    def strip_test_case_required_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Field is required")
+        return stripped
+
+
 class GeneratedProblemSaveRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -134,6 +154,7 @@ class GeneratedProblemSaveRequest(BaseModel):
     constraints: str | None = Field(default=None, max_length=5000)
     sample_input: str | None = Field(default=None, max_length=5000)
     sample_output: str | None = Field(default=None, max_length=5000)
+    test_cases: list[GeneratedProblemSaveTestCase] = Field(min_length=1, max_length=20)
     hints: list[str] = Field(default_factory=list, max_length=10)
     solution_idea: str | None = Field(default=None, max_length=20000)
     requirements: str | None = Field(default=None, max_length=1500)

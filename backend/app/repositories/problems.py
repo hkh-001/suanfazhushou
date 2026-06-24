@@ -80,10 +80,13 @@ def allocate_problem_display_id(db: Session, *, user_id: UUID) -> int:
     return int(db.execute(stmt, {"user_id": user_id}).scalar_one())
 
 
-def create_problem(db: Session, problem: Problem, topics: list[Topic]) -> Problem:
+def create_problem(db: Session, problem: Problem, topics: list[Topic], test_cases: list[TestCase] | None = None) -> Problem:
     db.add(problem)
     db.flush()
     replace_problem_tags(db, problem=problem, topics=topics)
+    for test_case in test_cases or []:
+        test_case.problem_id = problem.id
+        db.add(test_case)
     db.commit()
     db.refresh(problem)
     return get_user_problem(db, problem_id=problem.id, user_id=problem.created_by_user_id) or problem

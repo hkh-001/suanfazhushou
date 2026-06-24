@@ -8,9 +8,12 @@ from app.models.topic import Topic
 def _user_payload(prefix: str = "code-review-user") -> dict:
     suffix = uuid4().hex[:8]
     return {
-        "email": f"{prefix}-{suffix}@example.com",
-        "username": f"{prefix}_{suffix}",
+        "student_id": f"{prefix}_{suffix}",
         "password": "password123",
+        "name": "代码诊断用户",
+        "current_level": "elementary",
+        "goal_track": "self_study",
+        "goal_description": None,
     }
 
 

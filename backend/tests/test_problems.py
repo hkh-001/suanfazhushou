@@ -2,11 +2,12 @@ from datetime import datetime, timezone
 from uuid import UUID
 from uuid import uuid4
 
-from sqlalchemy import delete, text
+from sqlalchemy import delete, select, text
 
 from app.core.config import settings
 from app.core.security import SESSION_COOKIE_NAME
 from app.models.problem import Problem, UserProblemCounter
+from app.models.test_case import TestCase as DbTestCase
 from app.models.topic import Topic
 from app.models.user import User
 
@@ -14,9 +15,12 @@ from app.models.user import User
 def _user_payload(prefix: str = "problem-user") -> dict:
     suffix = uuid4().hex[:8]
     return {
-        "email": f"{prefix}-{suffix}@example.com",
-        "username": f"{prefix}_{suffix}",
+        "student_id": f"{prefix}_{suffix}",
         "password": "password123",
+        "name": "题库用户",
+        "current_level": "elementary",
+        "goal_track": "self_study",
+        "goal_description": None,
     }
 
 
@@ -51,6 +55,20 @@ def _generated_problem_payload(**overrides) -> dict:
         "constraints": "1 <= n, q <= 100000",
         "sample_input": "5 1\n1 2 3 4 5\n1 3",
         "sample_output": "6",
+        "test_cases": [
+            {
+                "name": "01",
+                "input": "5 1\n1 2 3 4 5\n1 3",
+                "expected_output": "6",
+                "is_sample": True,
+            },
+            {
+                "name": "02",
+                "input": "5 2\n1 2 3 4 5\n2 4\n1 5",
+                "expected_output": "9\n15",
+                "is_sample": False,
+            },
+        ],
         "hints": ["Build prefix sums.", "Use sum[r] - sum[l - 1]."],
         "solution_idea": "Precompute prefix sums to answer each query in O(1).",
     }
@@ -115,6 +133,15 @@ def test_save_ai_generated_problem_success_and_forced_metadata(client, db_sessio
     assert db_problem is not None
     assert str(db_problem.created_by_user_id) == user["id"]
     assert db_problem.is_ai_generated is True
+    test_cases = db_session.scalars(
+        select(DbTestCase).where(DbTestCase.problem_id == db_problem.id).order_by(DbTestCase.case_index)
+    ).all()
+    assert len(test_cases) == 2
+    assert test_cases[0].name == "01"
+    assert test_cases[0].input_text == "5 1\n1 2 3 4 5\n1 3"
+    assert test_cases[0].expected_output_text == "6"
+    assert test_cases[0].is_sample is True
+    assert test_cases[1].is_sample is False
 
 
 def test_save_ai_generated_problem_rejects_client_owned_fields(client) -> None:
@@ -144,8 +171,9 @@ def test_save_ai_generated_problem_validates_required_fields_and_difficulty(clie
     input_format = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(input_format=" "))
     output_format = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(output_format=""))
     difficulty = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(difficulty="advanced"))
+    test_cases = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload(test_cases=[]))
 
-    for response in (title, statement, input_format, output_format, difficulty):
+    for response in (title, statement, input_format, output_format, difficulty, test_cases):
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 

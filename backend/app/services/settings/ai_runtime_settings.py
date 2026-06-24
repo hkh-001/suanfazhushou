@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from dataclasses import dataclass
 from urllib.parse import urlsplit, urlunsplit
 
@@ -31,6 +33,76 @@ class RuntimeAISettings:
 _runtime_ai_settings: RuntimeAISettings | None = None
 
 
+def _persistent_settings_enabled() -> bool:
+    return settings.app_env == "development" and settings.enable_persistent_ai_settings
+
+
+def _persistent_settings_path() -> Path:
+    return Path(settings.persistent_ai_settings_path)
+
+
+def _load_persistent_ai_settings() -> RuntimeAISettings | None:
+    if not _persistent_settings_enabled():
+        return None
+
+    path = _persistent_settings_path()
+    if not path.exists():
+        return None
+
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        base_url = raw.get("base_url")
+        api_key = raw.get("api_key")
+        model = raw.get("model")
+        if not isinstance(base_url, str) or not isinstance(api_key, str) or not isinstance(model, str):
+            return None
+        clean_api_key = api_key.strip()
+        clean_model = model.strip()
+        if not clean_api_key or not clean_model:
+            return None
+        clean_base_url = sanitize_base_url(base_url)
+        return RuntimeAISettings(
+            base_url=clean_base_url,
+            api_key=clean_api_key,
+            model=clean_model,
+        )
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _save_persistent_ai_settings(config: RuntimeAISettings) -> None:
+    if not _persistent_settings_enabled():
+        return
+
+    path = _persistent_settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(f"{path.suffix}.tmp")
+    temp_path.write_text(
+        json.dumps(
+            {
+                "base_url": config.base_url,
+                "api_key": config.api_key,
+                "model": config.model,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    temp_path.replace(path)
+
+
+def _delete_persistent_ai_settings() -> None:
+    if not _persistent_settings_enabled():
+        return
+
+    path = _persistent_settings_path()
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return
+
+
 def sanitize_base_url(value: str) -> str:
     parsed = urlsplit(value.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -50,12 +122,14 @@ def set_runtime_ai_settings(*, base_url: str, api_key: str, model: str) -> Runti
         api_key=clean_api_key,
         model=clean_model,
     )
+    _save_persistent_ai_settings(_runtime_ai_settings)
     return _runtime_ai_settings
 
 
 def clear_runtime_ai_settings() -> None:
     global _runtime_ai_settings
     _runtime_ai_settings = None
+    _delete_persistent_ai_settings()
 
 
 def get_runtime_ai_settings() -> RuntimeAISettings | None:
@@ -70,6 +144,16 @@ def get_effective_ai_settings() -> EffectiveAISettings:
             api_key=_runtime_ai_settings.api_key,
             model=_runtime_ai_settings.model,
             source="runtime",
+        )
+
+    persistent = _load_persistent_ai_settings()
+    if persistent is not None:
+        return EffectiveAISettings(
+            provider=settings.ai_provider,
+            base_url=persistent.base_url,
+            api_key=persistent.api_key,
+            model=persistent.model,
+            source="persistent",
         )
 
     if settings.ai_base_url and settings.ai_api_key and settings.ai_model:

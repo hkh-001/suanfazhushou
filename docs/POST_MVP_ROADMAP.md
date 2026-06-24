@@ -357,7 +357,181 @@ medium
 - Existing rule-based next steps remain compatible.
 - Dashboard keeps existing Phase 2/4 fields and appends weakness/recommendation sections.
 
-## Phase 13: RAG Knowledge Retrieval
+## Phase 13: Student Account And Initial Learning Profile
+
+Status: implemented/in progress.
+
+### Goal
+
+Upgrade minimal auth into a student-account system and collect an initial learning profile for AI context.
+
+### Dependencies
+
+- Phase 5 auth
+- Existing `users` table
+- Existing AI ContextBuilder
+
+### Expected Features
+
+- Register and login with `student_id`
+- Store display name, current level, goal track, and optional goal description
+- Keep legacy `email` and `username` fields for compatibility
+- Add profile summary to AI tutoring, problem generation, code review, and submission diagnosis context
+
+### Not Included
+
+- Ladder learning path
+- RBAC, classroom, teacher, or admin system
+- RAG
+- Complex adaptive curriculum
+
+### Risk Level
+
+medium
+
+### Completion Criteria
+
+- Student id registration and login work with HttpOnly Cookie sessions.
+- Existing users are safely backfilled by migration.
+- Profile fields are returned by `/api/auth/me`.
+- AI prompts receive a short profile summary without logging full prompts.
+- Existing personal-data isolation remains intact.
+
+## Phase 14: Ladder Templates And Path Foundation
+
+### Goal
+
+Create the base learning ladder path model and first visual ladder page.
+
+### Dependencies
+
+- Phase 13 student profile
+- Seeded ladder templates
+
+### Expected Features
+
+- Store ladder templates and per-user active learning paths
+- Show phases and algorithm nodes as a ladder
+- Track material completion and basic node unlock state
+
+### Not Included
+
+- AI exams
+- Judge integration
+- RAG
+- Teacher analytics
+
+### Risk Level
+
+medium
+
+### Completion Criteria
+
+- A user can get or create one active path.
+- First node is unlocked and later nodes follow progression rules.
+- Ladder page and node detail page render safely.
+
+## Phase 15: Ladder Materials And Practice Progress
+
+### Goal
+
+Add seeded learning materials and basic practice progress to ladder nodes.
+
+### Dependencies
+
+- Phase 14 ladder path foundation
+- Existing topics/problem bank where useful
+
+### Expected Features
+
+- Markdown teaching content per node
+- External learning links
+- Basic choice and coding practice content
+- Practice completion state
+
+### Not Included
+
+- Judge-scored coding exercises
+- AI exams
+- Submissions
+
+### Risk Level
+
+medium
+
+### Completion Criteria
+
+- Users can read material, complete practice, and see node progress update.
+- Coding practice is not executed in Phase 15.
+
+## Phase 16: AI Ladder Exam And Unlock Flow
+
+### Goal
+
+Generate and grade node exams, then unlock the next ladder node after passing.
+
+### Dependencies
+
+- Phase 15 ladder practice progress
+- Existing AI provider layer and prompt templates
+
+### Expected Features
+
+- AI-generated node exams
+- 10 choice questions and 2 code-analysis or code-completion questions
+- Score out of 100 with 80 as passing threshold
+- Passed exam unlocks the next node
+
+### Not Included
+
+- Running exam code through Judge
+- Contest mode
+- Ranking
+
+### Risk Level
+
+high
+
+### Completion Criteria
+
+- Exam generation is explicit and validated.
+- Invalid AI JSON is rejected safely.
+- Locked nodes cannot be skipped.
+- Passing unlocks the next node.
+
+## Phase 17: Profile-Aware AI Context And Recommendation Integration
+
+### Goal
+
+Use student profile and ladder progress to improve AI context and Dashboard recommendations.
+
+### Dependencies
+
+- Phase 13 student profile
+- Phase 16 ladder exam/progress data
+
+### Expected Features
+
+- Profile-aware AI tutoring and problem generation
+- Dashboard recommendations can reference stuck ladder nodes and failed exams
+- Short context summaries only
+
+### Not Included
+
+- RAG
+- Full learning-history prompt injection
+- Black-box recommendation model
+
+### Risk Level
+
+medium
+
+### Completion Criteria
+
+- AI context includes concise profile and ladder summaries.
+- Recommendations remain explainable and user-scoped.
+
+## Phase 18: RAG Knowledge Retrieval
 
 ### Goal
 
@@ -394,7 +568,7 @@ high
 - Sensitive content boundaries are documented.
 - AI service/provider contracts remain stable.
 
-## Phase 14: Deployment, Security, Permissions, Production Hardening
+## Phase 19: Deployment, Security, Permissions, Production Hardening
 
 ### Goal
 

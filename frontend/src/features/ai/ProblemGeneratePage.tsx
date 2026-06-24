@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 
 import { saveGeneratedProblem } from "@/features/problems/api";
-import type { GeneratedProblemSavePayload, ProblemDetail } from "@/features/problems/types";
+import type { GeneratedProblemSavePayload, GeneratedProblemTestCase, ProblemDetail } from "@/features/problems/types";
 import { useTopics } from "@/features/topics/hooks";
 import { ApiError } from "@/lib/api/client";
 
@@ -43,6 +43,31 @@ function normalizeHints(value: unknown): string[] {
   return [];
 }
 
+function normalizeTestCases(value: unknown): GeneratedProblemTestCase[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item, index): GeneratedProblemTestCase | null => {
+      if (item === null || typeof item !== "object" || Array.isArray(item)) {
+        return null;
+      }
+      const record = item as Record<string, unknown>;
+      const input = nonEmptyString(record.input);
+      const expectedOutput = nonEmptyString(record.expected_output) ?? nonEmptyString(record.output);
+      if (!input || !expectedOutput) {
+        return null;
+      }
+      return {
+        name: optionalString(record.name) ?? `${index + 1}`.padStart(2, "0"),
+        input,
+        expected_output: expectedOutput,
+        is_sample: typeof record.is_sample === "boolean" ? record.is_sample : index === 0
+      };
+    })
+    .filter((item): item is GeneratedProblemTestCase => item !== null);
+}
+
 function parseGeneratedProblem(raw: string): ParsedGeneratedProblem | null {
   let parsed: unknown;
   try {
@@ -59,9 +84,11 @@ function parseGeneratedProblem(raw: string): ParsedGeneratedProblem | null {
   const statement = nonEmptyString(record.statement);
   const inputFormat = nonEmptyString(record.input_format);
   const outputFormat = nonEmptyString(record.output_format);
-  if (!title || !statement || !inputFormat || !outputFormat) {
+  const testCases = normalizeTestCases(record.test_cases);
+  if (!title || !statement || !inputFormat || !outputFormat || testCases.length === 0) {
     return null;
   }
+  const sampleCase = testCases.find((testCase) => testCase.is_sample) ?? testCases[0];
 
   return {
     title,
@@ -69,8 +96,9 @@ function parseGeneratedProblem(raw: string): ParsedGeneratedProblem | null {
     input_format: inputFormat,
     output_format: outputFormat,
     constraints: optionalString(record.constraints),
-    sample_input: optionalString(record.sample_input),
-    sample_output: optionalString(record.sample_output),
+    sample_input: optionalString(record.sample_input) ?? sampleCase.input,
+    sample_output: optionalString(record.sample_output) ?? sampleCase.expected_output,
+    test_cases: testCases,
     hints: normalizeHints(record.hints),
     solution_idea: optionalString(record.solution_idea)
   };
@@ -100,6 +128,35 @@ function PreviewField({ label, value }: { label: string; value: string | null | 
     <div>
       <dt className="text-xs font-semibold text-[#2563eb]">{label}</dt>
       <dd className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[#334155]">{value}</dd>
+    </div>
+  );
+}
+
+function TestCasePreview({ item, index }: { item: GeneratedProblemTestCase; index: number }) {
+  return (
+    <div className="rounded-lg border border-[#dbeafe] bg-[#f8fbff] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <dt className="text-xs font-semibold text-[#2563eb]">
+          测试用例 {item.name ?? `${index + 1}`.padStart(2, "0")}
+        </dt>
+        {item.is_sample ? (
+          <span className="rounded-full bg-[#dbeafe] px-2 py-0.5 text-xs font-semibold text-[#1d4ed8]">样例</span>
+        ) : null}
+      </div>
+      <dd className="mt-3 grid gap-3 md:grid-cols-2">
+        <div>
+          <p className="text-xs font-semibold text-[#64748b]">输入</p>
+          <pre className="mt-1 overflow-x-auto rounded-md border border-[#e2e8f0] bg-white p-3 text-xs leading-5 text-[#0f172a]">
+            {item.input}
+          </pre>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-[#64748b]">期望输出</p>
+          <pre className="mt-1 overflow-x-auto rounded-md border border-[#e2e8f0] bg-white p-3 text-xs leading-5 text-[#0f172a]">
+            {item.expected_output}
+          </pre>
+        </div>
+      </dd>
     </div>
   );
 }
@@ -271,6 +328,18 @@ export function ProblemGeneratePage() {
                   <PreviewField label="数据范围" value={parsedProblem.constraints} />
                   <PreviewField label="样例输入" value={parsedProblem.sample_input} />
                   <PreviewField label="样例输出" value={parsedProblem.sample_output} />
+                  <div>
+                    <dt className="text-xs font-semibold text-[#2563eb]">测试用例</dt>
+                    <dd className="mt-2 grid gap-3">
+                      {parsedProblem.test_cases.map((testCase, index) => (
+                        <TestCasePreview
+                          index={index}
+                          item={testCase}
+                          key={`${testCase.name ?? index}-${index}`}
+                        />
+                      ))}
+                    </dd>
+                  </div>
                   {parsedProblem.hints.length ? (
                     <div>
                       <dt className="text-xs font-semibold text-[#2563eb]">提示</dt>

@@ -11,7 +11,9 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.main import app
 from app.models.ai_call_log import AICallLog
+from app.models.code_review import CodeReview
 from app.models.learning_record import LearningRecord
+from app.models.mistake_note import MistakeNote
 from app.models.problem import Problem, UserProblemCounter
 from app.models.submission import Submission
 from app.models.topic import Topic
@@ -28,6 +30,8 @@ def reset_runtime_ai_settings(request: pytest.FixtureRequest) -> Generator[None,
         "published_topic",
     }.intersection(request.fixturenames):
         db_session = request.getfixturevalue("db_session")
+        db_session.execute(delete(MistakeNote))
+        db_session.execute(delete(CodeReview))
         db_session.execute(delete(AICallLog))
         db_session.commit()
     clear_runtime_ai_settings()
@@ -84,6 +88,10 @@ def dev_user(db_session: Session) -> User:
         id=dev_user_id,
         email=f"dev-{uuid4()}@algomentor.local",
         username=f"dev_{uuid4().hex[:8]}",
+        student_id=f"dev_{uuid4().hex[:8]}",
+        name="开发用户",
+        current_level="beginner",
+        goal_track="self_study",
         learning_stage="beginner",
         target_track="algorithm_basics",
     )

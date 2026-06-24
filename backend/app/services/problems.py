@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.problem import Problem
+from app.models.test_case import TestCase
 from app.models.topic import Topic
 from app.models.user import User
 from app.repositories.problems import (
@@ -181,6 +182,7 @@ def create_problem(db: Session, *, user: User, payload: ProblemCreate) -> Proble
 def save_ai_generated_problem(db: Session, *, user: User, payload: GeneratedProblemSaveRequest) -> ProblemDetail:
     topics = _resolve_topics(db, [payload.topic_id] if payload.topic_id else [])
     hint = "\n".join(f"- {hint}" for hint in payload.hints) or None
+    sample_case = next((case for case in payload.test_cases if case.is_sample), payload.test_cases[0])
     problem = Problem(
         display_id=allocate_problem_display_id(db, user_id=user.id),
         title=payload.title,
@@ -193,8 +195,8 @@ def save_ai_generated_problem(db: Session, *, user: User, payload: GeneratedProb
         input_format=payload.input_format,
         output_format=payload.output_format,
         constraints=payload.constraints,
-        sample_input=payload.sample_input,
-        sample_output=payload.sample_output,
+        sample_input=payload.sample_input or sample_case.input,
+        sample_output=payload.sample_output or sample_case.expected_output,
         hint=hint,
         solution_markdown=payload.solution_idea,
         solution_code_cpp=None,
@@ -203,7 +205,18 @@ def save_ai_generated_problem(db: Session, *, user: User, payload: GeneratedProb
         is_published=False,
         created_by_user_id=user.id,
     )
-    return _to_detail(insert_problem(db, problem, topics))
+    test_cases = [
+        TestCase(
+            case_index=index,
+            name=case.name or f"{index:02d}",
+            input_text=case.input,
+            expected_output_text=case.expected_output,
+            is_sample=case.is_sample or index == 1,
+            is_hidden=False,
+        )
+        for index, case in enumerate(payload.test_cases, start=1)
+    ]
+    return _to_detail(insert_problem(db, problem, topics, test_cases=test_cases))
 
 
 def update_problem(db: Session, *, user: User, problem_id: UUID, payload: ProblemUpdate) -> ProblemDetail:

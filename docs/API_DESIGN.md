@@ -170,10 +170,14 @@ Phase 5 auth rules:
 
 - Auth uses an HttpOnly `algomentor_session` Cookie with JWT access token.
 - Auth responses return user data only; they do not return JWTs or `hashed_password`.
-- Register accepts `email`, `username`, and `password`; `learning_stage` and `target_track` default to `beginner` and `algorithm_basics`.
-- Register duplicate email returns `EMAIL_ALREADY_REGISTERED`.
-- Register duplicate username returns `USERNAME_ALREADY_TAKEN`.
-- Login invalid email or password returns `INVALID_CREDENTIALS` without revealing whether the user exists.
+- Phase 13 upgrades auth to student accounts and initial learning profiles.
+- Register accepts `student_id`, `password`, `name`, `current_level`, `goal_track`, and optional `goal_description`.
+- Successful registration marks the initial learning profile as completed by setting `onboarding_completed_at`.
+- Register duplicate student id returns `STUDENT_ID_ALREADY_EXISTS`.
+- Login accepts `student_id` and `password`.
+- Login invalid student id or password returns `INVALID_CREDENTIALS` without revealing whether the user exists.
+- `GET /api/auth/me` returns `student_id`, `name`, `current_level`, `goal_track`, and `goal_description`.
+- `email`, `username`, `learning_stage`, and `target_track` remain compatibility fields but are not user-facing registration fields after Phase 13; clients should not depend on `email` or `username` for display or login behavior.
 - Logout clears the Cookie only; it does not disable development-user fallback.
 - `GET /api/auth/me` returns the real Cookie user first.
 - `GET /api/auth/me` may fallback to dev user only when the Cookie is missing and `ENABLE_DEV_USER=true`.
@@ -192,7 +196,7 @@ Phase 4.5 AI settings rules:
 - `GET /api/settings/ai` returns the current effective AI configuration status and never returns an API key.
 - Settings response includes:
   - `configured`
-  - `source`: `runtime`, `env`, or `none`
+  - `source`: `runtime`, `persistent`, `env`, or `none`
   - `provider`
   - `base_url`
   - `model`
@@ -201,7 +205,9 @@ Phase 4.5 AI settings rules:
 - `base_url` must be displayed without query string or fragment.
 - `PUT`, `DELETE`, and `POST /api/settings/ai/test` require `ENABLE_RUNTIME_AI_SETTINGS=true`.
 - If runtime settings are disabled, mutating/test endpoints return `403` with `FEATURE_DISABLED`.
-- `PUT /api/settings/ai` stores configuration only in backend process memory.
+- `PUT /api/settings/ai` stores configuration in backend process memory by default.
+- If `APP_ENV=development` and `ENABLE_PERSISTENT_AI_SETTINGS=true`, `PUT /api/settings/ai` also writes a local ignored settings file so `/settings` configuration can survive backend restarts.
+- `DELETE /api/settings/ai` clears both runtime memory and the local persistent settings file when persistent settings are enabled.
 - Runtime settings are for local development and demos, not production secret management.
 - `POST /api/settings/ai/test` sends a minimal provider request and must not log API keys, full prompts, or full provider responses.
 

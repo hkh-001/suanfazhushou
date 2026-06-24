@@ -1,4 +1,4 @@
-export type AISettingsSource = "runtime" | "env" | "none";
+export type AISettingsSource = "runtime" | "persistent" | "env" | "none";
 
 export type AISettingsStatus = {
   configured: boolean;
@@ -8,6 +8,7 @@ export type AISettingsStatus = {
   model: string | null;
   api_key_set: boolean;
   runtime_settings_enabled: boolean;
+  persistent_settings_enabled: boolean;
 };
 
 export type AISettingsResponse = {

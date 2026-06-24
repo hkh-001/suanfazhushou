@@ -35,6 +35,13 @@ class ProblemGenerationRequest(BaseModel):
     requirements: str | None = Field(default=None, max_length=1500)
 
 
+class GeneratedProblemTestCase(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    input: str = Field(min_length=1, max_length=20000)
+    expected_output: str = Field(min_length=1, max_length=20000)
+    is_sample: bool = False
+
+
 class GeneratedProblem(BaseModel):
     title: str
     statement: str
@@ -43,6 +50,7 @@ class GeneratedProblem(BaseModel):
     constraints: str
     sample_input: str
     sample_output: str
+    test_cases: list[GeneratedProblemTestCase] = Field(min_length=1, max_length=20)
     hints: list[str]
     solution_idea: str
     is_ai_generated: Literal[True]

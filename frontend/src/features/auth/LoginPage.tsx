@@ -12,7 +12,7 @@ import { login } from "./api";
 
 function friendlyLoginError(error: unknown) {
   if (error instanceof ApiError && error.code === "INVALID_CREDENTIALS") {
-    return "邮箱或密码不正确。";
+    return "学号或密码不正确。";
   }
   if (error instanceof ApiError || error instanceof Error) {
     return error.message;
@@ -22,7 +22,7 @@ function friendlyLoginError(error: unknown) {
 
 export function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [studentId, setStudentId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      await login({ email, password });
+      await login({ student_id: studentId.trim(), password });
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
@@ -48,15 +48,14 @@ export function LoginPage() {
       <section className="mx-auto max-w-md rounded-xl border border-[#dbeafe] bg-white/95 p-6 shadow-sm shadow-blue-100/60">
         <form className="grid gap-5" onSubmit={submit}>
           <label className="block text-sm font-medium text-[#334155]">
-            邮箱
+            学号
             <input
-              autoComplete="email"
+              autoComplete="username"
               className="mt-2 w-full rounded-md border border-[#bfdbfe] bg-white px-3 py-2 text-[#0f172a] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe]"
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="user@example.com"
+              onChange={(event) => setStudentId(event.target.value)}
+              placeholder="20240001"
               required
-              type="email"
-              value={email}
+              value={studentId}
             />
           </label>
           <label className="block text-sm font-medium text-[#334155]">

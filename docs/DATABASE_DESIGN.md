@@ -57,7 +57,7 @@ Phase 4 Dashboard data is computed from published topics and the current user's 
 
 Phase 5 and later are Post-MVP roadmap work. They are not required for MVP v0.1 completion.
 
-Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-10 tables. Tables marked deferred below remain planning notes only until their Post-MVP phase creates an Alembic migration.
+Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-13 tables. Tables marked deferred below remain planning notes only until their Post-MVP phase creates an Alembic migration.
 
 ## Post-MVP Table Status
 
@@ -82,14 +82,28 @@ Phase 10 adds `submissions` and `submission_case_results` after defining the sep
 id
 email
 username
+student_id
+name
 hashed_password
+current_level
+goal_track
+goal_description
+onboarding_completed_at
 learning_stage
 target_track
 created_at
 updated_at
 ```
 
-MVP may use a default development user instead of full registration and login.
+Notes:
+
+- Phase 13 adds `student_id`, `name`, `current_level`, `goal_track`, `goal_description`, and `onboarding_completed_at`.
+- New frontend registration and login use `student_id`, not email.
+- `onboarding_completed_at` is set when the initial profile is collected during registration; migration also backfills it for legacy users.
+- `email`, `username`, `learning_stage`, and `target_track` remain compatibility fields and are not removed in Phase 13.
+- `current_level` is one of `beginner`, `elementary`, `popularization`, or `improvement`.
+- `goal_track` is one of `course`, `lanqiao`, `icpc`, or `self_study`.
+- User profile fields may be injected into AI context as a short summary, not as full learning history.
 
 ## user_settings
 

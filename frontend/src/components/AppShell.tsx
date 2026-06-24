@@ -85,7 +85,7 @@ export function AppShell({
               ) : user ? (
                 <>
                   <span className="rounded-md bg-[#eff6ff] px-3 py-2 font-semibold text-[#1d4ed8]">
-                    {user.is_dev_user ? "开发用户" : user.username}
+                    {user.is_dev_user ? "开发用户" : user.name}
                   </span>
                   {!user.is_dev_user ? (
                     <button

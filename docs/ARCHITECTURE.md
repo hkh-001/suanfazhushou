@@ -112,6 +112,14 @@ Phase 5 auth boundaries:
 - no refresh token rotation
 - no sessions table
 - no password reset
+
+Phase 13 student profile extension:
+
+- Auth keeps the same HttpOnly Cookie and JWT session mechanism.
+- Registration and login use `student_id` as the user-facing account.
+- `email` and `username` remain compatibility fields, not primary login fields.
+- `current_level`, `goal_track`, and optional `goal_description` live on `users` for the first profile version.
+- AI ContextBuilder may add a short profile summary to prompts, but must not inject full learning history or store full prompts in logs.
 - no production-grade permission system
 
 ## Personal Problem Bank Architecture
@@ -186,15 +194,18 @@ Post-MVP work should follow these dependency paths:
 
 ```text
 Auth -> Personal Data Ownership
+Student Profile -> Profile-Aware AI Context
 Problem Bank -> ZIP Import -> Test Cases -> Judging
 Judging -> Failed Submission -> AI Diagnosis
 Mistake Notebook -> Weakness Analysis -> Recommendation
+Student Profile -> Ladder Templates -> Ladder Progress -> Ladder Exams
 Content Scale -> RAG
 ```
 
 Architecture boundaries:
 
 - Auth should be introduced before personal problem banks, mistake notebooks, and submission history.
+- Student profile should be introduced before ladder paths and profile-aware AI generation.
 - Problem bank should exist before ZIP import and judging.
 - ZIP import should validate problem packages and test cases before judging consumes them.
 - Judging should be isolated as a sandbox or judge service. It must not be mixed into the normal AI code review service.

@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+backend/.runtime-ai-settings.json
+backend/.runtime-ai-settings.json.tmp
+.runtime-ai-settings.json
+.runtime-ai-settings.json.tmp
 
 # Node / frontend
 node_modules/
@@ -54,6 +58,7 @@ postgres-data/
 redis-data/
 
 # Generated artifacts
+.claude/
 *.tmp
 *.temp
 *.bak

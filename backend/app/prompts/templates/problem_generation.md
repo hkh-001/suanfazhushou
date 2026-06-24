@@ -23,7 +23,34 @@ Return exactly one JSON object with these fields:
   "constraints": "string",
   "sample_input": "string",
   "sample_output": "string",
+  "test_cases": [
+    {
+      "name": "01",
+      "input": "string",
+      "expected_output": "string",
+      "is_sample": true
+    },
+    {
+      "name": "02",
+      "input": "string",
+      "expected_output": "string",
+      "is_sample": false
+    },
+    {
+      "name": "03",
+      "input": "string",
+      "expected_output": "string",
+      "is_sample": false
+    }
+  ],
   "hints": ["string"],
   "solution_idea": "string",
   "is_ai_generated": true
 }
+
+Test case requirements:
+- Generate 3 to 5 test cases.
+- At least one test case must have "is_sample": true.
+- sample_input and sample_output must exactly match the first sample test case.
+- Include basic, edge, and typical cases.
+- Do not include hidden explanations outside JSON.

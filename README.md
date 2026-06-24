@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 12: Learning Recommendation And Weakness Analysis.
+The project is currently in Post-MVP Phase 13: Student Account And Initial Learning Profile.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -38,7 +38,7 @@ This repository currently contains:
 - prompt template runtime loading and AI call metadata logs
 - Dashboard page with learning progress, review queue, and rule-based next steps
 - local-only runtime AI settings page and API guarded by `ENABLE_RUNTIME_AI_SETTINGS`
-- minimal auth with register, login, logout, current user, HttpOnly Cookie, and JWT
+- student-account auth with register, login, logout, current user, HttpOnly Cookie, JWT, and initial learning profile
 - personal problem bank with manual create, list, edit, delete, and topic association
 
 It does not yet contain:
@@ -107,8 +107,13 @@ Post-MVP roadmap:
 - Phase 10: Minimal Judging System
 - Phase 11: AI Diagnosis After Failed Judgement
 - Phase 12: Learning Recommendation And Weakness Analysis
-- Phase 13: RAG Knowledge Retrieval
-- Phase 14: Deployment, Security, Permissions, Production Hardening
+- Phase 13: Student Account And Initial Learning Profile
+- Phase 14: Ladder Templates And Path Foundation
+- Phase 15: Ladder Materials And Practice Progress
+- Phase 16: AI Ladder Exam And Unlock Flow
+- Phase 17: Profile-Aware AI Context And Recommendation Integration
+- Phase 18: RAG Knowledge Retrieval
+- Phase 19: Deployment, Security, Permissions, Production Hardening
 
 ## Planned Engineering Standards
 
@@ -281,14 +286,19 @@ http://localhost:3000/login
 http://localhost:3000/register
 ```
 
-Minimal auth notes:
+Student account auth notes:
 
 - Login state is stored in the backend-issued `algomentor_session` HttpOnly Cookie.
 - The frontend sends API requests with credentials included and does not read or store the JWT.
+- Phase 13 registration and login use `student_id` instead of email.
+- Registration collects `name`, `current_level`, `goal_track`, and optional `goal_description`.
+- Successful registration marks the initial profile as completed in `onboarding_completed_at`.
+- Legacy `email`, `username`, `learning_stage`, and `target_track` fields remain for compatibility, but they are not user-facing registration fields after Phase 13.
+- AI tutoring, problem generation, code review, and submission diagnosis may receive a short user-profile summary as context.
 - `ENABLE_DEV_USER=true` keeps the development user fallback when no Cookie is present.
 - If a Cookie exists but is expired, invalid, or points to a missing user, the backend returns a safe auth error and does not fallback to the dev user.
 - `SECRET_KEY=change-me-in-production-32-bytes-long!!` is for local development only. Production must use a unique strong secret of at least 32 bytes.
-- Phase 5 does not implement RBAC, OAuth, refresh tokens, password reset, ZIP import, judging, OJ, or RAG.
+- Phase 13 does not implement RBAC, OAuth, refresh tokens, password reset, classroom/teacher systems, ladder learning paths, ZIP import, judging, OJ, or RAG.
 
 Phase 6-9 problem bank APIs:
 
@@ -423,10 +433,12 @@ Runtime AI settings:
 
 - `GET /api/settings/ai` reports the current effective AI configuration source without returning the API key.
 - `PUT /api/settings/ai`, `DELETE /api/settings/ai`, and `POST /api/settings/ai/test` are disabled by default.
+- For persistent local Docker Compose configuration, set `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` in the local `.env` file before starting the backend. The `.env` file is ignored by Git and must not be committed.
 - To enable runtime AI settings for local backend development or demos, set `ENABLE_RUNTIME_AI_SETTINGS=true` before starting FastAPI locally.
 - Runtime AI settings are stored only in the current backend process memory. They are lost when the backend restarts.
+- To allow `/settings` saves to survive backend restarts in local development, also set `ENABLE_PERSISTENT_AI_SETTINGS=true`. The backend writes `.runtime-ai-settings.json` locally; this file is ignored by Git and must not be used as production secret management.
 - This feature is not production key management. Do not enable it on a public production deployment without authentication and a proper secret-management design.
-- Docker Compose does not enable runtime AI settings; that local-demo feature remains off unless the backend is started with `ENABLE_RUNTIME_AI_SETTINGS=true`.
+- Docker Compose reads env-based AI settings from `.env`; runtime AI settings remain off unless `ENABLE_RUNTIME_AI_SETTINGS=true` is set, and local persistent settings remain off unless `ENABLE_PERSISTENT_AI_SETTINGS=true` is set.
 
 ## Testing
 
@@ -484,12 +496,10 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 12 Learning Recommendation And Weakness Analysis.
+Current: Post-MVP Phase 13 Student Account And Initial Learning Profile.
 
-Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
+Next: Phase 14 Ladder Templates And Path Foundation.
 
-Next: Phase 13 RAG Knowledge Retrieval.
-
-Later: RAG and production hardening.
+Later: Ladder practice, AI ladder exams, profile-aware AI context integration, RAG, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

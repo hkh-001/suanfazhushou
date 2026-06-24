@@ -18,7 +18,15 @@ def register(
     response: Response,
     db: Session = Depends(get_db),
 ) -> DataResponse[AuthUser]:
-    user = register_user(db, email=payload.email, username=payload.username, password=payload.password)
+    user = register_user(
+        db,
+        student_id=payload.student_id,
+        password=payload.password,
+        name=payload.name,
+        current_level=payload.current_level,
+        goal_track=payload.goal_track,
+        goal_description=payload.goal_description,
+    )
     set_session_cookie(response, create_access_token(user.id))
     return DataResponse(data=to_auth_user(user))
 
@@ -29,7 +37,7 @@ def login(
     response: Response,
     db: Session = Depends(get_db),
 ) -> DataResponse[AuthUser]:
-    user = authenticate_user(db, email=payload.email, password=payload.password)
+    user = authenticate_user(db, student_id=payload.student_id, password=payload.password)
     set_session_cookie(response, create_access_token(user.id))
     return DataResponse(data=to_auth_user(user))
 

@@ -51,9 +51,12 @@ def _register(client, prefix: str = "zip-user") -> dict:
     response = client.post(
         "/api/auth/register",
         json={
-            "email": f"{prefix}-{suffix}@example.com",
-            "username": f"{prefix}_{suffix}",
+            "student_id": f"{prefix}_{suffix}",
             "password": "password123",
+            "name": "导入用户",
+            "current_level": "elementary",
+            "goal_track": "self_study",
+            "goal_description": None,
         },
     )
     assert response.status_code == 200

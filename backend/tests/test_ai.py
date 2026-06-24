@@ -8,6 +8,7 @@ from app.main import app
 from app.models.ai_call_log import AICallLog
 from app.models.prompt_template import PromptTemplate
 from app.providers.ai.base import AIProvider, AIProviderError, AIProviderResult, AIProviderUsage
+from app.services.ai.context_builder import ContextBuilder
 
 
 class FakeAIProvider(AIProvider):
@@ -22,6 +23,16 @@ class FakeAIProvider(AIProvider):
             model="fake-model",
             usage=AIProviderUsage(input_tokens=10, output_tokens=20),
         )
+
+
+class CapturingAIProvider(FakeAIProvider):
+    def __init__(self, content: str = "Helpful AI response") -> None:
+        super().__init__(content)
+        self.prompts: list[str] = []
+
+    def complete(self, *, prompt: str, prompt_type: str) -> AIProviderResult:
+        self.prompts.append(prompt)
+        return super().complete(prompt=prompt, prompt_type=prompt_type)
 
 
 class TimeoutAIProvider(AIProvider):
@@ -86,6 +97,43 @@ def test_code_review_does_not_log_full_code(client: TestClient, db_session, dev_
     assert code not in (log.error_message or "")
 
 
+def test_ai_prompt_includes_short_user_profile_context(client: TestClient, db_session, dev_user) -> None:
+    dev_user.current_level = "popularization"
+    dev_user.goal_track = "lanqiao"
+    dev_user.goal_description = "\u5e0c\u671b\u51c6\u5907\u7701\u8d5b\u3002"
+    db_session.commit()
+    add_template(db_session, template_key="concept_explanation")
+    provider = CapturingAIProvider("Profile-aware response")
+    override_provider(provider)
+
+    response = client.post(
+        "/api/ai/chat",
+        json={"question": "How should I practice sorting?", "mode": "beginner"},
+    )
+
+    assert response.status_code == 200
+    prompt = provider.prompts[0]
+    assert "\u7528\u6237\u753b\u50cf - \u4ec5\u4f5c\u4e3a\u5b66\u4e60\u80cc\u666f\u53c2\u8003" in prompt
+    assert "\u5f53\u524d\u6c34\u5e73\uff1a" in prompt
+    assert "\u5b66\u4e60\u76ee\u6807\uff1a" in prompt
+    assert "\u5e0c\u671b\u51c6\u5907\u7701\u8d5b\u3002" in prompt
+    assert "\u7528\u6237\u753b\u50cf\u7ed3\u675f" in prompt
+    log = db_session.scalar(select(AICallLog).where(AICallLog.prompt_type == "concept_explanation"))
+    assert log is not None
+    assert not hasattr(log, "prompt")
+
+
+def test_user_profile_context_uses_defaults_for_missing_profile_fields(db_session, dev_user) -> None:
+    dev_user.current_level = None
+    dev_user.goal_track = ""
+
+    context = ContextBuilder(db_session).build_user_profile_context(dev_user)
+
+    assert "\u5f53\u524d\u6c34\u5e73\uff1a" in context
+    assert "\u5b66\u4e60\u76ee\u6807\uff1a" in context
+    assert "None" not in context
+
+
 def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) -> None:
     add_template(db_session, template_key="problem_generation")
     override_provider(
@@ -99,6 +147,20 @@ def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) 
   "constraints": "1 <= n, q <= 1000",
   "sample_input": "3 1\\n1 2 3\\n1 3",
   "sample_output": "6",
+  "test_cases": [
+    {
+      "name": "01",
+      "input": "3 1\\n1 2 3\\n1 3",
+      "expected_output": "6",
+      "is_sample": true
+    },
+    {
+      "name": "02",
+      "input": "5 2\\n1 2 3 4 5\\n2 4\\n1 5",
+      "expected_output": "9\\n15",
+      "is_sample": false
+    }
+  ],
   "hints": ["Build prefix sums"],
   "solution_idea": "Use prefix sums to answer each query in O(1).",
   "is_ai_generated": true
@@ -114,6 +176,7 @@ def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) 
 
     assert response.status_code == 200
     assert '"is_ai_generated": true' in response.json()["data"]["result"]
+    assert '"test_cases": [' in response.json()["data"]["result"]
 
 
 def test_generate_problem_parse_error_is_safe(client: TestClient, db_session, dev_user) -> None:

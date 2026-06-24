@@ -54,6 +54,14 @@ TEMPLATES = [
             "constraints": "string",
             "sample_input": "string",
             "sample_output": "string",
+            "test_cases": [
+                {
+                    "name": "string",
+                    "input": "string",
+                    "expected_output": "string",
+                    "is_sample": True,
+                }
+            ],
             "hints": ["string"],
             "solution_idea": "string",
             "is_ai_generated": True,

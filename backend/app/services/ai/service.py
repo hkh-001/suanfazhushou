@@ -46,10 +46,11 @@ class AIService:
 
     def chat(self, *, user: User, payload: ChatRequest) -> AIResponseData:
         context = self.context_builder.build_topic_context(payload.topic_id)
+        user_profile = self.context_builder.build_user_profile_context(user)
         prompt = self.prompt_renderer.render(
             template_key="concept_explanation",
             values={
-                "topic_context": context,
+                "topic_context": "\n\n".join(part for part in [user_profile, context] if part),
                 "mode": payload.mode,
                 "question": payload.question,
             },
@@ -58,10 +59,11 @@ class AIService:
 
     def code_review(self, *, user: User, payload: CodeReviewRequest) -> AIResponseData:
         context = self.context_builder.build_topic_context(payload.topic_id)
+        user_profile = self.context_builder.build_user_profile_context(user)
         prompt = self.prompt_renderer.render(
             template_key="code_review",
             values={
-                "topic_context": context,
+                "topic_context": "\n\n".join(part for part in [user_profile, context] if part),
                 "language": payload.language,
                 "code": payload.code,
                 "question": payload.question or "",
@@ -71,10 +73,11 @@ class AIService:
 
     def generate_problem(self, *, user: User, payload: ProblemGenerationRequest) -> AIResponseData:
         context = self.context_builder.build_topic_context(payload.topic_id)
+        user_profile = self.context_builder.build_user_profile_context(user)
         prompt = self.prompt_renderer.render(
             template_key="problem_generation",
             values={
-                "topic_context": context,
+                "topic_context": "\n\n".join(part for part in [user_profile, context] if part),
                 "difficulty": payload.difficulty,
                 "requirements": payload.requirements or "",
             },
@@ -128,9 +131,14 @@ class AIService:
         submission: Submission,
     ) -> SubmissionDiagnosisResponse:
         context = self.context_builder.build_submission_diagnosis_context(submission)
+        user_profile = self.context_builder.build_user_profile_context(user)
+        values = dict(context.values)
+        values["problem_context"] = "\n\n".join(
+            part for part in [user_profile, values["problem_context"]] if part
+        )
         prompt = self.prompt_renderer.render(
             template_key="submission_diagnosis",
-            values=context.values,
+            values=values,
         )
         result = self._complete(
             user=user,

@@ -45,6 +45,7 @@ def clear_env_ai(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_get_ai_settings_unconfigured(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     clear_env_ai(monkeypatch)
     monkeypatch.setattr(settings, "enable_runtime_ai_settings", False)
+    monkeypatch.setattr(settings, "enable_persistent_ai_settings", False)
 
     response = client.get("/api/settings/ai")
 
@@ -57,6 +58,7 @@ def test_get_ai_settings_unconfigured(client: TestClient, monkeypatch: pytest.Mo
         "model": None,
         "api_key_set": False,
         "runtime_settings_enabled": False,
+        "persistent_settings_enabled": False,
     }
 
 
@@ -77,6 +79,7 @@ def test_get_ai_settings_uses_env_without_exposing_key(
     assert body["base_url"] == "https://env.example/v1"
     assert body["model"] == "env-model"
     assert body["api_key_set"] is True
+    assert body["persistent_settings_enabled"] is False
     assert "env-secret-key" not in response.text
 
 
@@ -130,7 +133,107 @@ def test_put_ai_settings_validates_and_sanitizes(
     assert body["base_url"] == "https://runtime.example/v1"
     assert body["model"] == "runtime-model"
     assert body["api_key_set"] is True
+    assert body["persistent_settings_enabled"] is False
     assert "runtime-key" not in response.text
+
+
+def test_put_ai_settings_can_persist_local_development_config(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    clear_env_ai(monkeypatch)
+    settings_path = tmp_path / "ai-settings.json"
+    monkeypatch.setattr(settings, "app_env", "development")
+    monkeypatch.setattr(settings, "enable_runtime_ai_settings", True)
+    monkeypatch.setattr(settings, "enable_persistent_ai_settings", True)
+    monkeypatch.setattr(settings, "persistent_ai_settings_path", str(settings_path))
+
+    response = client.put(
+        "/api/settings/ai",
+        json={
+            "base_url": "https://persistent.example/v1?secret=query#fragment",
+            "api_key": "persistent-key",
+            "model": "persistent-model",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["source"] == "runtime"
+    assert body["persistent_settings_enabled"] is True
+    assert settings_path.exists()
+    assert "persistent-key" not in response.text
+
+    from app.services.settings.ai_runtime_settings import clear_runtime_ai_settings
+
+    clear_runtime_ai_settings()
+    assert settings_path.exists() is False
+
+
+def test_get_ai_settings_uses_persistent_config_after_runtime_reset(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    clear_env_ai(monkeypatch)
+    settings_path = tmp_path / "ai-settings.json"
+    monkeypatch.setattr(settings, "app_env", "development")
+    monkeypatch.setattr(settings, "enable_runtime_ai_settings", True)
+    monkeypatch.setattr(settings, "enable_persistent_ai_settings", True)
+    monkeypatch.setattr(settings, "persistent_ai_settings_path", str(settings_path))
+
+    client.put(
+        "/api/settings/ai",
+        json={
+            "base_url": "https://persistent.example/v1?secret=query#fragment",
+            "api_key": "persistent-key",
+            "model": "persistent-model",
+        },
+    )
+
+    from app.services.settings import ai_runtime_settings
+
+    ai_runtime_settings._runtime_ai_settings = None
+    response = client.get("/api/settings/ai")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["configured"] is True
+    assert body["source"] == "persistent"
+    assert body["base_url"] == "https://persistent.example/v1"
+    assert body["model"] == "persistent-model"
+    assert body["api_key_set"] is True
+    assert body["persistent_settings_enabled"] is True
+    assert "persistent-key" not in response.text
+
+
+def test_invalid_persistent_base_url_is_ignored(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    clear_env_ai(monkeypatch)
+    settings_path = tmp_path / "ai-settings.json"
+    settings_path.write_text(
+        '{"base_url": "file:///tmp/provider", "api_key": "persistent-key", "model": "persistent-model"}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(settings, "app_env", "development")
+    monkeypatch.setattr(settings, "enable_runtime_ai_settings", True)
+    monkeypatch.setattr(settings, "enable_persistent_ai_settings", True)
+    monkeypatch.setattr(settings, "persistent_ai_settings_path", str(settings_path))
+
+    from app.services.settings import ai_runtime_settings
+
+    ai_runtime_settings._runtime_ai_settings = None
+    response = client.get("/api/settings/ai")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["configured"] is False
+    assert body["source"] == "none"
+    assert "persistent-key" not in response.text
 
 
 def test_delete_ai_settings_clears_runtime_config(

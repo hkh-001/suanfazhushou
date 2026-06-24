@@ -48,9 +48,12 @@ def _register(client, prefix: str = "diagnosis") -> dict:
     response = client.post(
         "/api/auth/register",
         json={
-            "email": f"{prefix}-{suffix}@example.com",
-            "username": f"{prefix}_{suffix}",
+            "student_id": f"{prefix}_{suffix}",
             "password": "password123",
+            "name": "诊断用户",
+            "current_level": "elementary",
+            "goal_track": "self_study",
+            "goal_description": "希望提升调试能力。",
         },
     )
     assert response.status_code == 200

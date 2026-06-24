@@ -178,6 +178,10 @@ def upsert_dev_user() -> None:
                     email="dev-user@algomentor.local",
                     username="dev_user",
                     hashed_password=None,
+                    student_id="dev_user",
+                    name="开发用户",
+                    current_level="beginner",
+                    goal_track="self_study",
                     learning_stage="beginner",
                     target_track="algorithm_basics",
                 )

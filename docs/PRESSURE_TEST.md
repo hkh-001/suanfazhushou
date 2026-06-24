@@ -484,6 +484,8 @@ Questions:
 - Can `get_current_user` switch from dev user to real users without rewriting routers?
 - Are unauthenticated users blocked from personal data?
 - Are learning records, problems, mistakes, and submissions scoped to the current user?
+- Does student-id login avoid exposing whether a student id exists?
+- Are initial profile fields bounded, validated, and safe to use in AI context?
 
 Pass criteria:
 
@@ -495,6 +497,9 @@ Pass criteria:
 - The frontend sends credentials but does not store or read tokens.
 - Dev user fallback happens only when the Cookie is missing.
 - Expired, invalid, or missing-user tokens return safe auth errors and do not fallback to dev user.
+- Phase 13 registration uses `student_id`, `name`, `current_level`, and `goal_track`.
+- `email` and `username` remain compatibility fields and are not required user-facing fields.
+- User profile context sent to AI is a short summary, not full learning history.
 
 Risk signals:
 
@@ -503,6 +508,8 @@ Risk signals:
 - Personal data endpoints work without authentication.
 - Token is stored in localStorage or sessionStorage.
 - Login failure reveals whether an email exists.
+- Login failure reveals whether a student id exists.
+- AI prompts receive unbounded profile text.
 - Logout fails to clear the Cookie because Cookie attributes do not match.
 
 ## 3.2 Problem Bank Pressure Test
