@@ -238,6 +238,24 @@ Submission Detail
 - AI results are temporary by default and reuse the Phase 8 explicit code-review save path.
 - No diagnosis table, submission-to-code-review foreign key, RAG, or automatic mistake-note creation is introduced.
 
+## Phase 12 Rule-Based Recommendation Architecture
+
+```text
+Dashboard API
+-> Learning records
+-> Mistake notes
+-> Failed submissions
+-> Personal problem bank
+-> Rule-based weakness scoring
+-> Dashboard recommendation sections
+```
+
+- Phase 12 recommendations are computed synchronously in the Dashboard service.
+- No `recommendation_logs` table is created in Phase 12.
+- No AI Provider, Prompt template, RetrievalService, embedding, pgvector, or RAG path is used.
+- Recommendations are scoped to the current user and remain explainable through visible signals.
+- Existing `review_queue` and `next_steps` remain learning-record/path recommendations; Phase 12 `recommendation_actions` add mistake/submission-driven actions.
+
 Future RAG shape:
 
 ```text

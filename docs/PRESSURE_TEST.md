@@ -680,7 +680,39 @@ Risk signals:
 - Hidden test content reaches the Prompt or frontend.
 - Diagnosis is generated or persisted automatically.
 
-## 3.6 RAG Pressure Test
+## 3.6 Learning Recommendation Pressure Test
+
+Phase 12 implemented baseline:
+
+- Dashboard computes weak topics from current-user learning records, unresolved mistake notes, failed submissions, and personal problems.
+- Recommendations are rule-based, explainable, and not persisted.
+- Existing `review_queue` and `next_steps` remain compatible.
+- No AI Provider, Prompt template, RAG, embedding, or `recommendation_logs` path is used.
+
+Questions:
+
+- Does every recommendation show a visible reason?
+- Are other users' mistakes, submissions, and problems excluded?
+- Are accepted submissions excluded from weakness signals?
+- Are resolved mistake notes excluded from high-priority actions?
+- Does the API keep all existing Dashboard fields unchanged?
+
+Pass criteria:
+
+- Weakness scores are capped and sorted deterministically.
+- Empty user data produces empty recommendation arrays, not fake recommendations.
+- Practice recommendations only include current-user problem bank items.
+- The Dashboard remains usable when no weakness signals exist.
+- No recommendation path calls AI Provider or queries Prompt templates.
+
+Risk signals:
+
+- Recommendations use cross-user data.
+- AI-generated recommendations appear without a dedicated phase plan.
+- RAG or vector search is introduced early.
+- `recommendation_logs` is created before a clear audit/history requirement.
+
+## 3.7 RAG Pressure Test
 
 Questions:
 

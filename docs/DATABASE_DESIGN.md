@@ -70,7 +70,7 @@ Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phas
 | `submission_case_results` | Phase 10 | Per-test-case judge results | Implemented in Post-MVP Phase 10 |
 | `code_reviews` | Phase 8 | Explicitly saved AI code review results | Implemented in Post-MVP Phase 8 |
 | `mistake_notes` | Phase 8 | User-owned mistake notebook entries | Implemented in Post-MVP Phase 8 |
-| `recommendation_logs` | Phase 12 | Recommendation events and explanations | Wait for weakness analysis model |
+| `recommendation_logs` | Deferred after Phase 12 | Recommendation events and explanations | Phase 12 uses real-time rules and does not persist recommendation logs |
 | `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
 | `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
 
@@ -457,7 +457,17 @@ By default, do not store:
 
 ## recommendation_logs
 
-Planned for Post-MVP Phase 12. Not implemented in MVP v0.1.
+Deferred after Post-MVP Phase 12. Not implemented in MVP v0.1 and not implemented by Phase 12.
+
+Phase 12 recommendation and weakness analysis is computed in real time from existing user-owned records:
+
+- `learning_records`
+- `mistake_notes`
+- `submissions`
+- `problems`
+- `problem_tags`
+
+No migration is created for recommendation logging in Phase 12.
 
 ```text
 id

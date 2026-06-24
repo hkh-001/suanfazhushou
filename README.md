@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 11: AI Diagnosis After Failed Judgement.
+The project is currently in Post-MVP Phase 12: Learning Recommendation And Weakness Analysis.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -70,7 +70,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions.
+`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions and Phase 12 adding rule-based Dashboard weakness recommendations.
 
 ## MVP v0.1 Focus
 
@@ -402,6 +402,13 @@ POST http://localhost:8000/api/submissions/{id}/ai-diagnose
 
 The endpoint supports compile error, wrong answer, runtime error, time limit, memory limit, and output limit failures. Accepted submissions and Judge internal errors are not sent to AI.
 
+Phase 12 Dashboard recommendation notes:
+
+- `GET /api/dashboard/summary` keeps all existing fields and appends `weak_topics`, `recommendation_actions`, and `practice_recommendations`.
+- Weakness analysis is rule-based and uses only the current user's learning records, unresolved mistake notes, failed submissions, and personal problem bank.
+- Recommendations are computed in real time and are not stored in `recommendation_logs`.
+- Phase 12 does not call the AI Provider, query prompt templates, introduce RAG, or change Judge behavior.
+
 To enable local judging, configure a strong shared token and explicitly enable execution before starting Compose:
 
 ```powershell
@@ -477,12 +484,12 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 11 AI Diagnosis After Failed Judgement.
+Current: Post-MVP Phase 12 Learning Recommendation And Weakness Analysis.
 
 Phase 4.5 should not add business features. It should focus on end-to-end acceptance, README and documentation checks, command verification, demo seed verification, and manual demo flow preparation.
 
-Next: Phase 12 Learning Recommendation And Weakness Analysis.
+Next: Phase 13 RAG Knowledge Retrieval.
 
-Later: learning recommendation, RAG, and production hardening.
+Later: RAG and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

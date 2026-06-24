@@ -44,6 +44,42 @@ export type DashboardNextStep = {
   rank: number;
 };
 
+export type DashboardWeakTopic = {
+  topic_id: string;
+  title: string;
+  category: string;
+  weakness_score: number;
+  signals: string[];
+  reason: string;
+  recommended_action: string;
+};
+
+export type DashboardRecommendationAction = {
+  type: "review_topic" | "review_mistake" | "retry_problem" | "practice_problem";
+  title: string;
+  reason: string;
+  priority: number;
+  target_type: "topic" | "mistake" | "problem" | "submission";
+  target_id: string;
+};
+
+export type DashboardPracticeTopicTag = {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+};
+
+export type DashboardPracticeRecommendation = {
+  problem_id: string;
+  display_id: number;
+  title: string;
+  difficulty: string;
+  topic_tags: DashboardPracticeTopicTag[];
+  reason: string;
+  priority: number;
+};
+
 export type DashboardSummary = {
   total_topics: number;
   started_topics: number;
@@ -58,6 +94,9 @@ export type DashboardSummary = {
   recent_activity: DashboardActivityItem[];
   review_queue: DashboardReviewItem[];
   next_steps: DashboardNextStep[];
+  weak_topics: DashboardWeakTopic[];
+  recommendation_actions: DashboardRecommendationAction[];
+  practice_recommendations: DashboardPracticeRecommendation[];
 };
 
 export type DashboardResponse = {

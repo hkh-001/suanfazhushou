@@ -129,6 +129,17 @@ Phase 4 dashboard rules:
   - if all topics are mastered, return an empty list
 - Dashboard recommendations do not call the AI Provider and do not query `prompt_templates`.
 
+Phase 12 dashboard recommendation additions:
+
+- `GET /api/dashboard/summary` additionally returns:
+  - `weak_topics`
+  - `recommendation_actions`
+  - `practice_recommendations`
+- These fields are computed from the current user's learning records, unresolved mistake notes, failed submissions, and personal problem bank.
+- `weak_topics` include only published topics with a concrete current-user signal.
+- `recommendation_actions` complement `review_queue` and `next_steps`; they do not replace the Phase 4 learning-record flow.
+- Recommendations are rule-based and do not call AI Provider, Prompt templates, RAG, or `recommendation_logs`.
+
 AI:
 
 - `POST /api/ai/chat`

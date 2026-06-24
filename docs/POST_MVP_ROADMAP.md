@@ -322,6 +322,8 @@ high
 
 Use accumulated learning records, mistakes, problems, and submissions to recommend learning actions.
 
+Status: implemented as real-time rule-based Dashboard recommendations without `recommendation_logs`.
+
 ### Dependencies
 
 - Phase 8 mistake notebook
@@ -333,6 +335,7 @@ Use accumulated learning records, mistakes, problems, and submissions to recomme
 - Recommended review items
 - Suggested next problems or topics
 - Dashboard integration
+- Rule-based recommendation actions using current-user mistake notes and failed submissions
 
 ### Not Included
 
@@ -340,6 +343,7 @@ Use accumulated learning records, mistakes, problems, and submissions to recomme
 - Teacher/admin analytics
 - Real-time adaptive curriculum
 - RAG requirement
+- Recommendation history persistence
 
 ### Risk Level
 
@@ -351,6 +355,7 @@ medium
 - Users can see why an item is recommended.
 - Other users' data does not influence personal recommendations.
 - Existing rule-based next steps remain compatible.
+- Dashboard keeps existing Phase 2/4 fields and appends weakness/recommendation sections.
 
 ## Phase 13: RAG Knowledge Retrieval
 

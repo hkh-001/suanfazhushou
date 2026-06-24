@@ -4,6 +4,9 @@ from uuid import uuid4
 from sqlalchemy import select
 
 from app.models.learning_record import LearningRecord
+from app.models.mistake_note import MistakeNote
+from app.models.problem import Problem, ProblemTag
+from app.models.submission import Submission
 from app.models.topic import Topic
 from app.models.user import User
 
@@ -93,6 +96,79 @@ def ensure_record(
     record.last_studied_at = last_studied_at
     db_session.commit()
     return record
+
+
+def create_problem_with_topic(
+    db_session,
+    *,
+    user: User,
+    topic: Topic,
+    title: str = "Dashboard Practice Problem",
+    display_id: int = 9001,
+) -> Problem:
+    problem = Problem(
+        display_id=display_id,
+        title=title,
+        slug=f"{title.lower().replace(' ', '-')}-{uuid4().hex}",
+        difficulty="basic",
+        estimated_minutes=20,
+        description_markdown="Practice problem",
+        created_by_user_id=user.id,
+    )
+    db_session.add(problem)
+    db_session.flush()
+    db_session.add(ProblemTag(problem_id=problem.id, topic_id=topic.id))
+    db_session.commit()
+    db_session.refresh(problem)
+    return problem
+
+
+def create_mistake(
+    db_session,
+    *,
+    user: User,
+    topic: Topic,
+    status: str = "open",
+    title: str = "Dashboard Mistake",
+) -> MistakeNote:
+    note = MistakeNote(
+        user_id=user.id,
+        topic_id=topic.id,
+        title=title,
+        root_cause="Boundary condition was missed.",
+        review_status=status,
+    )
+    db_session.add(note)
+    db_session.commit()
+    db_session.refresh(note)
+    return note
+
+
+def create_submission(
+    db_session,
+    *,
+    user: User,
+    problem: Problem | None,
+    verdict: str,
+) -> Submission:
+    submission = Submission(
+        user_id=user.id,
+        problem_id=problem.id if problem else None,
+        problem_title=problem.title if problem else "Deleted Problem",
+        problem_display_id=problem.display_id if problem else 9999,
+        language="python",
+        source_code="print(0)",
+        verdict=verdict,
+        passed_case_count=0 if verdict != "accepted" else 1,
+        total_case_count=1,
+        execution_time_ms=10,
+        memory_kb=1024,
+        finished_at=datetime.now(timezone.utc),
+    )
+    db_session.add(submission)
+    db_session.commit()
+    db_session.refresh(submission)
+    return submission
 
 
 def test_dashboard_summary_empty_learning_records_recommends_unstarted_topics(
@@ -359,3 +435,167 @@ def test_dashboard_ignores_other_users_records(client, db_session, dev_user) -> 
     body = response.json()["data"]
     assert str(topic.id) not in {item["topic_id"] for item in body["recent_activity"]}
     assert body["next_steps"][0]["topic_id"] == str(topic.id)
+
+
+def test_dashboard_phase12_fields_empty_without_weakness_signals(client, db_session, dev_user) -> None:
+    now = datetime.now(timezone.utc)
+    topic = create_topic(db_session, title="Dashboard No Weak Signal", category="Dashboard Phase12 Empty")
+    create_record(
+        db_session,
+        user=dev_user,
+        topic=topic,
+        status="mastered",
+        progress_percent=100,
+        mastery_level=5,
+        last_studied_at=now,
+    )
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert "weak_topics" in body
+    assert "recommendation_actions" in body
+    assert "practice_recommendations" in body
+    assert not [item for item in body["weak_topics"] if item["category"] == "Dashboard Phase12 Empty"]
+
+
+def test_dashboard_low_mastery_and_stale_learning_create_weak_topic(client, db_session, dev_user) -> None:
+    topic = create_topic(db_session, title="Dashboard Weak Learning", category="Dashboard Phase12 Learning")
+    create_record(
+        db_session,
+        user=dev_user,
+        topic=topic,
+        status="learning",
+        progress_percent=30,
+        mastery_level=1,
+        last_studied_at=datetime.now(timezone.utc) - timedelta(days=8),
+    )
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    weak = next(item for item in response.json()["data"]["weak_topics"] if item["topic_id"] == str(topic.id))
+    assert weak["weakness_score"] == 50
+    assert "掌握度较低" in weak["signals"]
+    assert "超过 7 天未学习" in weak["signals"]
+    assert "掌握度偏低" in weak["reason"]
+
+
+def test_dashboard_open_mistake_adds_weakness_and_action(client, db_session, dev_user) -> None:
+    topic = create_topic(db_session, title="Dashboard Mistake Topic", category="Dashboard Phase12 Mistake")
+    mistake = create_mistake(db_session, user=dev_user, topic=topic, title="数组边界复盘")
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    weak = next(item for item in body["weak_topics"] if item["topic_id"] == str(topic.id))
+    assert weak["weakness_score"] == 15
+    assert "有未解决复盘" in weak["signals"]
+    action = next(item for item in body["recommendation_actions"] if item["target_id"] == str(mistake.id))
+    assert action["type"] == "review_mistake"
+    assert action["priority"] == 1
+    assert action["target_type"] == "mistake"
+
+
+def test_dashboard_resolved_mistake_is_not_high_priority_recommendation(client, db_session, dev_user) -> None:
+    topic = create_topic(db_session, title="Dashboard Resolved Mistake", category="Dashboard Phase12 Resolved")
+    mistake = create_mistake(
+        db_session,
+        user=dev_user,
+        topic=topic,
+        status="resolved",
+        title="已解决复盘",
+    )
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert str(topic.id) not in {item["topic_id"] for item in body["weak_topics"]}
+    assert str(mistake.id) not in {item["target_id"] for item in body["recommendation_actions"]}
+
+
+def test_dashboard_failed_submission_affects_weak_topic_and_practice(client, db_session, dev_user) -> None:
+    topic = create_topic(db_session, title="Dashboard Failed Submission", category="Dashboard Phase12 Submit")
+    problem = create_problem_with_topic(
+        db_session,
+        user=dev_user,
+        topic=topic,
+        title="Failed Practice",
+        display_id=9101,
+    )
+    create_submission(db_session, user=dev_user, problem=problem, verdict="wrong_answer")
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    weak = next(item for item in body["weak_topics"] if item["topic_id"] == str(topic.id))
+    assert weak["weakness_score"] == 20
+    assert "近期提交失败" in weak["signals"]
+    retry_action = next(item for item in body["recommendation_actions"] if item["target_id"] == str(problem.id))
+    assert retry_action["type"] == "retry_problem"
+    assert retry_action["target_type"] == "problem"
+    practice = next(item for item in body["practice_recommendations"] if item["problem_id"] == str(problem.id))
+    assert practice["display_id"] == 9101
+    assert practice["topic_tags"][0]["id"] == str(topic.id)
+
+
+def test_dashboard_accepted_and_deleted_problem_submissions_do_not_create_weak_topics(
+    client,
+    db_session,
+    dev_user,
+) -> None:
+    accepted_topic = create_topic(
+        db_session,
+        title="Dashboard Accepted Submission",
+        category="Dashboard Phase12 Accepted",
+    )
+    accepted_problem = create_problem_with_topic(
+        db_session,
+        user=dev_user,
+        topic=accepted_topic,
+        title="Accepted Practice",
+        display_id=9201,
+    )
+    create_submission(db_session, user=dev_user, problem=accepted_problem, verdict="accepted")
+    deleted_submission = create_submission(db_session, user=dev_user, problem=None, verdict="wrong_answer")
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    weak_ids = {item["topic_id"] for item in body["weak_topics"]}
+    assert str(accepted_topic.id) not in weak_ids
+    assert str(deleted_submission.id) not in {item["target_id"] for item in body["recommendation_actions"]}
+
+
+def test_dashboard_phase12_recommendations_are_user_isolated(client, db_session, dev_user) -> None:
+    topic = create_topic(db_session, title="Dashboard Other User Weak", category="Dashboard Phase12 Isolation")
+    other_user = User(
+        id=uuid4(),
+        email=f"phase12-other-{uuid4()}@algomentor.local",
+        username=f"phase12_other_{uuid4().hex[:8]}",
+        learning_stage="beginner",
+        target_track="algorithm_basics",
+    )
+    db_session.add(other_user)
+    db_session.commit()
+    other_problem = create_problem_with_topic(
+        db_session,
+        user=other_user,
+        topic=topic,
+        title="Other User Practice",
+        display_id=9301,
+    )
+    create_mistake(db_session, user=other_user, topic=topic, title="Other mistake")
+    create_submission(db_session, user=other_user, problem=other_problem, verdict="wrong_answer")
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert str(topic.id) not in {item["topic_id"] for item in body["weak_topics"]}
+    assert str(other_problem.id) not in {item["problem_id"] for item in body["practice_recommendations"]}
