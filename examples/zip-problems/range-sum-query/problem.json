@@ -1,0 +1,7 @@
+{
+  "title": "区间和查询",
+  "slug": "range-sum-query",
+  "difficulty": "basic",
+  "estimated_minutes": 25,
+  "sample_case_names": ["01"]
+}
