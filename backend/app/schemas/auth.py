@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 
 CurrentLevel = Literal["beginner", "elementary", "popularization", "improvement"]
 GoalTrack = Literal["course", "lanqiao", "icpc", "self_study"]
+UserRole = Literal["user", "admin"]
 
 
 class AuthRegisterRequest(BaseModel):
@@ -68,6 +69,7 @@ class AuthUser(BaseModel):
     current_level: str
     goal_track: str
     goal_description: str | None = None
+    role: UserRole = "user"
     learning_stage: str
     target_track: str
     is_dev_user: bool = False

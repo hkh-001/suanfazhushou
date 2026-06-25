@@ -11,7 +11,7 @@ from app.models.submission import Submission, SubmissionCaseResult
 from app.models.test_case import TestCase
 from app.models.user import User
 from app.providers.ai.base import AIProvider
-from app.repositories.problems import get_user_problem_with_test_cases
+from app.repositories.problems import get_accessible_problem_with_test_cases
 from app.repositories.submissions import create_submission as insert_submission
 from app.repositories.submissions import get_user_submission
 from app.schemas.judge import JudgeRequest, JudgeTestCaseRequest
@@ -110,7 +110,7 @@ async def create_submission(
             detail={"code": "JUDGE_CONFIG_MISSING", "message": "Judge configuration is missing"},
         )
 
-    problem = get_user_problem_with_test_cases(db, problem_id=payload.problem_id, user_id=user.id)
+    problem = get_accessible_problem_with_test_cases(db, problem_id=payload.problem_id, user_id=user.id)
     if problem is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=PROBLEM_NOT_FOUND)
     test_cases = sorted(problem.test_cases, key=lambda item: item.case_index)

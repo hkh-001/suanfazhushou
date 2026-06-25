@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
+import { useCurrentUser } from "@/features/auth/hooks";
 import { useTopics } from "@/features/topics/hooks";
 
 import { difficultyLabels } from "./constants";
@@ -30,6 +31,7 @@ type FormState = {
   solution_code_cpp: string;
   solution_code_python: string;
   topic_ids: string[];
+  is_public: boolean;
 };
 
 export const emptyProblemForm: FormState = {
@@ -49,7 +51,8 @@ export const emptyProblemForm: FormState = {
   solution_markdown: "",
   solution_code_cpp: "",
   solution_code_python: "",
-  topic_ids: []
+  topic_ids: [],
+  is_public: false
 };
 
 function optionalText(value: string): string | null {
@@ -75,7 +78,8 @@ export function formStateFromProblem(problem: ProblemDetail): FormState {
     solution_markdown: problem.solution_markdown ?? "",
     solution_code_cpp: problem.solution_code_cpp ?? "",
     solution_code_python: problem.solution_code_python ?? "",
-    topic_ids: problem.topic_tags.map((topic) => topic.id)
+    topic_ids: problem.topic_tags.map((topic) => topic.id),
+    is_public: problem.is_public
   };
 }
 
@@ -97,7 +101,8 @@ export function payloadFromForm(state: FormState): ProblemPayload {
     solution_markdown: optionalText(state.solution_markdown),
     solution_code_cpp: optionalText(state.solution_code_cpp),
     solution_code_python: optionalText(state.solution_code_python),
-    topic_ids: state.topic_ids
+    topic_ids: state.topic_ids,
+    is_public: state.is_public
   };
 }
 
@@ -194,7 +199,9 @@ export function ProblemForm({
   extraActions?: ReactNode;
 }) {
   const { data: topicsData, error: topicsError } = useTopics();
+  const { user } = useCurrentUser();
   const topics = topicsData?.data ?? [];
+  const canManagePublic = user?.role === "admin";
 
   function patch(update: Partial<FormState>) {
     setState({ ...state, ...update });
@@ -246,6 +253,22 @@ export function ProblemForm({
           <TextField label="来源" onChange={(source) => patch({ source })} value={state.source} />
           <TextField label="来源链接" onChange={(source_url) => patch({ source_url })} value={state.source_url} />
         </div>
+        {canManagePublic ? (
+          <label className="flex items-start gap-3 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-4 text-sm font-semibold text-[#1d4ed8]">
+            <input
+              checked={state.is_public}
+              className="mt-1 h-4 w-4"
+              onChange={(event) => patch({ is_public: event.target.checked })}
+              type="checkbox"
+            />
+            <span>
+              设为公共题目
+              <span className="mt-1 block font-normal text-[#475569]">
+                公共题目对所有登录用户可见；发布后不能转回个人题目。
+              </span>
+            </span>
+          </label>
+        ) : null}
         <label className="block text-sm font-semibold text-[#334155]">
           关联知识点
           <select
@@ -316,10 +339,13 @@ export function ProblemForm({
   );
 }
 
-export function ProblemFormPage() {
+export function ProblemFormPage({ initialVisibility = "private" }: { initialVisibility?: "private" | "public" }) {
   const router = useRouter();
   const { submit, loading, error } = useCreateProblem();
-  const [state, setState] = useState<FormState>(emptyProblemForm);
+  const [state, setState] = useState<FormState>({
+    ...emptyProblemForm,
+    is_public: initialVisibility === "public"
+  });
   const canSubmit = useMemo(() => state.title.trim() && state.description_markdown.trim(), [state]);
 
   async function handleSubmit(event: FormEvent) {
@@ -329,7 +355,7 @@ export function ProblemFormPage() {
     }
     try {
       const response = await submit(payloadFromForm(state));
-      router.push(`/problems/${response.data.id}`);
+      router.push(response.data.is_public ? `/problems/public/${response.data.id}` : `/problems/${response.data.id}`);
     } catch {
       // The hook owns the user-facing error state.
     }

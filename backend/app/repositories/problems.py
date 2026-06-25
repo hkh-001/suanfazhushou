@@ -9,7 +9,15 @@ from app.models.topic import Topic
 
 
 def count_user_problems(db: Session, *, user_id: UUID) -> int:
-    return db.scalar(select(func.count()).select_from(Problem).where(Problem.created_by_user_id == user_id)) or 0
+    return (
+        db.scalar(
+            select(func.count()).select_from(Problem).where(
+                Problem.created_by_user_id == user_id,
+                Problem.is_public.is_(False),
+            )
+        )
+        or 0
+    )
 
 
 def list_user_problems(db: Session, *, user_id: UUID, page: int, page_size: int) -> list[Problem]:
@@ -17,7 +25,7 @@ def list_user_problems(db: Session, *, user_id: UUID, page: int, page_size: int)
     stmt = (
         select(Problem)
         .options(selectinload(Problem.problem_tags).selectinload(ProblemTag.topic))
-        .where(Problem.created_by_user_id == user_id)
+        .where(Problem.created_by_user_id == user_id, Problem.is_public.is_(False))
         .order_by(Problem.created_at.desc(), Problem.id.desc())
         .offset(offset)
         .limit(page_size)
@@ -29,7 +37,42 @@ def get_user_problem(db: Session, *, problem_id: UUID, user_id: UUID) -> Problem
     stmt = (
         select(Problem)
         .options(selectinload(Problem.problem_tags).selectinload(ProblemTag.topic))
-        .where(Problem.id == problem_id, Problem.created_by_user_id == user_id)
+        .where(Problem.id == problem_id, Problem.created_by_user_id == user_id, Problem.is_public.is_(False))
+    )
+    return db.scalar(stmt)
+
+
+def count_public_problems(db: Session) -> int:
+    return db.scalar(select(func.count()).select_from(Problem).where(Problem.is_public.is_(True))) or 0
+
+
+def list_public_problems(db: Session, *, page: int, page_size: int) -> list[Problem]:
+    offset = (page - 1) * page_size
+    stmt = (
+        select(Problem)
+        .options(selectinload(Problem.problem_tags).selectinload(ProblemTag.topic))
+        .where(Problem.is_public.is_(True))
+        .order_by(Problem.created_at.desc(), Problem.id.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    return list(db.scalars(stmt).all())
+
+
+def get_public_problem(db: Session, *, problem_id: UUID) -> Problem | None:
+    stmt = (
+        select(Problem)
+        .options(selectinload(Problem.problem_tags).selectinload(ProblemTag.topic))
+        .where(Problem.id == problem_id, Problem.is_public.is_(True))
+    )
+    return db.scalar(stmt)
+
+
+def get_problem_by_id(db: Session, *, problem_id: UUID) -> Problem | None:
+    stmt = (
+        select(Problem)
+        .options(selectinload(Problem.problem_tags).selectinload(ProblemTag.topic))
+        .where(Problem.id == problem_id)
     )
     return db.scalar(stmt)
 
@@ -41,7 +84,22 @@ def get_user_problem_with_test_cases(db: Session, *, problem_id: UUID, user_id: 
             selectinload(Problem.problem_tags).selectinload(ProblemTag.topic),
             selectinload(Problem.test_cases),
         )
-        .where(Problem.id == problem_id, Problem.created_by_user_id == user_id)
+        .where(Problem.id == problem_id, Problem.created_by_user_id == user_id, Problem.is_public.is_(False))
+    )
+    return db.scalar(stmt)
+
+
+def get_accessible_problem_with_test_cases(db: Session, *, problem_id: UUID, user_id: UUID) -> Problem | None:
+    stmt = (
+        select(Problem)
+        .options(
+            selectinload(Problem.problem_tags).selectinload(ProblemTag.topic),
+            selectinload(Problem.test_cases),
+        )
+        .where(
+            Problem.id == problem_id,
+            (Problem.created_by_user_id == user_id) | (Problem.is_public.is_(True)),
+        )
     )
     return db.scalar(stmt)
 
@@ -89,7 +147,7 @@ def create_problem(db: Session, problem: Problem, topics: list[Topic], test_case
         db.add(test_case)
     db.commit()
     db.refresh(problem)
-    return get_user_problem(db, problem_id=problem.id, user_id=problem.created_by_user_id) or problem
+    return get_problem_by_id(db, problem_id=problem.id) or problem
 
 
 def replace_problem_tags(db: Session, *, problem: Problem, topics: list[Topic]) -> None:

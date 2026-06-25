@@ -4,12 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "@/lib/api/client";
 
-import { completeLadderNodeMaterial, fetchLadder, fetchLadderNode } from "./api";
-import type { LadderNodeDetail, LadderSummary } from "./types";
+import { completeLadderNodeMaterial, fetchLadder, fetchLadderNode, submitLadderNodePractice } from "./api";
+import type { LadderNodeDetail, LadderPracticeSubmitPayload, LadderSummary } from "./types";
 
 function userMessage(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.code === "AUTH_REQUIRED" || error.code === "INVALID_SESSION" || error.code === "TOKEN_EXPIRED" || error.code === "TOKEN_INVALID") {
+    if (
+      error.code === "AUTH_REQUIRED" ||
+      error.code === "INVALID_SESSION" ||
+      error.code === "TOKEN_EXPIRED" ||
+      error.code === "TOKEN_INVALID"
+    ) {
       return "请先登录后继续使用。";
     }
     if (error.code === "LADDER_TEMPLATE_NOT_FOUND") {
@@ -17,6 +22,15 @@ function userMessage(error: unknown) {
     }
     if (error.code === "NODE_LOCKED") {
       return "该节点尚未解锁，请先完成前置节点资料。";
+    }
+    if (error.code === "NODE_MATERIAL_REQUIRED") {
+      return "先完成资料阅读后再开始练习。";
+    }
+    if (error.code === "LADDER_PRACTICE_NOT_FOUND") {
+      return "当前节点暂未配置练习。";
+    }
+    if (error.code === "LADDER_PRACTICE_VALIDATION_ERROR") {
+      return "练习提交内容有误，请检查选项。";
     }
     return error.message;
   }
@@ -96,4 +110,25 @@ export function useCompleteLadderMaterial() {
   }, []);
 
   return { complete, loading, error };
+}
+
+export function useSubmitLadderPractice() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = useCallback(async (nodeId: string, payload: LadderPracticeSubmitPayload) => {
+    setLoading(true);
+    setError(null);
+    try {
+      return await submitLadderNodePractice(nodeId, payload);
+    } catch (err) {
+      const message = userMessage(err);
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { submit, loading, error };
 }

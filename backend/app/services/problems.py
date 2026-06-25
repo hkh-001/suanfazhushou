@@ -11,12 +11,16 @@ from app.models.topic import Topic
 from app.models.user import User
 from app.repositories.problems import (
     allocate_problem_display_id,
+    count_public_problems,
     count_user_problems,
     create_problem as insert_problem,
     delete_problem as remove_problem,
+    get_problem_by_id,
     get_problem_by_slug,
     get_published_topics_by_ids,
+    get_public_problem as get_public_problem_record,
     get_user_problem,
+    list_public_problems,
     list_user_problems,
     replace_problem_tags,
 )
@@ -36,6 +40,10 @@ PROBLEM_NOT_FOUND = {"code": "PROBLEM_NOT_FOUND", "message": "Problem not found"
 PROBLEM_SLUG_EXISTS = {"code": "PROBLEM_SLUG_ALREADY_EXISTS", "message": "Problem slug already exists"}
 TOPIC_NOT_FOUND = {"code": "TOPIC_NOT_FOUND", "message": "Topic not found"}
 VALIDATION_ERROR = {"code": "VALIDATION_ERROR", "message": "Request validation failed"}
+PUBLIC_PROBLEM_FORBIDDEN = {
+    "code": "PUBLIC_PROBLEM_FORBIDDEN",
+    "message": "Only admins can create or modify public problems",
+}
 
 
 def _not_found() -> HTTPException:
@@ -76,6 +84,20 @@ def _validation_error() -> HTTPException:
     return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=VALIDATION_ERROR)
 
 
+def _public_forbidden() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=PUBLIC_PROBLEM_FORBIDDEN)
+
+
+def _is_admin(user: User) -> bool:
+    return user.role == "admin"
+
+
+def _can_edit(problem: Problem, user: User) -> bool:
+    if problem.is_public:
+        return _is_admin(user)
+    return problem.created_by_user_id == user.id
+
+
 def _generate_slug(db: Session, *, user_id: UUID, title: str) -> str:
     base_slug = _normalize_slug(title) or f"problem-{uuid4().hex[:8]}"
     candidate = base_slug
@@ -99,7 +121,7 @@ def _problem_topics(problem: Problem) -> list[ProblemTopicTag]:
     ]
 
 
-def _to_list_item(problem: Problem) -> ProblemListItem:
+def _to_list_item(problem: Problem, user: User) -> ProblemListItem:
     data = ProblemModelData.model_validate(problem).model_dump()
     data.pop("description_markdown")
     for key in (
@@ -115,19 +137,35 @@ def _to_list_item(problem: Problem) -> ProblemListItem:
         "published_at",
     ):
         data.pop(key)
-    return ProblemListItem(**data, topic_tags=_problem_topics(problem))
+    can_edit = _can_edit(problem, user)
+    return ProblemListItem(**data, topic_tags=_problem_topics(problem), can_edit=can_edit, can_delete=can_edit)
 
 
-def _to_detail(problem: Problem) -> ProblemDetail:
+def _to_detail(problem: Problem, user: User) -> ProblemDetail:
     data = ProblemModelData.model_validate(problem).model_dump()
-    return ProblemDetail(**data, topic_tags=_problem_topics(problem))
+    can_edit = _can_edit(problem, user)
+    return ProblemDetail(**data, topic_tags=_problem_topics(problem), can_edit=can_edit, can_delete=can_edit)
 
 
 def list_problems(db: Session, *, user: User, page: int, page_size: int) -> PaginatedResponse[ProblemListItem]:
     total = count_user_problems(db, user_id=user.id)
     problems = list_user_problems(db, user_id=user.id, page=page, page_size=page_size)
     return PaginatedResponse(
-        data=[_to_list_item(problem) for problem in problems],
+        data=[_to_list_item(problem, user) for problem in problems],
+        pagination=Pagination(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=ceil(total / page_size) if total else 0,
+        ),
+    )
+
+
+def list_public_problem_bank(db: Session, *, user: User, page: int, page_size: int) -> PaginatedResponse[ProblemListItem]:
+    total = count_public_problems(db)
+    problems = list_public_problems(db, page=page, page_size=page_size)
+    return PaginatedResponse(
+        data=[_to_list_item(problem, user) for problem in problems],
         pagination=Pagination(
             page=page,
             page_size=page_size,
@@ -140,11 +178,23 @@ def list_problems(db: Session, *, user: User, page: int, page_size: int) -> Pagi
 def get_problem(db: Session, *, user: User, problem_id: UUID) -> ProblemDetail:
     problem = get_user_problem(db, problem_id=problem_id, user_id=user.id)
     if problem is None:
+        problem = get_public_problem_record(db, problem_id=problem_id)
+    if problem is None:
         raise _not_found()
-    return _to_detail(problem)
+    return _to_detail(problem, user)
+
+
+def get_public_problem(db: Session, *, user: User, problem_id: UUID) -> ProblemDetail:
+    problem = get_public_problem_record(db, problem_id=problem_id)
+    if problem is None:
+        raise _not_found()
+    return _to_detail(problem, user)
 
 
 def create_problem(db: Session, *, user: User, payload: ProblemCreate) -> ProblemDetail:
+    if payload.is_public and not _is_admin(user):
+        raise _public_forbidden()
+
     if payload.slug is None:
         slug = _generate_slug(db, user_id=user.id, title=payload.title)
     else:
@@ -174,9 +224,10 @@ def create_problem(db: Session, *, user: User, payload: ProblemCreate) -> Proble
         solution_code_python=payload.solution_code_python,
         is_ai_generated=False,
         is_published=False,
+        is_public=payload.is_public,
         created_by_user_id=user.id,
     )
-    return _to_detail(insert_problem(db, problem, topics))
+    return _to_detail(insert_problem(db, problem, topics), user)
 
 
 def save_ai_generated_problem(db: Session, *, user: User, payload: GeneratedProblemSaveRequest) -> ProblemDetail:
@@ -203,6 +254,7 @@ def save_ai_generated_problem(db: Session, *, user: User, payload: GeneratedProb
         solution_code_python=None,
         is_ai_generated=True,
         is_published=False,
+        is_public=False,
         created_by_user_id=user.id,
     )
     test_cases = [
@@ -216,20 +268,36 @@ def save_ai_generated_problem(db: Session, *, user: User, payload: GeneratedProb
         )
         for index, case in enumerate(payload.test_cases, start=1)
     ]
-    return _to_detail(insert_problem(db, problem, topics, test_cases=test_cases))
+    return _to_detail(insert_problem(db, problem, topics, test_cases=test_cases), user)
 
 
 def update_problem(db: Session, *, user: User, problem_id: UUID, payload: ProblemUpdate) -> ProblemDetail:
-    problem = get_user_problem(db, problem_id=problem_id, user_id=user.id)
+    problem = get_problem_by_id(db, problem_id=problem_id)
     if problem is None:
+        raise _not_found()
+    if problem.is_public:
+        if not _is_admin(user):
+            raise _not_found()
+    elif problem.created_by_user_id != user.id:
         raise _not_found()
 
     fields = payload.model_fields_set
+    if "is_public" in fields:
+        requested_public = bool(payload.is_public)
+        if problem.is_public and not requested_public:
+            raise _public_forbidden()
+        if requested_public and not problem.is_public:
+            if not _is_admin(user) or problem.created_by_user_id != user.id:
+                raise _public_forbidden()
+            problem.is_public = True
+        elif requested_public:
+            problem.is_public = True
+
     if "slug" in fields:
         slug = _normalize_slug(payload.slug or "")
         if not slug:
             raise _validation_error()
-        _ensure_slug_available(db, user_id=user.id, slug=slug, exclude_problem_id=problem.id)
+        _ensure_slug_available(db, user_id=problem.created_by_user_id, slug=slug, exclude_problem_id=problem.id)
         problem.slug = slug
 
     for required_field in ("title", "difficulty", "description_markdown"):
@@ -261,15 +329,20 @@ def update_problem(db: Session, *, user: User, problem_id: UUID, payload: Proble
         replace_problem_tags(db, problem=problem, topics=topics)
 
     db.commit()
-    refreshed = get_user_problem(db, problem_id=problem.id, user_id=user.id)
+    refreshed = get_problem_by_id(db, problem_id=problem.id)
     if refreshed is None:
         raise _not_found()
-    return _to_detail(refreshed)
+    return _to_detail(refreshed, user)
 
 
 def delete_problem(db: Session, *, user: User, problem_id: UUID) -> ProblemDeleteResult:
-    problem = get_user_problem(db, problem_id=problem_id, user_id=user.id)
+    problem = get_problem_by_id(db, problem_id=problem_id)
     if problem is None:
+        raise _not_found()
+    if problem.is_public:
+        if not _is_admin(user):
+            raise _not_found()
+    elif problem.created_by_user_id != user.id:
         raise _not_found()
     remove_problem(db, problem)
     return ProblemDeleteResult(success=True)

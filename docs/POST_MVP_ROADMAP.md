@@ -436,13 +436,15 @@ medium
 - First node is unlocked and later nodes follow material-completion progression rules.
 - Completing the first node material unlocks the second node.
 - Ladder page renders phases, nodes, node material, and resource links safely.
-- `practice_completed` and `exam_passed` remain reserved for Phase 15/16.
+- `practice_completed` and `exam_passed` are left unchanged by Phase 14 and reserved for Phase 15/16.
 
 ## Phase 15: Ladder Materials And Practice Progress
 
+Status: implemented.
+
 ### Goal
 
-Add seeded learning materials and basic practice progress to ladder nodes.
+Add seeded node practice and basic practice progress to ladder nodes.
 
 ### Dependencies
 
@@ -455,12 +457,17 @@ Add seeded learning materials and basic practice progress to ladder nodes.
 - External learning links
 - Basic choice and coding practice content
 - Practice completion state
+- Backend-scored choice practice with an 80-point threshold
+- Coding self-check confirmation without executing code
+- `/ladder` material and practice sections in the node detail view
 
 ### Not Included
 
 - Judge-scored coding exercises
 - AI exams
 - Submissions
+- Practice attempt history
+- AI-generated practice content
 
 ### Risk Level
 
@@ -469,17 +476,60 @@ medium
 ### Completion Criteria
 
 - Users can read material, complete practice, and see node progress update.
+- Seeded `practice_items` are copied into path nodes when the path is generated.
+- Existing paths do not automatically update when templates change.
+- Choice answers are scored by the backend and answer keys are hidden from node-detail responses.
 - Coding practice is not executed in Phase 15.
+- `practice_completed` does not unlock the next node; material completion remains the unlock rule.
 
-## Phase 16: AI Ladder Exam And Unlock Flow
+## Phase 16: Admin Role And Public Problem Bank
+
+Status: implemented.
 
 ### Goal
 
-Generate and grade node exams, then unlock the next ladder node after passing.
+Add a minimal `admin` role and a public problem bank before AI ladder exams and later content generation work.
+
+### Dependencies
+
+- Phase 13 student accounts
+- Phase 6-10 problem bank and submissions
+
+### Expected Features
+
+- `users.role` with `user` and `admin`
+- `problems.is_public` to distinguish personal and public problems
+- Admin-only creation, editing, and deletion of public problems
+- Public problem list/detail APIs and pages
+- Normal users can view and submit public problems
+- Development admin seeded by `scripts/seed_admin.py` using `DEV_ADMIN_PASSWORD`
+
+### Not Included
+
+- Full RBAC
+- Teacher/classroom system
+- Admin analytics console
+- Public problem global numbering
+- AI exams, RAG, or content marketplace workflows
+
+### Completion Criteria
+
+- Normal users cannot create, edit, or delete public problems.
+- Admin users can maintain public problems.
+- Public problem routes are registered before dynamic problem-id routes.
+- Submissions accept public problems without exposing other users' submissions.
+- `ENABLE_DEV_USER=false` is the default, and dev fallback is not admin.
+
+## Phase 17: AI Ladder Exam And Unlock Flow
+
+### Goal
+
+Generate and grade node exams, then mark nodes as passed after successful evaluation.
 
 ### Dependencies
 
 - Phase 15 ladder practice progress
+- Phase 16 admin/public problem boundary
 - Existing AI provider layer and prompt templates
 
 ### Expected Features
@@ -506,7 +556,7 @@ high
 - Locked nodes cannot be skipped.
 - Passing unlocks the next node.
 
-## Phase 17: Profile-Aware AI Context And Recommendation Integration
+## Phase 18: Profile-Aware AI Context And Recommendation Integration
 
 ### Goal
 
@@ -515,7 +565,7 @@ Use student profile and ladder progress to improve AI context and Dashboard reco
 ### Dependencies
 
 - Phase 13 student profile
-- Phase 16 ladder exam/progress data
+- Phase 17 ladder exam/progress data
 
 ### Expected Features
 
@@ -538,7 +588,7 @@ medium
 - AI context includes concise profile and ladder summaries.
 - Recommendations remain explainable and user-scoped.
 
-## Phase 18: RAG Knowledge Retrieval
+## Phase 19: RAG Knowledge Retrieval
 
 ### Goal
 
@@ -575,7 +625,7 @@ high
 - Sensitive content boundaries are documented.
 - AI service/provider contracts remain stable.
 
-## Phase 19: Deployment, Security, Permissions, Production Hardening
+## Phase 20: Deployment, Security, Permissions, Production Hardening
 
 ### Goal
 

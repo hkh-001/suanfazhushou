@@ -106,3 +106,10 @@ def mark_material_completed(db: Session, progress: NodeUserProgress) -> None:
         progress.material_completed = True
         progress.material_completed_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def mark_practice_completed(db: Session, progress: NodeUserProgress) -> None:
+    if not progress.practice_completed:
+        progress.practice_completed = True
+        progress.practice_completed_at = datetime.now(timezone.utc)
+    db.commit()

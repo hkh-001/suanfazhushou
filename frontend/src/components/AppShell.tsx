@@ -12,7 +12,8 @@ const navItems = [
   { href: "/ladder", label: "学习天梯" },
   { href: "/chat", label: "AI 问答" },
   { href: "/code-review", label: "代码诊断" },
-  { href: "/problems", label: "个人题库" },
+  { href: "/problems/public", label: "公共题库" },
+  { href: "/problems", label: "我的题库" },
   { href: "/problems/generate", label: "题目生成" },
   { href: "/mistakes", label: "错题本" },
   { href: "/settings", label: "设置" }
@@ -29,8 +30,13 @@ function isActive(pathname: string, href: string) {
     return (
       pathname === "/problems" ||
       pathname.startsWith("/submissions/") ||
-      (pathname.startsWith("/problems/") && pathname !== "/problems/generate")
+      (pathname.startsWith("/problems/") &&
+        pathname !== "/problems/generate" &&
+        !pathname.startsWith("/problems/public"))
     );
+  }
+  if (href === "/problems/public") {
+    return pathname === "/problems/public" || pathname.startsWith("/problems/public/");
   }
   if (href === "/mistakes") {
     return pathname === "/mistakes" || pathname.startsWith("/mistakes/") || pathname.startsWith("/code-reviews");
@@ -91,6 +97,11 @@ export function AppShell({
                   <span className="rounded-md bg-[#eff6ff] px-3 py-2 font-semibold text-[#1d4ed8]">
                     {user.is_dev_user ? "开发用户" : user.name}
                   </span>
+                  {user.role === "admin" ? (
+                    <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+                      admin
+                    </span>
+                  ) : null}
                   {!user.is_dev_user ? (
                     <button
                       className="rounded-md border border-[#bfdbfe] bg-white px-3 py-2 font-semibold text-[#1d4ed8] outline-none transition hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"

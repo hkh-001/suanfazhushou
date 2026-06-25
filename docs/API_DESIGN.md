@@ -182,7 +182,8 @@ Phase 5 auth rules:
 - `GET /api/auth/me` returns the real Cookie user first.
 - `GET /api/auth/me` may fallback to dev user only when the Cookie is missing and `ENABLE_DEV_USER=true`.
 - If a Cookie exists but is expired, invalid, or references a missing user, the backend returns `TOKEN_EXPIRED`, `TOKEN_INVALID`, or `INVALID_SESSION` and does not fallback to dev user.
-- Phase 5 does not include RBAC, OAuth, refresh tokens, password reset, sessions table, or production permission management.
+- Phase 16 adds a minimal `role=user|admin` field. It is only used for public problem maintenance and is not a full RBAC, classroom, or teacher system.
+- `ENABLE_DEV_USER=false` is the default after Phase 16. If explicitly enabled, dev fallback resolves to a normal user, not admin.
 
 Settings:
 
@@ -222,12 +223,18 @@ Implemented across Post-MVP Phase 6-9. These APIs are not part of MVP v0.1, but 
 - `DELETE /api/problems/{id}`
 - `POST /api/problems/save-ai-generated`
 - `POST /api/problems/import/zip`
+- `GET /api/problems/public?page=1&page_size=20`
+- `GET /api/problems/public/{id}`
 
 Rules:
 
 - All problem APIs require `get_current_user`.
 - Ownership comes from the backend session; the frontend must not send `user_id`.
-- List and detail endpoints only return problems owned by the current user.
+- Personal list and detail endpoints return only non-public problems owned by the current user.
+- Public list and detail endpoints return public problems to any authenticated user.
+- Admin users may create, update, and delete public problems.
+- Normal users may view and submit public problems, but may not create, update, or delete them.
+- `ProblemListItem` and `ProblemDetail` include `is_public`, `can_edit`, and `can_delete`.
 - List and detail responses include `display_id`, a per-user visible sequence number.
 - Other users' problems return `PROBLEM_NOT_FOUND`.
 - `GET /api/problems` returns `PaginatedResponse` and sorts by `created_at DESC, id DESC`.
@@ -245,6 +252,7 @@ Rules:
 - ZIP imports force `source="zip_import"`, `is_ai_generated=false`, `is_published=false`, and current-user ownership on the backend.
 - ZIP imports persist `.in` / `.out` files as `test_cases`; Phase 9 does not execute those files.
 - Problem bank APIs still do not create submissions or judge code.
+- Phase 16 submission creation accepts either the current user's personal problem or a public problem.
 
 ZIP import contract:
 
@@ -259,6 +267,7 @@ Problem errors:
 
 - `PROBLEM_NOT_FOUND`
 - `PROBLEM_SLUG_ALREADY_EXISTS`
+- `PUBLIC_PROBLEM_FORBIDDEN`
 - `TOPIC_NOT_FOUND`
 - ZIP import errors such as `ZIP_INVALID_ARCHIVE`, `ZIP_ARCHIVE_EMPTY`, `ZIP_PATH_NOT_ALLOWED`, `ZIP_FILE_TYPE_NOT_ALLOWED`, `ZIP_TEST_CASE_PAIR_MISMATCH`, and `ZIP_PROBLEM_METADATA_INVALID`
 - inherited auth errors such as `AUTH_REQUIRED`, `TOKEN_EXPIRED`, `TOKEN_INVALID`, `INVALID_SESSION`
@@ -315,7 +324,7 @@ Rules:
 
 - All submission APIs require `get_current_user`.
 - `POST` accepts `problem_id`, `language=cpp|python`, and `source_code` up to 20000 characters.
-- The problem must belong to the current user and contain test cases.
+- The problem must either belong to the current user or be public, and it must contain test cases.
 - `ENABLE_CODE_EXECUTION=false` returns `CODE_EXECUTION_DISABLED` without creating a submission.
 - Backend calls the separate Judge service asynchronously and never executes code directly.
 - Judge requests are not retried.
@@ -369,13 +378,14 @@ Errors:
 - existing AI configuration/provider errors
 - inherited auth errors
 
-## Phase 14 Learning Ladder APIs
+## Phase 14-15 Learning Ladder APIs
 
-Implemented in Post-MVP Phase 14:
+Implemented across Post-MVP Phase 14-15:
 
 - `GET /api/ladder`
 - `GET /api/ladder/nodes/{id}`
 - `POST /api/ladder/nodes/{id}/material-complete`
+- `POST /api/ladder/nodes/{id}/practice-submit`
 
 Rules:
 
@@ -384,14 +394,20 @@ Rules:
 - Template selection uses the user's `goal_track` and `current_level`, then falls back to the closest lower level and finally `self_study/beginner`.
 - Each user may have only one active path.
 - Path creation expands the selected template into `learning_path_nodes` and creates one `node_user_progress` row per node.
+- Phase 15 copies seeded `practice_items` from template data into `learning_path_nodes` when the path is created; already generated paths do not automatically follow later template updates.
 - Node status is computed from progress booleans and is not stored as a separate database column.
 - The first node is unlocked by default.
 - Completing node N's material unlocks node N+1.
 - `POST /api/ladder/nodes/{id}/material-complete` is idempotent for already completed unlocked nodes and returns the full updated ladder summary.
+- `GET /api/ladder/nodes/{id}` returns public practice items but never returns `correct_option_id`.
+- `POST /api/ladder/nodes/{id}/practice-submit` accepts choice answers and coding self-check confirmations, scores choices on the backend, and returns per-choice correctness plus the updated full ladder summary.
+- `practice_completed` is set when the score is at least 80 and all coding self-check items are confirmed.
+- Coding practice is self-check only; it does not execute code, create submissions, call Judge, or call AI.
 - Locked nodes return `NODE_LOCKED`.
+- Practice submission before material completion returns `NODE_MATERIAL_REQUIRED`.
 - Other users' nodes return `LADDER_NODE_NOT_FOUND`.
-- Phase 14 does not update `practice_completed` or `exam_passed`; those fields are reserved for Phase 15/16.
-- Phase 14 does not call AI Provider, Judge, RAG, or recommendation services.
+- `exam_passed` remains reserved for Phase 17.
+- Phase 15 does not call AI Provider, Judge, RAG, recommendation services, or submission creation.
 
 Response shape:
 
@@ -399,6 +415,7 @@ Response shape:
 GET /api/ladder -> DataResponse[LadderSummary]
 GET /api/ladder/nodes/{id} -> DataResponse[LadderNodeDetail]
 POST /api/ladder/nodes/{id}/material-complete -> DataResponse[LadderSummary]
+POST /api/ladder/nodes/{id}/practice-submit -> DataResponse[LadderPracticeSubmitResult]
 ```
 
 Errors:
@@ -406,7 +423,10 @@ Errors:
 - `LADDER_TEMPLATE_NOT_FOUND`
 - `LADDER_NODE_NOT_FOUND`
 - `LADDER_PATH_CREATE_FAILED`
+- `LADDER_PRACTICE_NOT_FOUND`
+- `LADDER_PRACTICE_VALIDATION_ERROR`
 - `NODE_LOCKED`
+- `NODE_MATERIAL_REQUIRED`
 - inherited auth errors
 
 ## Post-MVP Planned APIs

@@ -88,8 +88,8 @@ function SampleCodeBlock({ label, content }: { label: string; content: string })
   );
 }
 
-export function ProblemDetailPage({ id }: { id: string }) {
-  const { data, loading, error, reload } = useProblem(id);
+export function ProblemDetailPage({ id, visibility = "private" }: { id: string; visibility?: "private" | "public" }) {
+  const { data, loading, error, reload } = useProblem(id, visibility);
 
   if (loading) {
     return (
@@ -132,7 +132,7 @@ export function ProblemDetailPage({ id }: { id: string }) {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-600">
-                个人题库
+                {data.is_public ? "公共题库" : "我的题库"}
               </p>
               <h1 className="mt-2 break-words text-3xl font-semibold text-slate-950 sm:text-4xl">
                 P{data.display_id} {data.title}
@@ -165,12 +165,14 @@ export function ProblemDetailPage({ id }: { id: string }) {
               >
                 提交代码
               </Link>
-              <Link
-                className="rounded-md border border-blue-200 bg-white px-5 py-2.5 text-sm font-semibold text-blue-700 outline-none transition hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-300"
-                href={`/problems/${id}/edit`}
-              >
-                编辑题目
-              </Link>
+              {data.can_edit ? (
+                <Link
+                  className="rounded-md border border-blue-200 bg-white px-5 py-2.5 text-sm font-semibold text-blue-700 outline-none transition hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-300"
+                  href={`/problems/${id}/edit`}
+                >
+                  编辑题目
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>

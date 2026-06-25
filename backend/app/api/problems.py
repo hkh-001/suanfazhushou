@@ -21,7 +21,9 @@ from app.services.problems import (
     create_problem,
     delete_problem,
     get_problem,
+    get_public_problem,
     list_problems,
+    list_public_problem_bank,
     save_ai_generated_problem,
     update_problem,
 )
@@ -70,6 +72,25 @@ async def import_problem_zip_endpoint(
         )
     content = await file.read(ZIP_MAX_BYTES + 1)
     return DataResponse(data=import_problem_zip(db, user=current_user, zip_bytes=content))
+
+
+@router.get("/public", response_model=PaginatedResponse[ProblemListItem])
+def list_public_problems_endpoint(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PaginatedResponse[ProblemListItem]:
+    return list_public_problem_bank(db, user=current_user, page=page, page_size=page_size)
+
+
+@router.get("/public/{problem_id}", response_model=DataResponse[ProblemDetail])
+def get_public_problem_endpoint(
+    problem_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DataResponse[ProblemDetail]:
+    return DataResponse(data=get_public_problem(db, user=current_user, problem_id=problem_id))
 
 
 @router.get("/{problem_id}", response_model=DataResponse[ProblemDetail])

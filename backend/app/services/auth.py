@@ -28,6 +28,7 @@ def to_auth_user(user: User, *, is_dev_user: bool = False) -> AuthUser:
         current_level=user.current_level,
         goal_track=user.goal_track,
         goal_description=user.goal_description,
+        role=user.role,
         learning_stage=user.learning_stage,
         target_track=user.target_track,
         is_dev_user=is_dev_user,
@@ -97,6 +98,7 @@ def register_user(
             goal_track=goal_track,
             goal_description=goal_description,
             onboarding_completed_at=datetime.now(timezone.utc),
+            role="user",
             learning_stage=current_level,
             target_track=goal_track,
         )

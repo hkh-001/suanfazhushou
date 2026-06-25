@@ -5,7 +5,16 @@ import { useCallback, useEffect, useState } from "react";
 import { isAuthRequiredError } from "@/features/auth/hooks";
 import { ApiError } from "@/lib/api/client";
 
-import { createProblem, deleteProblem, fetchProblem, fetchProblems, importProblemZip, updateProblem } from "./api";
+import {
+  createProblem,
+  deleteProblem,
+  fetchProblem,
+  fetchProblems,
+  fetchPublicProblem,
+  fetchPublicProblems,
+  importProblemZip,
+  updateProblem
+} from "./api";
 import type { PaginatedProblems, ProblemDetail, ProblemPayload, ProblemUpdatePayload } from "./types";
 
 export function getProblemErrorMessage(error: unknown): string {
@@ -21,6 +30,9 @@ export function getProblemErrorMessage(error: unknown): string {
     }
     if (error.code === "PROBLEM_NOT_FOUND") {
       return "题目不存在，或你没有访问权限。";
+    }
+    if (error.code === "PUBLIC_PROBLEM_FORBIDDEN") {
+      return "只有 admin 可以创建或修改公共题目。";
     }
     return error.message;
   }
@@ -65,7 +77,42 @@ export function useProblems(page: number, pageSize = 20) {
   return { data, loading, error, reload: load };
 }
 
-export function useProblem(id: string) {
+export function usePublicProblems(page: number, pageSize = 20) {
+  const [data, setData] = useState<PaginatedProblems | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback((signal?: AbortSignal) => {
+    setLoading(true);
+    setError(null);
+    return fetchPublicProblems(page, pageSize, { signal })
+      .then((result) => {
+        if (!signal?.aborted) {
+          setData(result);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!signal?.aborted) {
+          setError(getProblemErrorMessage(err));
+        }
+      })
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
+  }, [page, pageSize]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
+
+  return { data, loading, error, reload: load };
+}
+
+export function useProblem(id: string, visibility: "private" | "public" = "private") {
   const [data, setData] = useState<ProblemDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +120,8 @@ export function useProblem(id: string) {
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    return fetchProblem(id)
+    const request = visibility === "public" ? fetchPublicProblem(id) : fetchProblem(id);
+    return request
       .then((result) => {
         setData(result.data);
       })
@@ -83,7 +131,7 @@ export function useProblem(id: string) {
       .finally(() => {
         setLoading(false);
       });
-  }, [id]);
+  }, [id, visibility]);
 
   useEffect(() => {
     void load();

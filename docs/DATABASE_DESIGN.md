@@ -61,7 +61,7 @@ Phase 4 Dashboard data is computed from published topics and the current user's 
 
 Phase 5 and later are Post-MVP roadmap work. They are not required for MVP v0.1 completion.
 
-Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-14 tables. Tables marked deferred below remain planning notes only until their Post-MVP phase creates an Alembic migration.
+Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-15 tables. Tables marked deferred below remain planning notes only until their Post-MVP phase creates an Alembic migration.
 
 ## Post-MVP Table Status
 
@@ -76,8 +76,8 @@ Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phas
 | `mistake_notes` | Phase 8 | User-owned mistake notebook entries | Implemented in Post-MVP Phase 8 |
 | `ladder_templates` | Phase 14 | Seeded learning ladder templates | Implemented in Post-MVP Phase 14 |
 | `learning_paths` | Phase 14 | Current-user active ladder paths | Implemented in Post-MVP Phase 14 |
-| `learning_path_nodes` | Phase 14 | Expanded per-path algorithm nodes | Implemented in Post-MVP Phase 14 |
-| `node_user_progress` | Phase 14 | Per-user node completion booleans | Implemented in Post-MVP Phase 14 |
+| `learning_path_nodes` | Phase 14/15 | Expanded per-path algorithm nodes and copied seeded practice items | Implemented in Post-MVP Phase 14; Phase 15 adds `practice_items` |
+| `node_user_progress` | Phase 14/15 | Per-user node completion booleans | Implemented in Post-MVP Phase 14; Phase 15 updates `practice_completed` |
 | `recommendation_logs` | Deferred after Phase 12 | Recommendation events and explanations | Phase 12 uses real-time rules and does not persist recommendation logs |
 | `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
 | `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
@@ -97,6 +97,7 @@ current_level
 goal_track
 goal_description
 onboarding_completed_at
+role
 learning_stage
 target_track
 created_at
@@ -111,6 +112,8 @@ Notes:
 - `email`, `username`, `learning_stage`, and `target_track` remain compatibility fields and are not removed in Phase 13.
 - `current_level` is one of `beginner`, `elementary`, `popularization`, or `improvement`.
 - `goal_track` is one of `course`, `lanqiao`, `icpc`, or `self_study`.
+- Phase 16 adds `role`, currently limited to `user` and `admin`.
+- `role=admin` is only used for public problem maintenance; no classroom, teacher, or full RBAC tables are added.
 - User profile fields may be injected into AI context as a short summary, not as full learning history.
 
 ## user_settings
@@ -190,6 +193,7 @@ solution_code_cpp
 solution_code_python
 is_ai_generated
 is_published
+is_public
 created_by_user_id
 published_at
 created_at
@@ -202,7 +206,9 @@ Notes:
 - `is_ai_generated=true` is required for AI-generated problems saved in Phase 7.
 - Phase 7 saved generated problems force `source="ai_generated"` and do not accept ownership or publication flags from the frontend.
 - Phase 9 ZIP imports force `source="zip_import"`, `is_ai_generated=false`, and `is_published=false`.
-- `is_published` is reserved for future publishing; Phase 6 problem bank shows only the current user's own problems.
+- `is_published` is reserved for future publishing; Phase 16 public visibility uses `is_public`.
+- `is_public=false` means a personal problem visible only to its owner.
+- `is_public=true` means a public problem visible to all authenticated users and editable/deletable only by admin users.
 - `created_by_user_id` owns the problem and must come from backend auth, not frontend input.
 - `(created_by_user_id, slug)` is unique; slug is not globally unique.
 - `(created_by_user_id, display_id)` is unique and provides a per-user visible sequence such as `#1`.
@@ -289,7 +295,7 @@ Notes:
 
 ## ladder_templates
 
-Implemented in Post-MVP Phase 14. Not part of MVP v0.1.
+Implemented in Post-MVP Phase 14 and extended in Phase 15. Not part of MVP v0.1.
 
 ```text
 id UUID primary key
@@ -348,6 +354,7 @@ title varchar(120) not null
 summary text not null
 material_markdown text not null
 resource_links jsonb not null default []
+practice_items jsonb not null default []
 unlock_rule jsonb not null default {}
 created_at timestamptz not null
 updated_at timestamptz not null
@@ -359,10 +366,15 @@ Notes:
 - `algorithm_key` is not unique within a path, because the same algorithm may appear in multiple phases.
 - `topic_id` is optional and only binds published topics when a seed template `topic_slug` exists.
 - `resource_links` are shown as references only; the backend does not fetch or copy external content.
+- `practice_items` is copied from the selected `ladder_templates.template_data` when a path is generated.
+- Already generated paths do not automatically receive later template practice updates.
+- Practice item IDs must be unique within a node.
+- Choice practice stores `correct_option_id` in the database but API node-detail responses hide it.
+- Coding practice is self-check text only and is not executed or submitted.
 
 ## node_user_progress
 
-Implemented in Post-MVP Phase 14. Not part of MVP v0.1.
+Implemented in Post-MVP Phase 14 and extended in Phase 15. Not part of MVP v0.1.
 
 ```text
 id UUID primary key
@@ -382,10 +394,11 @@ Notes:
 
 - `(user_id, node_id)` is unique.
 - Phase 14 updates only `material_completed`.
-- `practice_completed` is reserved for Phase 15.
-- `exam_passed` is reserved for Phase 16.
+- Phase 15 updates `practice_completed` after seeded practice reaches the 80-point threshold and all coding self-check items are confirmed.
+- `exam_passed` is reserved for Phase 17.
 - Node status is computed by the API and not stored as a denormalized string.
 - Completing node N's material unlocks node N+1.
+- `practice_completed` does not unlock the next node in Phase 15.
 
 ## submissions
 

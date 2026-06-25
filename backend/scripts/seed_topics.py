@@ -182,6 +182,7 @@ def upsert_dev_user() -> None:
                     name="开发用户",
                     current_level="beginner",
                     goal_track="self_study",
+                    role="user",
                     learning_stage="beginner",
                     target_track="algorithm_basics",
                 )

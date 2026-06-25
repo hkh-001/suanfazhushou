@@ -37,6 +37,7 @@ class ProblemBasePayload(BaseModel):
     solution_code_cpp: str | None = Field(default=None, max_length=20000)
     solution_code_python: str | None = Field(default=None, max_length=20000)
     topic_ids: list[UUID] = Field(default_factory=list)
+    is_public: bool = False
 
     @field_validator(
         "source",
@@ -93,6 +94,7 @@ class ProblemUpdate(BaseModel):
     solution_code_cpp: str | None = Field(default=None, max_length=20000)
     solution_code_python: str | None = Field(default=None, max_length=20000)
     topic_ids: list[UUID] | None = None
+    is_public: bool | None = None
 
     @field_validator("title", "slug", "description_markdown")
     @classmethod
@@ -195,6 +197,9 @@ class ProblemListItem(BaseModel):
     estimated_minutes: int | None = None
     is_ai_generated: bool
     is_published: bool
+    is_public: bool
+    can_edit: bool
+    can_delete: bool
     created_by_user_id: UUID
     topic_tags: list[ProblemTopicTag]
     created_at: datetime
@@ -242,6 +247,7 @@ class ProblemModelData(BaseModel):
     solution_code_python: str | None = None
     is_ai_generated: bool
     is_published: bool
+    is_public: bool
     created_by_user_id: UUID
     published_at: datetime | None = None
     created_at: datetime

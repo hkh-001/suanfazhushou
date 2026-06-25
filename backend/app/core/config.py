@@ -9,8 +9,9 @@ class Settings(BaseSettings):
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
     database_url: str = "postgresql+psycopg://algomentor:algomentor_password@localhost:5432/algomentor?connect_timeout=5"
-    enable_dev_user: bool = True
+    enable_dev_user: bool = False
     dev_user_id: str = "00000000-0000-0000-0000-000000000001"
+    dev_admin_password: str = ""
     enable_runtime_ai_settings: bool = False
     enable_persistent_ai_settings: bool = False
     persistent_ai_settings_path: str = ".runtime-ai-settings.json"

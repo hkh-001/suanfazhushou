@@ -7,8 +7,15 @@ import { AppShell } from "@/components/AppShell";
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { PageHeader } from "@/components/PageHeader";
 
-import { useCompleteLadderMaterial, useLadder, useLadderNode } from "./hooks";
-import type { LadderNodeStatus, LadderNodeSummary, LadderSummary } from "./types";
+import { useCompleteLadderMaterial, useLadder, useLadderNode, useSubmitLadderPractice } from "./hooks";
+import type {
+  LadderChoicePracticeItem,
+  LadderCodingPracticeItem,
+  LadderNodeStatus,
+  LadderNodeSummary,
+  LadderPracticeSubmitResult,
+  LadderSummary
+} from "./types";
 
 const statusLabels: Record<LadderNodeStatus, string> = {
   locked: "未解锁",
@@ -57,12 +64,23 @@ function EmptyPanel({ message }: { message: string }) {
   );
 }
 
+function splitPracticeItems(items: NonNullable<ReturnType<typeof useLadderNode>["data"]>["practice_items"]) {
+  return {
+    choiceItems: items.filter((item): item is LadderChoicePracticeItem => item.type === "choice"),
+    codingItems: items.filter((item): item is LadderCodingPracticeItem => item.type === "coding")
+  };
+}
+
 export function LadderPage() {
   const { data, loading, error, reload, setData } = useLadder();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const selectedSummary = useMemo(() => findNode(data, selectedNodeId), [data, selectedNodeId]);
   const { data: nodeDetail, loading: nodeLoading, error: nodeError, reload: reloadNode } = useLadderNode(selectedNodeId);
   const { complete, loading: completing, error: completeError } = useCompleteLadderMaterial();
+  const { submit, loading: submitting, error: submitError } = useSubmitLadderPractice();
+  const [choiceAnswers, setChoiceAnswers] = useState<Record<string, string>>({});
+  const [completedCodingIds, setCompletedCodingIds] = useState<string[]>([]);
+  const [practiceResult, setPracticeResult] = useState<LadderPracticeSubmitResult | null>(null);
 
   useEffect(() => {
     if (!data) {
@@ -73,6 +91,12 @@ export function LadderPage() {
       setSelectedNodeId(data.current_node_id ?? nodes[0]?.id ?? null);
     }
   }, [data, selectedNodeId]);
+
+  useEffect(() => {
+    setChoiceAnswers({});
+    setCompletedCodingIds([]);
+    setPracticeResult(null);
+  }, [nodeDetail?.id]);
 
   async function handleComplete() {
     if (!selectedNodeId) {
@@ -85,6 +109,29 @@ export function LadderPage() {
     } catch {
       // The hook exposes the user-facing error message.
     }
+  }
+
+  async function handlePracticeSubmit() {
+    if (!selectedNodeId) {
+      return;
+    }
+    try {
+      const result = await submit(selectedNodeId, {
+        choice_answers: Object.entries(choiceAnswers).map(([item_id, option_id]) => ({ item_id, option_id })),
+        completed_coding_item_ids: completedCodingIds
+      });
+      setPracticeResult(result);
+      setData(result.ladder);
+      await reloadNode();
+    } catch {
+      // The hook exposes the user-facing error message.
+    }
+  }
+
+  function toggleCodingItem(itemId: string) {
+    setCompletedCodingIds((current) =>
+      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]
+    );
   }
 
   if (loading) {
@@ -123,6 +170,13 @@ export function LadderPage() {
     );
   }
 
+  const nodeCount = flattenNodes(data).length;
+  const practiceItems = nodeDetail?.practice_items ?? [];
+  const { choiceItems, codingItems } = splitPracticeItems(practiceItems);
+  const practiceBlockedByMaterial = Boolean(nodeDetail && !nodeDetail.locked && !nodeDetail.material_completed);
+  const practiceUnavailable = Boolean(nodeDetail?.locked || practiceBlockedByMaterial || practiceItems.length === 0);
+  const practiceCompleted = Boolean(nodeDetail?.practice_completed);
+
   return (
     <AppShell>
       <PageHeader
@@ -159,7 +213,7 @@ export function LadderPage() {
         <section className="rounded-xl border border-[#dbeafe] bg-white/95 p-5 shadow-sm shadow-blue-100/60">
           <div className="mb-5 flex items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-[#0f172a]">路径节点</h2>
-            <span className="text-sm text-[#64748b]">{flattenNodes(data).length} 个节点</span>
+            <span className="text-sm text-[#64748b]">{nodeCount} 个节点</span>
           </div>
 
           <div className="space-y-6">
@@ -224,43 +278,154 @@ export function LadderPage() {
                 </span>
               </div>
 
-              <div className="mt-6">
-                <MarkdownContent content={nodeDetail.material_markdown} />
+              <div className="mt-6 rounded-lg border border-[#dbeafe] bg-[#f8fbff] p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-[#0f172a]">资料阅读</h3>
+                  {nodeDetail.material_completed ? (
+                    <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">资料已读</span>
+                  ) : null}
+                </div>
+                <div className="rounded-lg bg-white p-4">
+                  <MarkdownContent content={nodeDetail.material_markdown} />
+                </div>
+
+                {nodeDetail.resource_links.length > 0 ? (
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-[#0f172a]">参考资料</h4>
+                    <div className="mt-3 space-y-2">
+                      {nodeDetail.resource_links.map((link) => (
+                        <a
+                          className="block rounded-md border border-[#dbeafe] bg-white px-3 py-2 text-sm font-semibold text-[#1d4ed8] outline-none transition hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+                          href={link.url}
+                          key={`${link.title}-${link.url}`}
+                          rel="noreferrer noopener"
+                          target="_blank"
+                        >
+                          {link.title}
+                          {link.source ? <span className="ml-2 font-normal text-[#64748b]">({link.source})</span> : null}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <button
+                    className="rounded-md bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white outline-none transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#bfdbfe] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+                    disabled={nodeDetail.locked || nodeDetail.material_completed || completing}
+                    onClick={() => void handleComplete()}
+                    type="button"
+                  >
+                    {nodeDetail.material_completed ? "资料已读" : completing ? "正在保存..." : "标记资料已读"}
+                  </button>
+                  {nodeDetail.locked ? <span className="text-sm text-[#64748b]">完成前置节点资料后解锁</span> : null}
+                  {completeError ? <span className="text-sm font-semibold text-red-700">{completeError}</span> : null}
+                </div>
               </div>
 
-              {nodeDetail.resource_links.length > 0 ? (
-                <div className="mt-6 rounded-lg border border-[#dbeafe] bg-[#f8fbff] p-4">
-                  <h3 className="font-semibold text-[#0f172a]">参考资料</h3>
-                  <div className="mt-3 space-y-2">
-                    {nodeDetail.resource_links.map((link) => (
-                      <a
-                        className="block rounded-md border border-[#dbeafe] bg-white px-3 py-2 text-sm font-semibold text-[#1d4ed8] outline-none transition hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
-                        href={link.url}
-                        key={`${link.title}-${link.url}`}
-                        rel="noreferrer noopener"
-                        target="_blank"
-                      >
-                        {link.title}
-                        {link.source ? <span className="ml-2 font-normal text-[#64748b]">({link.source})</span> : null}
-                      </a>
-                    ))}
+              <div className="mt-6 rounded-lg border border-[#dbeafe] bg-white p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#0f172a]">节点练习</h3>
+                    <p className="mt-1 text-sm text-[#64748b]">选择题由后端判分，编程题仅做自查确认，不运行代码。</p>
                   </div>
+                  {practiceCompleted ? (
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">练习已完成</span>
+                  ) : null}
                 </div>
-              ) : null}
 
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <button
-                  className="rounded-md bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white outline-none transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#bfdbfe] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
-                  disabled={nodeDetail.locked || nodeDetail.material_completed || completing}
-                  onClick={() => void handleComplete()}
-                  type="button"
-                >
-                  {nodeDetail.material_completed ? "资料已读" : completing ? "正在保存..." : "标记资料已读"}
-                </button>
                 {nodeDetail.locked ? (
-                  <span className="text-sm text-[#64748b]">完成前置节点资料后解锁</span>
-                ) : null}
-                {completeError ? <span className="text-sm font-semibold text-red-700">{completeError}</span> : null}
+                  <EmptyPanel message="完成前置节点资料后解锁练习。" />
+                ) : practiceBlockedByMaterial ? (
+                  <EmptyPanel message="先完成资料阅读后再开始练习。" />
+                ) : practiceItems.length === 0 ? (
+                  <EmptyPanel message="当前节点暂未配置练习。" />
+                ) : (
+                  <div className="space-y-5">
+                    {choiceItems.map((item, index) => {
+                      const result = practiceResult?.choice_results.find((choiceResult) => choiceResult.item_id === item.id);
+                      return (
+                        <div className="rounded-lg border border-[#dbeafe] bg-[#f8fbff] p-4" key={item.id}>
+                          <p className="text-sm font-semibold text-[#2563eb]">选择题 {index + 1}</p>
+                          <h4 className="mt-2 font-semibold text-[#0f172a]">{item.prompt}</h4>
+                          <div className="mt-3 space-y-2">
+                            {item.options.map((option) => (
+                              <label
+                                className="flex cursor-pointer items-start gap-3 rounded-md border border-[#dbeafe] bg-white px-3 py-2 text-sm text-[#0f172a] hover:bg-[#eff6ff]"
+                                key={option.id}
+                              >
+                                <input
+                                  checked={choiceAnswers[item.id] === option.id}
+                                  className="mt-1"
+                                  disabled={practiceCompleted}
+                                  name={item.id}
+                                  onChange={() => setChoiceAnswers((current) => ({ ...current, [item.id]: option.id }))}
+                                  type="radio"
+                                />
+                                <span>{option.text}</span>
+                              </label>
+                            ))}
+                          </div>
+                          {result ? (
+                            <div
+                              className={`mt-3 rounded-md border px-3 py-2 text-sm ${
+                                result.correct
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-red-200 bg-red-50 text-red-700"
+                              }`}
+                            >
+                              {result.correct ? "回答正确" : "回答错误"}
+                              {result.explanation ? <span className="mt-1 block">{result.explanation}</span> : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+
+                    {codingItems.map((item, index) => (
+                      <div className="rounded-lg border border-[#dbeafe] bg-[#f8fbff] p-4" key={item.id}>
+                        <p className="text-sm font-semibold text-[#2563eb]">编程自查 {index + 1}</p>
+                        <h4 className="mt-2 font-semibold text-[#0f172a]">{item.prompt}</h4>
+                        <p className="mt-2 rounded-md bg-white px-3 py-2 text-sm text-[#475569]">{item.self_check}</p>
+                        <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-semibold text-[#0f172a]">
+                          <input
+                            checked={completedCodingIds.includes(item.id)}
+                            disabled={practiceCompleted}
+                            onChange={() => toggleCodingItem(item.id)}
+                            type="checkbox"
+                          />
+                          我已完成自查
+                        </label>
+                      </div>
+                    ))}
+
+                    {practiceResult ? (
+                      <div
+                        className={`rounded-lg border p-4 ${
+                          practiceResult.passed
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : "border-amber-200 bg-amber-50 text-amber-800"
+                        }`}
+                      >
+                        <p className="font-semibold">
+                          本次得分：{practiceResult.score} 分，{practiceResult.passed ? "已通过" : "未通过"}
+                        </p>
+                        {!practiceResult.passed ? <p className="mt-1 text-sm">请根据解释重新答题并确认自查。</p> : null}
+                      </div>
+                    ) : null}
+
+                    {submitError ? <p className="text-sm font-semibold text-red-700">{submitError}</p> : null}
+
+                    <button
+                      className="rounded-md bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white outline-none transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#bfdbfe] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+                      disabled={practiceUnavailable || practiceCompleted || submitting}
+                      onClick={() => void handlePracticeSubmit()}
+                      type="button"
+                    >
+                      {practiceCompleted ? "练习已完成" : submitting ? "正在提交..." : "提交练习"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : null}

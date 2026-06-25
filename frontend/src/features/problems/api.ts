@@ -14,8 +14,16 @@ export function fetchProblems(page = 1, pageSize = 20, init?: RequestInit): Prom
   return apiFetch<PaginatedProblems>(`/problems?page=${page}&page_size=${pageSize}`, init);
 }
 
+export function fetchPublicProblems(page = 1, pageSize = 20, init?: RequestInit): Promise<PaginatedProblems> {
+  return apiFetch<PaginatedProblems>(`/problems/public?page=${page}&page_size=${pageSize}`, init);
+}
+
 export function fetchProblem(id: string): Promise<ProblemResponse> {
   return apiFetch<ProblemResponse>(`/problems/${id}`);
+}
+
+export function fetchPublicProblem(id: string): Promise<ProblemResponse> {
+  return apiFetch<ProblemResponse>(`/problems/public/${id}`);
 }
 
 export function createProblem(payload: ProblemPayload): Promise<ProblemResponse> {

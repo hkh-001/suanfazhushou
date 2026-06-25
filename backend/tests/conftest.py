@@ -80,7 +80,9 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture()
-def dev_user(db_session: Session) -> User:
+def dev_user(db_session: Session) -> Generator[User, None, None]:
+    previous_enable_dev_user = settings.enable_dev_user
+    settings.enable_dev_user = True
     dev_user_id = UUID(settings.dev_user_id)
     db_session.execute(delete(AICallLog).where(AICallLog.user_id == dev_user_id))
     db_session.execute(delete(LearningRecord).where(LearningRecord.user_id == dev_user_id))
@@ -99,8 +101,30 @@ def dev_user(db_session: Session) -> User:
         name="开发用户",
         current_level="beginner",
         goal_track="self_study",
+        role="user",
         learning_stage="beginner",
         target_track="algorithm_basics",
+    )
+    db_session.add(user)
+    db_session.commit()
+    try:
+        yield user
+    finally:
+        settings.enable_dev_user = previous_enable_dev_user
+
+
+@pytest.fixture()
+def admin_user(db_session: Session) -> User:
+    user = User(
+        email=f"admin-{uuid4()}@algomentor.local",
+        username=f"admin_{uuid4().hex[:8]}",
+        student_id=f"admin_{uuid4().hex[:8]}",
+        name="Admin",
+        current_level="improvement",
+        goal_track="self_study",
+        role="admin",
+        learning_stage="improvement",
+        target_track="self_study",
     )
     db_session.add(user)
     db_session.commit()

@@ -15,13 +15,20 @@ from app.repositories.ladder import (
     get_progress_for_path,
     get_published_topic_by_slug,
     mark_material_completed,
+    mark_practice_completed,
 )
 from app.schemas.ladder import (
+    LadderChoicePracticeItem,
+    LadderChoiceResult,
+    LadderCodingPracticeItem,
     LadderNodeDetail,
     LadderNodeStatus,
     LadderNodeSummary,
     LadderPathSummary,
     LadderPhase,
+    LadderPracticeItem,
+    LadderPracticeSubmitRequest,
+    LadderPracticeSubmitResult,
     LadderResourceLink,
     LadderSummary,
 )
@@ -37,6 +44,19 @@ LADDER_PATH_CREATE_FAILED = {
     "message": "Learning ladder path could not be created",
 }
 NODE_LOCKED = {"code": "NODE_LOCKED", "message": "Learning ladder node is locked"}
+NODE_MATERIAL_REQUIRED = {
+    "code": "NODE_MATERIAL_REQUIRED",
+    "message": "Learning ladder node material must be completed before practice",
+}
+LADDER_PRACTICE_NOT_FOUND = {
+    "code": "LADDER_PRACTICE_NOT_FOUND",
+    "message": "Learning ladder practice items not found",
+}
+LADDER_PRACTICE_VALIDATION_ERROR = {
+    "code": "LADDER_PRACTICE_VALIDATION_ERROR",
+    "message": "Learning ladder practice submission is invalid",
+}
+PRACTICE_PASS_SCORE = 80
 
 LEVEL_FALLBACKS = {
     "improvement": ["improvement", "popularization", "elementary", "beginner"],
@@ -113,6 +133,75 @@ def _resource_links(raw_links: object) -> list[dict]:
     return links
 
 
+def _practice_validation_error(status_code: int = 422) -> HTTPException:
+    return HTTPException(status_code=status_code, detail=LADDER_PRACTICE_VALIDATION_ERROR)
+
+
+def _public_practice_items(raw_items: object) -> list[LadderPracticeItem]:
+    if not isinstance(raw_items, list):
+        raise _practice_validation_error(status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    seen_ids: set[str] = set()
+    public_items: list[LadderPracticeItem] = []
+    for raw_item in raw_items:
+        if not isinstance(raw_item, dict):
+            raise _practice_validation_error(status.HTTP_500_INTERNAL_SERVER_ERROR)
+        item_id = str(raw_item.get("id") or "").strip()
+        if not item_id or item_id in seen_ids:
+            raise _practice_validation_error(status.HTTP_500_INTERNAL_SERVER_ERROR)
+        seen_ids.add(item_id)
+
+        item_type = raw_item.get("type")
+        if item_type == "choice":
+            options = raw_item.get("options")
+            correct_option_id = str(raw_item.get("correct_option_id") or "").strip()
+            if not isinstance(options, list) or not correct_option_id:
+                raise _practice_validation_error(status.HTTP_500_INTERNAL_SERVER_ERROR)
+            option_ids = [str(option.get("id") or "").strip() for option in options if isinstance(option, dict)]
+            if len(option_ids) != len(set(option_ids)) or correct_option_id not in set(option_ids):
+                raise _practice_validation_error(status.HTTP_500_INTERNAL_SERVER_ERROR)
+            public_items.append(
+                LadderChoicePracticeItem.model_validate(
+                    {
+                        "id": item_id,
+                        "type": "choice",
+                        "prompt": raw_item.get("prompt"),
+                        "options": options,
+                    }
+                )
+            )
+        elif item_type == "coding":
+            public_items.append(
+                LadderCodingPracticeItem.model_validate(
+                    {
+                        "id": item_id,
+                        "type": "coding",
+                        "prompt": raw_item.get("prompt"),
+                        "self_check": raw_item.get("self_check"),
+                    }
+                )
+            )
+        else:
+            raise _practice_validation_error(status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return public_items
+
+
+def _practice_items(raw_items: object) -> list[dict]:
+    if raw_items is None:
+        return []
+    _public_practice_items(raw_items)
+    assert isinstance(raw_items, list)
+    return raw_items
+
+
+def _choice_items(raw_items: list[dict]) -> list[dict]:
+    return [item for item in raw_items if item.get("type") == "choice"]
+
+
+def _coding_items(raw_items: list[dict]) -> list[dict]:
+    return [item for item in raw_items if item.get("type") == "coding"]
+
+
 def _nodes_from_template(db: Session, template: LadderTemplate) -> list[LearningPathNode]:
     nodes: list[LearningPathNode] = []
     node_index = 1
@@ -140,6 +229,7 @@ def _nodes_from_template(db: Session, template: LadderTemplate) -> list[Learning
                     summary=str(raw_node.get("summary") or "Read the material and complete this learning node."),
                     material_markdown=str(raw_node.get("material_markdown") or "No material is available yet."),
                     resource_links=_resource_links(raw_node.get("resource_links")),
+                    practice_items=_practice_items(raw_node.get("practice_items")),
                     unlock_rule={},
                 )
             )
@@ -267,11 +357,14 @@ def get_ladder_node(db: Session, *, user: User, node_id: UUID) -> LadderNodeDeta
     nodes = sorted(node.path.nodes, key=lambda item: item.node_index)
     progress_by_node = _progress_map(db, node.path, user_id=user.id)
     summary = _node_summary(node, nodes, progress_by_node)
+    progress = progress_by_node.get(node.id)
     return LadderNodeDetail(
         **summary.model_dump(),
         path_id=node.path_id,
         material_markdown=node.material_markdown,
         resource_links=[LadderResourceLink.model_validate(link) for link in node.resource_links],
+        practice_items=_public_practice_items(node.practice_items),
+        practice_completed_at=progress.practice_completed_at if progress is not None else None,
     )
 
 
@@ -291,3 +384,87 @@ def complete_ladder_node_material(db: Session, *, user: User, node_id: UUID) -> 
     if refreshed is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=LADDER_PATH_CREATE_FAILED)
     return _to_summary(db, refreshed, user_id=user.id)
+
+
+def submit_ladder_node_practice(
+    db: Session,
+    *,
+    user: User,
+    node_id: UUID,
+    payload: LadderPracticeSubmitRequest,
+) -> LadderPracticeSubmitResult:
+    node = get_path_node_for_user(db, node_id=node_id, user_id=user.id)
+    if node is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=LADDER_NODE_NOT_FOUND)
+
+    nodes = sorted(node.path.nodes, key=lambda item: item.node_index)
+    progress_by_node = _progress_map(db, node.path, user_id=user.id)
+    node_status = _node_status(node, nodes, progress_by_node)
+    if node_status == "locked":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NODE_LOCKED)
+
+    progress = progress_by_node.get(node.id)
+    if progress is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=LADDER_NODE_NOT_FOUND)
+    if not progress.material_completed:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NODE_MATERIAL_REQUIRED)
+
+    raw_items = node.practice_items if isinstance(node.practice_items, list) else []
+    if not raw_items:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=LADDER_PRACTICE_NOT_FOUND)
+    _public_practice_items(raw_items)
+
+    choice_items = _choice_items(raw_items)
+    coding_items = _coding_items(raw_items)
+    choice_by_id = {item["id"]: item for item in choice_items}
+    coding_ids = {item["id"] for item in coding_items}
+
+    answer_map: dict[str, str] = {}
+    for answer in payload.choice_answers:
+        if answer.item_id in answer_map:
+            raise _practice_validation_error()
+        if answer.item_id not in choice_by_id:
+            raise _practice_validation_error()
+        option_ids = {
+            str(option.get("id") or "").strip()
+            for option in choice_by_id[answer.item_id].get("options", [])
+            if isinstance(option, dict)
+        }
+        if answer.option_id not in option_ids:
+            raise _practice_validation_error()
+        answer_map[answer.item_id] = answer.option_id
+
+    completed_coding_ids = set(payload.completed_coding_item_ids)
+    if len(completed_coding_ids) != len(payload.completed_coding_item_ids):
+        raise _practice_validation_error()
+    if not completed_coding_ids.issubset(coding_ids):
+        raise _practice_validation_error()
+
+    correct_count = 0
+    choice_results: list[LadderChoiceResult] = []
+    for item in choice_items:
+        item_id = str(item["id"])
+        correct = answer_map.get(item_id) == str(item.get("correct_option_id") or "").strip()
+        if correct:
+            correct_count += 1
+        explanation = str(item.get("explanation") or "").strip() or None
+        choice_results.append(LadderChoiceResult(item_id=item_id, correct=correct, explanation=explanation))
+
+    score = round(correct_count / len(choice_items) * 100) if choice_items else 100
+    coding_complete = coding_ids.issubset(completed_coding_ids)
+    passed = (score >= PRACTICE_PASS_SCORE and coding_complete) or progress.practice_completed
+
+    if passed and not progress.practice_completed:
+        mark_practice_completed(db, progress)
+
+    refreshed = get_active_path(db, user_id=user.id)
+    if refreshed is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=LADDER_PATH_CREATE_FAILED)
+    refreshed_progress = _progress_map(db, refreshed, user_id=user.id).get(node_id)
+    return LadderPracticeSubmitResult(
+        score=score,
+        passed=passed,
+        practice_completed=bool(refreshed_progress and refreshed_progress.practice_completed),
+        choice_results=choice_results,
+        ladder=_to_summary(db, refreshed, user_id=user.id),
+    )

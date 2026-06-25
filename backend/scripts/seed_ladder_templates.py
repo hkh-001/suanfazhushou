@@ -11,6 +11,41 @@ from app.db.session import SessionLocal
 from app.models.ladder import LadderTemplate
 
 
+def _practice_items(key: str, title: str) -> list[dict]:
+    return [
+        {
+            "id": f"{key}-choice-1",
+            "type": "choice",
+            "prompt": f"What should you check first when applying {title}?",
+            "options": [
+                {"id": "a", "text": "Whether the approach matches the input limits"},
+                {"id": "b", "text": "Whether the variable names are short enough"},
+                {"id": "c", "text": "Whether the code uses the newest syntax"},
+            ],
+            "correct_option_id": "a",
+            "explanation": "Algorithm practice starts by matching the idea with constraints and input size.",
+        },
+        {
+            "id": f"{key}-choice-2",
+            "type": "choice",
+            "prompt": "Which habit is most useful for avoiding boundary mistakes?",
+            "options": [
+                {"id": "a", "text": "Skip small examples and write code immediately"},
+                {"id": "b", "text": "Trace one small example and mark indexes or states"},
+                {"id": "c", "text": "Only test the largest possible input"},
+            ],
+            "correct_option_id": "b",
+            "explanation": "A small hand trace exposes off-by-one and state-update mistakes early.",
+        },
+        {
+            "id": f"{key}-coding-1",
+            "type": "coding",
+            "prompt": f"Write a short implementation or pseudocode exercise using {title}.",
+            "self_check": "Confirm you tested an empty or minimal case, a normal case, and a boundary case.",
+        },
+    ]
+
+
 def _node(
     key: str,
     title: str,
@@ -25,6 +60,7 @@ def _node(
         "summary": summary,
         "material_markdown": material,
         "resource_links": [],
+        "practice_items": _practice_items(key, title),
     }
     if topic_slug:
         node["topic_slug"] = topic_slug

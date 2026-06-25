@@ -548,6 +548,24 @@ Risk signals:
 - AI-generated content is silently persisted.
 - Third-party statements are copied without license review.
 
+Phase 16 public problem additions:
+
+- `users.role` is limited to `user` and `admin`.
+- `problems.is_public=false` remains the personal problem default.
+- `problems.is_public=true` is visible to all authenticated users.
+- Only admin users can create, edit, or delete public problems.
+- Normal users can view and submit public problems but cannot modify them.
+- Public problem API routes must be registered before dynamic `{problem_id}` routes.
+- The optional dev fallback user is a normal user and must not gain admin permissions.
+- Admin seeding requires `DEV_ADMIN_PASSWORD`; no default production password is hardcoded.
+
+Phase 16 pass criteria:
+
+- Normal users receive `PUBLIC_PROBLEM_FORBIDDEN` when trying to create public problems.
+- Other users cannot access private personal problems through public routes.
+- Public problem detail does not show edit/delete actions unless the backend returns `can_edit=true`.
+- Submission creation accepts public problems while submission detail remains scoped to the submitting user.
+
 ## 3.2.1 Code Review And Mistake Notebook Pressure Test
 
 Phase 8 implemented baseline:
@@ -721,7 +739,7 @@ Risk signals:
 
 ## 3.7 Learning Ladder Pressure Test
 
-Phase 14 implemented baseline:
+Phase 14-15 implemented baseline:
 
 - Ladder templates are seeded database records.
 - `GET /api/ladder` creates or returns one active path for the current user.
@@ -729,7 +747,10 @@ Phase 14 implemented baseline:
 - Node status is computed from progress booleans.
 - The first node is unlocked by default.
 - Completing node N's material unlocks node N+1.
-- Phase 14 does not update practice or exam completion.
+- Phase 15 stores seeded practice items in `learning_path_nodes.practice_items`.
+- Phase 15 scores choice practice on the backend and sets `practice_completed` after passing.
+- Coding practice is self-check only and does not execute code.
+- Phase 15 does not update exam completion.
 
 Questions:
 
@@ -738,8 +759,14 @@ Questions:
 - Does a missing template fail safely with `LADDER_TEMPLATE_NOT_FOUND`?
 - Does completing a locked node return `NODE_LOCKED`?
 - Is material completion idempotent?
+- Does node detail hide `correct_option_id` from practice items?
+- Does practice submission require material completion?
+- Does locked-node practice return `NODE_LOCKED`?
+- Does low-score practice avoid setting `practice_completed`?
+- Does coding self-check remain a confirmation only, without Judge or submissions?
+- Are repeated practice item IDs rejected safely?
 - Are external resource links displayed without crawling or copying content?
-- Does `/ladder` remain useful without adding AI exams or practice scoring early?
+- Does `/ladder` remain useful without adding AI exams or Judge scoring early?
 
 Pass criteria:
 
@@ -747,16 +774,21 @@ Pass criteria:
 - Current-user ownership is enforced for list, detail, and completion endpoints.
 - First node starts unlocked and second node starts locked.
 - Completing the first node material unlocks the second node immediately.
-- `practice_completed` and `exam_passed` remain unchanged in Phase 14.
+- `practice_completed` is changed only by Phase 15 practice submission.
+- `exam_passed` remains unchanged until Phase 17.
 - `scripts/seed_ladder_templates.py` is idempotent.
-- No AI Provider, Judge, RAG, embedding, or recommendation service is called by ladder APIs.
+- Choice answers below 80 points do not complete practice.
+- Coding self-check is required for practice completion when coding items exist.
+- No AI Provider, Judge, submission creation, RAG, embedding, or recommendation service is called by ladder practice APIs.
 
 Risk signals:
 
 - Ladder paths are shared across users.
 - Nodes can be skipped while locked.
 - Template seed content copies third-party material without license review.
-- Phase 14 starts implementing exams, Judge integration, RAG, or complex adaptive curriculum.
+- API responses leak `correct_option_id`.
+- Practice can be submitted before material completion.
+- Phase 15 starts implementing exams, Judge integration, submissions, RAG, or complex adaptive curriculum.
 
 ## 3.8 RAG Pressure Test
 

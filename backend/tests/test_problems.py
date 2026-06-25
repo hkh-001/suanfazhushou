@@ -5,7 +5,7 @@ from uuid import uuid4
 from sqlalchemy import delete, select, text
 
 from app.core.config import settings
-from app.core.security import SESSION_COOKIE_NAME
+from app.core.security import SESSION_COOKIE_NAME, create_access_token
 from app.models.problem import Problem, UserProblemCounter
 from app.models.test_case import TestCase as DbTestCase
 from app.models.topic import Topic
@@ -83,6 +83,10 @@ def _register(client, payload: dict | None = None) -> dict:
     return response.json()["data"]
 
 
+def _login_as(client, user: User) -> None:
+    client.cookies.set(SESSION_COOKIE_NAME, create_access_token(user.id))
+
+
 def _create_problem(client, **overrides) -> dict:
     response = client.post("/api/problems", json=_problem_payload(**overrides))
     assert response.status_code == 200
@@ -111,6 +115,65 @@ def test_create_problem_success_and_owner(client, db_session) -> None:
     assert db_problem is not None
     assert str(db_problem.created_by_user_id) == user["id"]
     assert db_problem.display_id == 1
+
+
+def test_user_cannot_create_public_problem(client) -> None:
+    _register(client)
+
+    response = client.post("/api/problems", json=_problem_payload(is_public=True))
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "PUBLIC_PROBLEM_FORBIDDEN"
+
+
+def test_admin_can_create_and_list_public_problem(client, admin_user) -> None:
+    _login_as(client, admin_user)
+
+    created = client.post("/api/problems", json=_problem_payload(is_public=True))
+    assert created.status_code == 200
+    problem = created.json()["data"]
+    assert problem["is_public"] is True
+    assert problem["can_edit"] is True
+
+    listed = client.get("/api/problems/public")
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()["data"]] == [problem["id"]]
+
+
+def test_public_problem_visible_but_not_editable_to_other_user(client, admin_user) -> None:
+    _login_as(client, admin_user)
+    problem = client.post("/api/problems", json=_problem_payload(is_public=True)).json()["data"]
+    _register(client, _user_payload("public-reader"))
+
+    detail = client.get(f"/api/problems/public/{problem['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["data"]["can_edit"] is False
+
+    update = client.put(f"/api/problems/{problem['id']}", json={"title": "Nope"})
+    assert update.status_code == 404
+
+
+def test_public_problem_accessible_via_problem_detail_endpoint_for_any_user(client, admin_user) -> None:
+    _login_as(client, admin_user)
+    problem = client.post("/api/problems", json=_problem_payload(is_public=True)).json()["data"]
+    _register(client, _user_payload("public-detail-reader"))
+
+    response = client.get(f"/api/problems/{problem['id']}")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == problem["id"]
+    assert response.json()["data"]["is_public"] is True
+    assert response.json()["data"]["can_edit"] is False
+
+
+def test_admin_can_publish_own_private_problem(client, admin_user) -> None:
+    _login_as(client, admin_user)
+    problem = _create_problem(client)
+
+    response = client.put(f"/api/problems/{problem['id']}", json={"is_public": True})
+
+    assert response.status_code == 200
+    assert response.json()["data"]["is_public"] is True
 
 
 def test_save_ai_generated_problem_success_and_forced_metadata(client, db_session) -> None:

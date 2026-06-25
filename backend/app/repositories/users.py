@@ -35,6 +35,7 @@ def create_user(
     goal_track: str,
     goal_description: str | None = None,
     onboarding_completed_at: datetime | None = None,
+    role: str = "user",
     learning_stage: str = "beginner",
     target_track: str = "algorithm_basics",
 ) -> User:
@@ -48,6 +49,7 @@ def create_user(
         goal_track=goal_track,
         goal_description=goal_description,
         onboarding_completed_at=onboarding_completed_at,
+        role=role,
         learning_stage=learning_stage,
         target_track=target_track,
     )

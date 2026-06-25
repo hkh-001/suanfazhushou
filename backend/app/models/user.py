@@ -22,6 +22,7 @@ class User(Base):
     goal_track: Mapped[str] = mapped_column(String(40), default="self_study")
     goal_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    role: Mapped[str] = mapped_column(String(20), default="user")
     learning_stage: Mapped[str] = mapped_column(String(80), default="beginner")
     target_track: Mapped[str] = mapped_column(String(80), default="algorithm_basics")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -122,6 +122,14 @@ Phase 13 student profile extension:
 - AI ContextBuilder may add a short profile summary to prompts, but must not inject full learning history or store full prompts in logs.
 - no production-grade permission system
 
+Phase 16 minimal role extension:
+
+- `users.role` is limited to `user` and `admin`.
+- Registered students and the optional dev fallback user are `user` by default.
+- The seeded `admin` account is created by `scripts/seed_admin.py` only when `DEV_ADMIN_PASSWORD` is configured.
+- Role checks are enforced in backend services; frontend role checks are only presentation hints.
+- This is not a classroom, teacher, or full RBAC system.
+
 ## Personal Problem Bank Architecture
 
 Post-MVP Phase 6 adds a user-owned problem bank using the existing backend layering pattern:
@@ -138,6 +146,14 @@ Rules:
 - `problem_tags` links personal problems to currently visible published topics.
 - Future AI-generated problem saving should reuse the problem service instead of bypassing ownership checks.
 - Future judging must remain a separate sandbox/judge service and must not be mixed into ordinary problem CRUD.
+
+Phase 16 public problem extension:
+
+- `problems.is_public=false` remains the personal problem-bank default.
+- `problems.is_public=true` marks admin-maintained public problems visible to all authenticated users.
+- Normal users may view and submit public problems but cannot create, edit, or delete them.
+- Admin users may create, edit, and delete public problems.
+- Problem detail responses include backend-computed `can_edit` and `can_delete`; the frontend should not infer these permissions itself.
 
 ## AI Provider Abstraction
 
@@ -267,13 +283,14 @@ Dashboard API
 - Recommendations are scoped to the current user and remain explainable through visible signals.
 - Existing `review_queue` and `next_steps` remain learning-record/path recommendations; Phase 12 `recommendation_actions` add mistake/submission-driven actions.
 
-## Phase 14 Learning Ladder Architecture
+## Phase 14-15 Learning Ladder Architecture
 
 ```text
 Student profile
 -> Ladder template selection
 -> Active learning path
 -> Expanded path nodes
+-> Seeded practice items copied into nodes
 -> Node progress booleans
 -> /ladder page
 ```
@@ -281,11 +298,16 @@ Student profile
 - Phase 14 stores templates in `ladder_templates` and seeds them through `scripts/seed_ladder_templates.py`.
 - Each user can have one active `learning_paths` row.
 - A path expands template nodes into `learning_path_nodes` and creates `node_user_progress` rows for that user.
+- Phase 15 copies seeded `practice_items` into `learning_path_nodes` during path creation; existing paths do not automatically update when templates change.
 - Node status is computed in the ladder service instead of stored as a `status` column.
 - The first node is unlocked by default; completing node N's material unlocks node N+1.
-- Phase 14 updates only `material_completed`.
-- `practice_completed` and `exam_passed` are reserved for Phase 15 and Phase 16.
-- Phase 14 does not call AI Provider, Judge, RetrievalService, RAG, or recommendation services.
+- Phase 14 updates `material_completed`; Phase 15 updates `practice_completed`.
+- `practice_completed` does not affect unlock rules; it only changes the current node status display.
+- Choice practice is scored synchronously by the ladder service.
+- Coding practice is self-check only and never reaches the Judge, submission service, AI Provider, or code execution path.
+- No practice attempt history is stored in Phase 15.
+- `exam_passed` is reserved for Phase 17.
+- Phase 15 does not call AI Provider, Judge, RetrievalService, RAG, recommendation services, or submission creation.
 - External resource links are displayed only and are not fetched or copied by the backend.
 
 Future RAG shape:

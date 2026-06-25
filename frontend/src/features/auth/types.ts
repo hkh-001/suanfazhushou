@@ -7,6 +7,7 @@ export type AuthUser = {
   current_level: "beginner" | "elementary" | "popularization" | "improvement";
   goal_track: "course" | "lanqiao" | "icpc" | "self_study";
   goal_description: string | null;
+  role: "user" | "admin";
   learning_stage: string;
   target_track: string;
   is_dev_user: boolean;

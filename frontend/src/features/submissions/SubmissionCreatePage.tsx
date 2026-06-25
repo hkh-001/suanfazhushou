@@ -76,21 +76,23 @@ export function SubmissionCreatePage({ problemId }: { problemId: string }) {
     );
   }
 
+  const problemHref = problem.data.is_public ? `/problems/public/${problemId}` : `/problems/${problemId}`;
+  const problemScopeLabel = problem.data.is_public ? "公共题库" : "个人题库";
+
   return (
     <AppShell>
       <PageHeader
         actions={
           <Link
             className="rounded-md border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-            href={`/problems/${problemId}`}
+            href={problemHref}
           >
             返回题目
           </Link>
         }
-        description={`为个人题库 #${problem.data.display_id}「${problem.data.title}」提交代码。代码只会发送到隔离 Judge 服务。`}
+        description={`为${problemScopeLabel} #${problem.data.display_id}「${problem.data.title}」提交代码。代码只会发送到隔离 Judge 服务。`}
         title="提交代码"
       />
-
       <form className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]" onSubmit={(event) => void handleSubmit(event)}>
         <aside className="space-y-5 rounded-lg border border-blue-100 bg-white p-5 shadow-sm">
           <fieldset>

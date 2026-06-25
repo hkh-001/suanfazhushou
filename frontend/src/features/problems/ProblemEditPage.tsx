@@ -45,7 +45,7 @@ export function ProblemEditPage({ id }: { id: string }) {
     }
     try {
       await deleteProblem.submit();
-      router.push("/problems");
+      router.push(data?.is_public ? "/problems/public" : "/problems");
     } catch {
       // The hook owns the user-facing error state.
     }
@@ -85,7 +85,7 @@ export function ProblemEditPage({ id }: { id: string }) {
         actions={
           <Link
             className="rounded-md border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 outline-none transition hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-300"
-            href={`/problems/${id}`}
+            href={data.is_public ? `/problems/public/${id}` : `/problems/${id}`}
           >
             查看题面
           </Link>

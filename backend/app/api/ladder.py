@@ -7,8 +7,13 @@ from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.common import DataResponse
-from app.schemas.ladder import LadderNodeDetail, LadderSummary
-from app.services.ladder import complete_ladder_node_material, get_ladder_node, get_or_create_ladder
+from app.schemas.ladder import LadderNodeDetail, LadderPracticeSubmitRequest, LadderPracticeSubmitResult, LadderSummary
+from app.services.ladder import (
+    complete_ladder_node_material,
+    get_ladder_node,
+    get_or_create_ladder,
+    submit_ladder_node_practice,
+)
 
 router = APIRouter(prefix="/ladder", tags=["ladder"])
 
@@ -37,3 +42,13 @@ def complete_ladder_node_material_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> DataResponse[LadderSummary]:
     return DataResponse(data=complete_ladder_node_material(db, user=current_user, node_id=node_id))
+
+
+@router.post("/nodes/{node_id}/practice-submit", response_model=DataResponse[LadderPracticeSubmitResult])
+def submit_ladder_node_practice_endpoint(
+    node_id: UUID,
+    payload: LadderPracticeSubmitRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DataResponse[LadderPracticeSubmitResult]:
+    return DataResponse(data=submit_ladder_node_practice(db, user=current_user, node_id=node_id, payload=payload))

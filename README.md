@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 14: Ladder Templates And Path Foundation.
+The project is currently in Post-MVP Phase 16: Admin Role And Public Problem Bank.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -39,14 +39,14 @@ This repository currently contains:
 - Dashboard page with learning progress, review queue, and rule-based next steps
 - local-only runtime AI settings page and API guarded by `ENABLE_RUNTIME_AI_SETTINGS`
 - student-account auth with register, login, logout, current user, HttpOnly Cookie, JWT, and initial learning profile
-- learning ladder foundation with seeded templates, per-user active paths, material reading progress, and a `/ladder` page
-- personal problem bank with manual create, list, edit, delete, and topic association
+- learning ladder foundation with seeded templates, per-user active paths, material reading progress, seeded node practice, and a `/ladder` page
+- personal problem bank with manual create, list, edit, delete, topic association, and admin-managed public problems
 
 It does not yet contain:
 
 - mistake notebook
 - OJ or code execution
-- RBAC, OAuth, refresh token rotation, password reset, or production-grade permissions
+- full RBAC, OAuth, refresh token rotation, password reset, or production-grade permissions
 
 ## Planned Directory Structure
 
@@ -71,7 +71,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions, Phase 12 adding rule-based Dashboard weakness recommendations, Phase 13 adding student profiles, and Phase 14 adding the first learning ladder foundation.
+`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions, Phase 12 adding rule-based Dashboard weakness recommendations, Phase 13 adding student profiles, Phase 14 adding the first learning ladder foundation, Phase 15 adding seeded ladder practice progress, and Phase 16 adding a minimal admin role plus public problem bank.
 
 ## MVP v0.1 Focus
 
@@ -111,10 +111,11 @@ Post-MVP roadmap:
 - Phase 13: Student Account And Initial Learning Profile
 - Phase 14: Ladder Templates And Path Foundation
 - Phase 15: Ladder Materials And Practice Progress
-- Phase 16: AI Ladder Exam And Unlock Flow
-- Phase 17: Profile-Aware AI Context And Recommendation Integration
-- Phase 18: RAG Knowledge Retrieval
-- Phase 19: Deployment, Security, Permissions, Production Hardening
+- Phase 16: Admin Role And Public Problem Bank
+- Phase 17: AI Ladder Exam And Unlock Flow
+- Phase 18: Profile-Aware AI Context And Recommendation Integration
+- Phase 19: RAG Knowledge Retrieval
+- Phase 20: Deployment, Security, Permissions, Production Hardening
 
 ## Planned Engineering Standards
 
@@ -296,35 +297,44 @@ Student account auth notes:
 - Successful registration marks the initial profile as completed in `onboarding_completed_at`.
 - Legacy `email`, `username`, `learning_stage`, and `target_track` fields remain for compatibility, but they are not user-facing registration fields after Phase 13.
 - AI tutoring, problem generation, code review, and submission diagnosis may receive a short user-profile summary as context.
-- `ENABLE_DEV_USER=true` keeps the development user fallback when no Cookie is present.
+- Phase 16 adds a minimal `role` field with `user` and `admin`; it is not a full RBAC or teacher system.
+- `ENABLE_DEV_USER=false` is the default after Phase 16. If explicitly enabled for local development, the fallback dev user is a normal `user`, not an admin.
+- Local admin access is seeded through `uv run python scripts/seed_admin.py` after setting `DEV_ADMIN_PASSWORD` in `.env`; the seed stores only a password hash.
 - If a Cookie exists but is expired, invalid, or points to a missing user, the backend returns a safe auth error and does not fallback to the dev user.
 - `SECRET_KEY=change-me-in-production-32-bytes-long!!` is for local development only. Production must use a unique strong secret of at least 32 bytes.
 - Phase 13 does not implement RBAC, OAuth, refresh tokens, password reset, classroom/teacher systems, ZIP import, judging, OJ, or RAG.
 
-Phase 14 ladder APIs:
+Phase 14-15 ladder APIs:
 
 ```text
 GET /api/ladder
 GET /api/ladder/nodes/{id}
 POST /api/ladder/nodes/{id}/material-complete
+POST /api/ladder/nodes/{id}/practice-submit
 ```
 
-Phase 14 ladder notes:
+Phase 14-15 ladder notes:
 
 - `/api/ladder` creates or returns one active path for the current user based on `goal_track` and `current_level`.
 - Ladder content comes from seeded database templates in `ladder_templates`.
+- Phase 15 practice content is copied from template data into `learning_path_nodes.practice_items` when a path is generated.
+- Already generated paths do not automatically receive updated practice content when templates change.
 - Path generation creates `learning_path_nodes` and `node_user_progress` rows for the current user.
 - Node status is computed by the API; `node_user_progress` does not store a status string.
 - The first node is unlocked by default. Completing node N's material unlocks node N+1.
-- `practice_completed` and `exam_passed` are reserved for Phase 15/16 and are not updated by Phase 14.
-- Phase 14 does not implement AI exams, practice grading, Judge integration, RAG, classroom/teacher features, or leaderboards.
+- `practice_completed` is updated only after seeded practice passes; `exam_passed` remains reserved for Phase 17.
+- Choice practice is scored by the backend with an 80-point threshold.
+- Coding practice is self-check only and is not executed, submitted, judged, or sent to AI.
+- Phase 15 does not implement AI exams, Judge integration, submissions, RAG, classroom/teacher features, or leaderboards.
 - External learning links are displayed only; the backend does not crawl, copy, or execute external content.
 
-Phase 14 frontend page:
+Phase 14-15 frontend page:
 
 ```text
 /ladder
 ```
+
+The `/ladder` page shows material reading and node practice in the same node detail view.
 
 Phase 6-9 problem bank APIs:
 
@@ -336,6 +346,8 @@ PUT http://localhost:8000/api/problems/{id}
 DELETE http://localhost:8000/api/problems/{id}
 POST http://localhost:8000/api/problems/save-ai-generated
 POST http://localhost:8000/api/problems/import/zip
+GET http://localhost:8000/api/problems/public
+GET http://localhost:8000/api/problems/public/{id}
 ```
 
 Phase 6-9 problem bank frontend pages:
@@ -345,11 +357,17 @@ http://localhost:3000/problems
 http://localhost:3000/problems/new
 http://localhost:3000/problems/{id}
 http://localhost:3000/problems/import
+http://localhost:3000/problems/public
+http://localhost:3000/problems/public/{id}
 ```
 
 Problem bank notes:
 
 - Problems are owned by the current authenticated user.
+- Personal problem APIs return only `is_public=false` problems owned by the current user.
+- Public problem APIs return `is_public=true` problems to all authenticated users.
+- Only `role=admin` can create, edit, or delete public problems.
+- Normal users can view and submit public problems, but cannot modify them.
 - Problems display a per-user sequence number such as `#1`, `#2`, backed by `display_id`.
 - Deleted problem numbers are not reused.
 - The frontend does not send `user_id`; ownership comes from the backend session.
@@ -522,10 +540,10 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 14 Ladder Templates And Path Foundation.
+Current: Post-MVP Phase 16 Admin Role And Public Problem Bank.
 
-Next: Phase 15 Ladder Materials And Practice Progress.
+Next: Phase 17 AI Ladder Exam And Unlock Flow.
 
-Later: Ladder practice, AI ladder exams, profile-aware AI context integration, RAG, and production hardening.
+Later: AI ladder exams, profile-aware AI context integration, RAG, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

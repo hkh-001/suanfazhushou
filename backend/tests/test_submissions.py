@@ -5,6 +5,7 @@ from sqlalchemy import delete
 
 from app.core.config import settings
 from app.main import app
+from app.core.security import SESSION_COOKIE_NAME, create_access_token
 from app.models.problem import Problem
 from app.models.test_case import TestCase as ProblemTestCase
 from app.schemas.judge import JudgeCaseResult, JudgeResponse
@@ -108,6 +109,10 @@ def _register(client, prefix: str = "submission") -> dict:
     return response.json()["data"]
 
 
+def _login_as(client, user) -> None:
+    client.cookies.set(SESSION_COOKIE_NAME, create_access_token(user.id))
+
+
 def _create_problem_with_cases(client, db_session) -> dict:
     response = client.post(
         "/api/problems",
@@ -141,6 +146,35 @@ def _create_problem_with_cases(client, db_session) -> dict:
                 is_hidden=True,
             ),
         ]
+    )
+    db_session.commit()
+    return problem
+
+
+def _create_public_problem_with_cases(client, db_session, admin_user) -> dict:
+    _login_as(client, admin_user)
+    response = client.post(
+        "/api/problems",
+        json={
+            "title": f"Public Judge Problem {uuid4().hex[:6]}",
+            "difficulty": "basic",
+            "description_markdown": "Print 42.",
+            "topic_ids": [],
+            "is_public": True,
+        },
+    )
+    assert response.status_code == 200
+    problem = response.json()["data"]
+    db_session.add(
+        ProblemTestCase(
+            problem_id=problem["id"],
+            case_index=1,
+            name="sample",
+            input_text="",
+            expected_output_text="42\n",
+            is_sample=True,
+            is_hidden=False,
+        )
     )
     db_session.commit()
     return problem
@@ -213,6 +247,22 @@ def test_submission_success_and_hidden_case_protection(client, db_session, monke
     assert detail.json()["data"]["problem"]["title"] == problem["title"]
     assert detail.json()["data"]["id"] == data["id"]
     assert user["id"]
+
+
+def test_submission_allows_public_problem(client, db_session, monkeypatch, admin_user) -> None:
+    problem = _create_public_problem_with_cases(client, db_session, admin_user)
+    _register(client, "public-submitter")
+    fake = FakeJudgeClient()
+    _enable_judge(monkeypatch, fake)
+
+    response = client.post(
+        "/api/submissions",
+        json={"problem_id": problem["id"], "language": "cpp", "source_code": "int main(){return 0;}"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["data"]["problem"]["id"] == problem["id"]
+    assert fake.calls == 1
 
 
 def test_submission_rejects_other_user_problem(client, db_session, monkeypatch) -> None:

@@ -19,6 +19,9 @@ export type ProblemListItem = {
   estimated_minutes: number | null;
   is_ai_generated: boolean;
   is_published: boolean;
+  is_public: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
   created_by_user_id: string;
   topic_tags: ProblemTopicTag[];
   created_at: string;
@@ -57,6 +60,7 @@ export type ProblemPayload = {
   solution_code_cpp?: string | null;
   solution_code_python?: string | null;
   topic_ids?: string[];
+  is_public?: boolean;
 };
 
 export type ProblemUpdatePayload = Partial<ProblemPayload> & {

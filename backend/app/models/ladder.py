@@ -83,6 +83,7 @@ class LearningPathNode(Base):
     summary: Mapped[str] = mapped_column(Text)
     material_markdown: Mapped[str] = mapped_column(Text)
     resource_links: Mapped[list] = mapped_column(JSONB, default=list)
+    practice_items: Mapped[list] = mapped_column(JSONB, default=list)
     unlock_rule: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
