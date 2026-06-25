@@ -369,6 +369,46 @@ Errors:
 - existing AI configuration/provider errors
 - inherited auth errors
 
+## Phase 14 Learning Ladder APIs
+
+Implemented in Post-MVP Phase 14:
+
+- `GET /api/ladder`
+- `GET /api/ladder/nodes/{id}`
+- `POST /api/ladder/nodes/{id}/material-complete`
+
+Rules:
+
+- All ladder APIs require `get_current_user`.
+- `GET /api/ladder` returns the current user's active path or creates one from a default template.
+- Template selection uses the user's `goal_track` and `current_level`, then falls back to the closest lower level and finally `self_study/beginner`.
+- Each user may have only one active path.
+- Path creation expands the selected template into `learning_path_nodes` and creates one `node_user_progress` row per node.
+- Node status is computed from progress booleans and is not stored as a separate database column.
+- The first node is unlocked by default.
+- Completing node N's material unlocks node N+1.
+- `POST /api/ladder/nodes/{id}/material-complete` is idempotent for already completed unlocked nodes and returns the full updated ladder summary.
+- Locked nodes return `NODE_LOCKED`.
+- Other users' nodes return `LADDER_NODE_NOT_FOUND`.
+- Phase 14 does not update `practice_completed` or `exam_passed`; those fields are reserved for Phase 15/16.
+- Phase 14 does not call AI Provider, Judge, RAG, or recommendation services.
+
+Response shape:
+
+```text
+GET /api/ladder -> DataResponse[LadderSummary]
+GET /api/ladder/nodes/{id} -> DataResponse[LadderNodeDetail]
+POST /api/ladder/nodes/{id}/material-complete -> DataResponse[LadderSummary]
+```
+
+Errors:
+
+- `LADDER_TEMPLATE_NOT_FOUND`
+- `LADDER_NODE_NOT_FOUND`
+- `LADDER_PATH_CREATE_FAILED`
+- `NODE_LOCKED`
+- inherited auth errors
+
 ## Post-MVP Planned APIs
 
 Planning boundaries:

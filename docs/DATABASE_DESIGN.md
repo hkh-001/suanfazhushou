@@ -28,6 +28,10 @@ Long-term product tables:
 - `submissions`
 - `prompt_templates`
 - `ai_call_logs`
+- `ladder_templates`
+- `learning_paths`
+- `learning_path_nodes`
+- `node_user_progress`
 - `recommendation_logs`
 - `knowledge_chunks`
 - `retrieval_logs`
@@ -57,7 +61,7 @@ Phase 4 Dashboard data is computed from published topics and the current user's 
 
 Phase 5 and later are Post-MVP roadmap work. They are not required for MVP v0.1 completion.
 
-Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-13 tables. Tables marked deferred below remain planning notes only until their Post-MVP phase creates an Alembic migration.
+Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phase 5-14 tables. Tables marked deferred below remain planning notes only until their Post-MVP phase creates an Alembic migration.
 
 ## Post-MVP Table Status
 
@@ -70,6 +74,10 @@ Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phas
 | `submission_case_results` | Phase 10 | Per-test-case judge results | Implemented in Post-MVP Phase 10 |
 | `code_reviews` | Phase 8 | Explicitly saved AI code review results | Implemented in Post-MVP Phase 8 |
 | `mistake_notes` | Phase 8 | User-owned mistake notebook entries | Implemented in Post-MVP Phase 8 |
+| `ladder_templates` | Phase 14 | Seeded learning ladder templates | Implemented in Post-MVP Phase 14 |
+| `learning_paths` | Phase 14 | Current-user active ladder paths | Implemented in Post-MVP Phase 14 |
+| `learning_path_nodes` | Phase 14 | Expanded per-path algorithm nodes | Implemented in Post-MVP Phase 14 |
+| `node_user_progress` | Phase 14 | Per-user node completion booleans | Implemented in Post-MVP Phase 14 |
 | `recommendation_logs` | Deferred after Phase 12 | Recommendation events and explanations | Phase 12 uses real-time rules and does not persist recommendation logs |
 | `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
 | `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
@@ -278,6 +286,106 @@ Notes:
 - `progress_percent` ranges from 0 to 100.
 - `mastery_level` can use a 0 to 5 scale.
 - `next_review_at` supports future spaced repetition.
+
+## ladder_templates
+
+Implemented in Post-MVP Phase 14. Not part of MVP v0.1.
+
+```text
+id UUID primary key
+goal_track varchar(40) not null
+current_level varchar(40) not null
+name varchar(120) not null
+description text nullable
+template_data jsonb not null
+version integer not null default 1
+is_default boolean not null default false
+created_at timestamptz not null
+updated_at timestamptz not null
+```
+
+Notes:
+
+- `goal_track` and `current_level` follow the Phase 13 user profile enums.
+- `(goal_track, current_level, version)` is unique.
+- A partial unique index allows only one default template per `(goal_track, current_level)`.
+- `template_data` stores phases and nodes seeded by `scripts/seed_ladder_templates.py`.
+- Template material must be project-owned or otherwise license-safe.
+
+## learning_paths
+
+Implemented in Post-MVP Phase 14. Not part of MVP v0.1.
+
+```text
+id UUID primary key
+user_id UUID references users(id) on delete cascade
+template_id UUID references ladder_templates(id) on delete set null
+goal_track varchar(40) not null
+current_level varchar(40) not null
+status varchar(30) not null default active
+created_at timestamptz not null
+updated_at timestamptz not null
+```
+
+Notes:
+
+- A partial unique index enforces at most one active path per user.
+- `goal_track` and `current_level` snapshot the selected template profile.
+- Phase 14 only creates active paths; archive behavior is reserved for future path regeneration.
+
+## learning_path_nodes
+
+Implemented in Post-MVP Phase 14. Not part of MVP v0.1.
+
+```text
+id UUID primary key
+path_id UUID references learning_paths(id) on delete cascade
+topic_id UUID references topics(id) on delete set null
+phase_index integer not null
+node_index integer not null
+algorithm_key varchar(120) not null
+title varchar(120) not null
+summary text not null
+material_markdown text not null
+resource_links jsonb not null default []
+unlock_rule jsonb not null default {}
+created_at timestamptz not null
+updated_at timestamptz not null
+```
+
+Notes:
+
+- `(path_id, phase_index, node_index)` is unique.
+- `algorithm_key` is not unique within a path, because the same algorithm may appear in multiple phases.
+- `topic_id` is optional and only binds published topics when a seed template `topic_slug` exists.
+- `resource_links` are shown as references only; the backend does not fetch or copy external content.
+
+## node_user_progress
+
+Implemented in Post-MVP Phase 14. Not part of MVP v0.1.
+
+```text
+id UUID primary key
+user_id UUID references users(id) on delete cascade
+node_id UUID references learning_path_nodes(id) on delete cascade
+material_completed boolean not null default false
+practice_completed boolean not null default false
+exam_passed boolean not null default false
+material_completed_at timestamptz nullable
+practice_completed_at timestamptz nullable
+exam_passed_at timestamptz nullable
+created_at timestamptz not null
+updated_at timestamptz not null
+```
+
+Notes:
+
+- `(user_id, node_id)` is unique.
+- Phase 14 updates only `material_completed`.
+- `practice_completed` is reserved for Phase 15.
+- `exam_passed` is reserved for Phase 16.
+- Node status is computed by the API and not stored as a denormalized string.
+- Completing node N's material unlocks node N+1.
 
 ## submissions
 

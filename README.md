@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 13: Student Account And Initial Learning Profile.
+The project is currently in Post-MVP Phase 14: Ladder Templates And Path Foundation.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -39,6 +39,7 @@ This repository currently contains:
 - Dashboard page with learning progress, review queue, and rule-based next steps
 - local-only runtime AI settings page and API guarded by `ENABLE_RUNTIME_AI_SETTINGS`
 - student-account auth with register, login, logout, current user, HttpOnly Cookie, JWT, and initial learning profile
+- learning ladder foundation with seeded templates, per-user active paths, material reading progress, and a `/ladder` page
 - personal problem bank with manual create, list, edit, delete, and topic association
 
 It does not yet contain:
@@ -70,7 +71,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions and Phase 12 adding rule-based Dashboard weakness recommendations.
+`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions, Phase 12 adding rule-based Dashboard weakness recommendations, Phase 13 adding student profiles, and Phase 14 adding the first learning ladder foundation.
 
 ## MVP v0.1 Focus
 
@@ -298,7 +299,32 @@ Student account auth notes:
 - `ENABLE_DEV_USER=true` keeps the development user fallback when no Cookie is present.
 - If a Cookie exists but is expired, invalid, or points to a missing user, the backend returns a safe auth error and does not fallback to the dev user.
 - `SECRET_KEY=change-me-in-production-32-bytes-long!!` is for local development only. Production must use a unique strong secret of at least 32 bytes.
-- Phase 13 does not implement RBAC, OAuth, refresh tokens, password reset, classroom/teacher systems, ladder learning paths, ZIP import, judging, OJ, or RAG.
+- Phase 13 does not implement RBAC, OAuth, refresh tokens, password reset, classroom/teacher systems, ZIP import, judging, OJ, or RAG.
+
+Phase 14 ladder APIs:
+
+```text
+GET /api/ladder
+GET /api/ladder/nodes/{id}
+POST /api/ladder/nodes/{id}/material-complete
+```
+
+Phase 14 ladder notes:
+
+- `/api/ladder` creates or returns one active path for the current user based on `goal_track` and `current_level`.
+- Ladder content comes from seeded database templates in `ladder_templates`.
+- Path generation creates `learning_path_nodes` and `node_user_progress` rows for the current user.
+- Node status is computed by the API; `node_user_progress` does not store a status string.
+- The first node is unlocked by default. Completing node N's material unlocks node N+1.
+- `practice_completed` and `exam_passed` are reserved for Phase 15/16 and are not updated by Phase 14.
+- Phase 14 does not implement AI exams, practice grading, Judge integration, RAG, classroom/teacher features, or leaderboards.
+- External learning links are displayed only; the backend does not crawl, copy, or execute external content.
+
+Phase 14 frontend page:
+
+```text
+/ladder
+```
 
 Phase 6-9 problem bank APIs:
 
@@ -496,9 +522,9 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 13 Student Account And Initial Learning Profile.
+Current: Post-MVP Phase 14 Ladder Templates And Path Foundation.
 
-Next: Phase 14 Ladder Templates And Path Foundation.
+Next: Phase 15 Ladder Materials And Practice Progress.
 
 Later: Ladder practice, AI ladder exams, profile-aware AI context integration, RAG, and production hardening.
 

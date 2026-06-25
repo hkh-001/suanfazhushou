@@ -6,6 +6,7 @@ from app.api.health import router as health_router
 from app.api.ai import router as ai_router
 from app.api.auth import router as auth_router
 from app.api.code_reviews import router as code_reviews_router
+from app.api.ladder import router as ladder_router
 from app.api.learning import router as learning_router
 from app.api.mistakes import router as mistakes_router
 from app.api.problems import router as problems_router
@@ -31,6 +32,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(topics_router, prefix="/api")
 app.include_router(learning_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(ladder_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 app.include_router(problems_router, prefix="/api")
 app.include_router(code_reviews_router, prefix="/api")

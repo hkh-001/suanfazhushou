@@ -1,4 +1,5 @@
 from app.models.learning_record import LearningRecord
+from app.models.ladder import LadderTemplate, LearningPath, LearningPathNode, NodeUserProgress
 from app.models.code_review import CodeReview
 from app.models.mistake_note import MistakeNote
 from app.models.problem import Problem, ProblemTag, UserProblemCounter
@@ -13,10 +14,14 @@ __all__ = [
     "AICallLog",
     "CodeReview",
     "LearningRecord",
+    "LadderTemplate",
+    "LearningPath",
+    "LearningPathNode",
     "MistakeNote",
     "Problem",
     "ProblemTag",
     "PromptTemplate",
+    "NodeUserProgress",
     "Submission",
     "SubmissionCaseResult",
     "TestCase",

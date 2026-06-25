@@ -267,6 +267,27 @@ Dashboard API
 - Recommendations are scoped to the current user and remain explainable through visible signals.
 - Existing `review_queue` and `next_steps` remain learning-record/path recommendations; Phase 12 `recommendation_actions` add mistake/submission-driven actions.
 
+## Phase 14 Learning Ladder Architecture
+
+```text
+Student profile
+-> Ladder template selection
+-> Active learning path
+-> Expanded path nodes
+-> Node progress booleans
+-> /ladder page
+```
+
+- Phase 14 stores templates in `ladder_templates` and seeds them through `scripts/seed_ladder_templates.py`.
+- Each user can have one active `learning_paths` row.
+- A path expands template nodes into `learning_path_nodes` and creates `node_user_progress` rows for that user.
+- Node status is computed in the ladder service instead of stored as a `status` column.
+- The first node is unlocked by default; completing node N's material unlocks node N+1.
+- Phase 14 updates only `material_completed`.
+- `practice_completed` and `exam_passed` are reserved for Phase 15 and Phase 16.
+- Phase 14 does not call AI Provider, Judge, RetrievalService, RAG, or recommendation services.
+- External resource links are displayed only and are not fetched or copied by the backend.
+
 Future RAG shape:
 
 ```text

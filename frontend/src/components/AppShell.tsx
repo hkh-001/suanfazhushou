@@ -9,6 +9,7 @@ import { useCurrentUser } from "@/features/auth/hooks";
 const navItems = [
   { href: "/topics", label: "知识地图" },
   { href: "/dashboard", label: "学习看板" },
+  { href: "/ladder", label: "学习天梯" },
   { href: "/chat", label: "AI 问答" },
   { href: "/code-review", label: "代码诊断" },
   { href: "/problems", label: "个人题库" },
@@ -20,6 +21,9 @@ const navItems = [
 function isActive(pathname: string, href: string) {
   if (href === "/topics") {
     return pathname === "/topics" || pathname.startsWith("/topics/");
+  }
+  if (href === "/ladder") {
+    return pathname === "/ladder" || pathname.startsWith("/ladder/");
   }
   if (href === "/problems") {
     return (

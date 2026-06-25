@@ -399,6 +399,8 @@ medium
 
 ## Phase 14: Ladder Templates And Path Foundation
 
+Status: implemented.
+
 ### Goal
 
 Create the base learning ladder path model and first visual ladder page.
@@ -413,10 +415,13 @@ Create the base learning ladder path model and first visual ladder page.
 - Store ladder templates and per-user active learning paths
 - Show phases and algorithm nodes as a ladder
 - Track material completion and basic node unlock state
+- Unlock node N+1 after node N material is completed
+- Seed default templates for supported profile combinations
 
 ### Not Included
 
 - AI exams
+- Choice-question or coding-practice grading
 - Judge integration
 - RAG
 - Teacher analytics
@@ -428,8 +433,10 @@ medium
 ### Completion Criteria
 
 - A user can get or create one active path.
-- First node is unlocked and later nodes follow progression rules.
-- Ladder page and node detail page render safely.
+- First node is unlocked and later nodes follow material-completion progression rules.
+- Completing the first node material unlocks the second node.
+- Ladder page renders phases, nodes, node material, and resource links safely.
+- `practice_completed` and `exam_passed` remain reserved for Phase 15/16.
 
 ## Phase 15: Ladder Materials And Practice Progress
 

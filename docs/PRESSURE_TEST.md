@@ -719,7 +719,46 @@ Risk signals:
 - RAG or vector search is introduced early.
 - `recommendation_logs` is created before a clear audit/history requirement.
 
-## 3.7 RAG Pressure Test
+## 3.7 Learning Ladder Pressure Test
+
+Phase 14 implemented baseline:
+
+- Ladder templates are seeded database records.
+- `GET /api/ladder` creates or returns one active path for the current user.
+- Path nodes are expanded from templates and tracked through `node_user_progress`.
+- Node status is computed from progress booleans.
+- The first node is unlocked by default.
+- Completing node N's material unlocks node N+1.
+- Phase 14 does not update practice or exam completion.
+
+Questions:
+
+- Can one user see or update another user's ladder nodes?
+- Does concurrent first access avoid creating multiple active paths?
+- Does a missing template fail safely with `LADDER_TEMPLATE_NOT_FOUND`?
+- Does completing a locked node return `NODE_LOCKED`?
+- Is material completion idempotent?
+- Are external resource links displayed without crawling or copying content?
+- Does `/ladder` remain useful without adding AI exams or practice scoring early?
+
+Pass criteria:
+
+- Each user has at most one active learning path.
+- Current-user ownership is enforced for list, detail, and completion endpoints.
+- First node starts unlocked and second node starts locked.
+- Completing the first node material unlocks the second node immediately.
+- `practice_completed` and `exam_passed` remain unchanged in Phase 14.
+- `scripts/seed_ladder_templates.py` is idempotent.
+- No AI Provider, Judge, RAG, embedding, or recommendation service is called by ladder APIs.
+
+Risk signals:
+
+- Ladder paths are shared across users.
+- Nodes can be skipped while locked.
+- Template seed content copies third-party material without license review.
+- Phase 14 starts implementing exams, Judge integration, RAG, or complex adaptive curriculum.
+
+## 3.8 RAG Pressure Test
 
 Questions:
 
