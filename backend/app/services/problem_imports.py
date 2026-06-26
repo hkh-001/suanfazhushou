@@ -301,4 +301,4 @@ def import_problem_zip(db: Session, *, user: User, zip_bytes: bytes) -> ProblemI
         raise
 
     refreshed = get_user_problem(db, problem_id=problem.id, user_id=user.id) or problem
-    return ProblemImportResult(problem=_to_detail(refreshed), test_cases_count=len(test_cases))
+    return ProblemImportResult(problem=_to_detail(refreshed, user), test_cases_count=len(test_cases))
