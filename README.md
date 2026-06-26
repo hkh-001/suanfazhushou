@@ -188,14 +188,36 @@ When running inside Docker Compose, `docker-compose.yml` injects:
 postgresql+psycopg://algomentor:algomentor_password@postgres:5432/algomentor?connect_timeout=5
 ```
 
-Migrations and seed:
+Migrations and local development seed data:
 
 ```bash
 cd backend
-uv run alembic upgrade head
-uv run python scripts/seed_topics.py
-uv run python scripts/seed_prompt_templates.py
+uv run python scripts/init_dev.py
 ```
+
+`scripts/init_dev.py` runs Alembic migrations and then seeds the development data in the required order:
+
+1. knowledge topics and the normal dev user
+2. prompt templates
+3. ladder templates
+4. optional local admin account
+
+All seed scripts are idempotent and can be run multiple times. On a fresh database this gives the knowledge map,
+dashboard, and learning ladder enough sample data to render useful local pages instead of blank states.
+
+If you start the full Docker Compose stack first, run the initializer inside the backend container:
+
+```bash
+docker compose up --build
+docker compose exec backend uv run python scripts/init_dev.py
+```
+
+Local admin account:
+
+- Set `DEV_ADMIN_PASSWORD` in the local `.env` file before running `scripts/init_dev.py`.
+- The seeded account id is `admin`.
+- The password is hashed before storage; the raw password must not be committed.
+- If `DEV_ADMIN_PASSWORD` is missing, admin seeding is skipped and other seed data still succeeds.
 
 Frontend:
 
@@ -209,6 +231,13 @@ Frontend URL:
 
 ```text
 http://localhost:3000
+```
+
+Docker Compose maps the frontend to `http://localhost:3000`. If you need to run the frontend manually on port 3001:
+
+```bash
+cd frontend
+pnpm dev --port 3001
 ```
 
 Backend:
