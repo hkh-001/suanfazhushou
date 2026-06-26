@@ -3,6 +3,8 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
+from app.models.ladder import LadderTemplate, LearningPath, LearningPathNode, NodeUserProgress
+from app.models.ladder_exam import LadderExamAttempt
 from app.models.learning_record import LearningRecord
 from app.models.mistake_note import MistakeNote
 from app.models.problem import Problem, ProblemTag
@@ -171,6 +173,67 @@ def create_submission(
     return submission
 
 
+def create_ladder_path_for_dashboard(db_session, *, user: User) -> tuple[LearningPath, LearningPathNode]:
+    template = LadderTemplate(
+        goal_track="self_study",
+        current_level="beginner",
+        name="Dashboard Ladder Path",
+        description="Dashboard ladder progress",
+        template_data={"phases": []},
+        version=1,
+        is_default=False,
+    )
+    db_session.add(template)
+    db_session.flush()
+    path = LearningPath(
+        user_id=user.id,
+        template_id=template.id,
+        goal_track="self_study",
+        current_level="beginner",
+        status="active",
+    )
+    db_session.add(path)
+    db_session.flush()
+    first_node = LearningPathNode(
+        path_id=path.id,
+        phase_index=1,
+        node_index=1,
+        algorithm_key="complexity",
+        title="时间复杂度",
+        summary="学习复杂度估算。",
+        material_markdown="# 时间复杂度",
+        resource_links=[],
+        practice_items=[],
+        unlock_rule={},
+    )
+    second_node = LearningPathNode(
+        path_id=path.id,
+        phase_index=1,
+        node_index=2,
+        algorithm_key="binary-search",
+        title="二分查找",
+        summary="学习边界收缩。",
+        material_markdown="# 二分查找",
+        resource_links=[],
+        practice_items=[],
+        unlock_rule={},
+    )
+    db_session.add_all([first_node, second_node])
+    db_session.flush()
+    db_session.add(
+        NodeUserProgress(
+            user_id=user.id,
+            node_id=first_node.id,
+            material_completed=True,
+            practice_completed=True,
+            exam_passed=False,
+        )
+    )
+    db_session.add(NodeUserProgress(user_id=user.id, node_id=second_node.id))
+    db_session.commit()
+    return path, first_node
+
+
 def test_dashboard_summary_empty_learning_records_recommends_unstarted_topics(
     client,
     db_session,
@@ -188,7 +251,55 @@ def test_dashboard_summary_empty_learning_records_recommends_unstarted_topics(
     assert body["review_queue"] == []
     assert body["next_steps"][0]["topic_id"] == str(topic.id)
     assert body["next_steps"][0]["rank"] == 1
-    assert body["next_steps"][0]["reason"] == "Next published topic with no learning record"
+    assert body["next_steps"][0]["reason"] == "下一个尚未开始的已发布知识点"
+    assert body["ladder_progress"] is None
+
+
+def test_dashboard_summary_returns_ladder_progress_and_exam_action(client, db_session, dev_user) -> None:
+    _, first_node = create_ladder_path_for_dashboard(db_session, user=dev_user)
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    ladder = body["ladder_progress"]
+    assert ladder["template_name"] == "Dashboard Ladder Path"
+    assert ladder["total_nodes"] == 2
+    assert ladder["material_completed_nodes"] == 1
+    assert ladder["practice_completed_nodes"] == 1
+    assert ladder["exam_passed_nodes"] == 0
+    assert ladder["current_node_id"] == str(first_node.id)
+    assert ladder["current_node_status"] == "practice_done"
+    assert "考试" in ladder["next_action"]
+    action = next(item for item in body["recommendation_actions"] if item["target_type"] == "ladder_node")
+    assert action["type"] == "take_ladder_exam"
+    assert action["target_id"] == str(first_node.id)
+
+
+def test_dashboard_summary_recommends_retry_for_failed_ladder_exam(client, db_session, dev_user) -> None:
+    path, first_node = create_ladder_path_for_dashboard(db_session, user=dev_user)
+    db_session.add(
+        LadderExamAttempt(
+            user_id=dev_user.id,
+            path_id=path.id,
+            node_id=first_node.id,
+            status="submitted",
+            exam_payload={"questions": []},
+            submitted_answers={"answers": []},
+            result_payload={"results": []},
+            score=72,
+            passed=False,
+        )
+    )
+    db_session.commit()
+
+    response = client.get("/api/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()["data"]
+    action = next(item for item in body["recommendation_actions"] if item["target_type"] == "ladder_node")
+    assert action["type"] == "retry_ladder_exam"
+    assert "72" in action["reason"]
 
 
 def test_dashboard_summary_returns_mixed_progress_and_category_progress(

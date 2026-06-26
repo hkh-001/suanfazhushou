@@ -55,12 +55,35 @@ export type DashboardWeakTopic = {
 };
 
 export type DashboardRecommendationAction = {
-  type: "review_topic" | "review_mistake" | "retry_problem" | "practice_problem";
+  type:
+    | "review_topic"
+    | "review_mistake"
+    | "retry_problem"
+    | "practice_problem"
+    | "read_ladder_material"
+    | "complete_ladder_practice"
+    | "take_ladder_exam"
+    | "retry_ladder_exam";
   title: string;
   reason: string;
   priority: number;
-  target_type: "topic" | "mistake" | "problem" | "submission";
+  target_type: "topic" | "mistake" | "problem" | "submission" | "ladder_node";
   target_id: string;
+};
+
+export type DashboardLadderProgress = {
+  path_id: string;
+  template_name: string;
+  goal_track: string;
+  current_level: string;
+  total_nodes: number;
+  material_completed_nodes: number;
+  practice_completed_nodes: number;
+  exam_passed_nodes: number;
+  current_node_id: string | null;
+  current_node_title: string | null;
+  current_node_status: "locked" | "unlocked" | "material_done" | "practice_done" | "passed" | null;
+  next_action: string | null;
 };
 
 export type DashboardPracticeTopicTag = {
@@ -97,6 +120,7 @@ export type DashboardSummary = {
   weak_topics: DashboardWeakTopic[];
   recommendation_actions: DashboardRecommendationAction[];
   practice_recommendations: DashboardPracticeRecommendation[];
+  ladder_progress: DashboardLadderProgress | null;
 };
 
 export type DashboardResponse = {

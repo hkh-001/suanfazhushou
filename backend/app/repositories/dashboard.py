@@ -4,6 +4,8 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.learning_record import LearningRecord
+from app.models.ladder import LearningPath
+from app.models.ladder_exam import LadderExamAttempt
 from app.models.mistake_note import MistakeNote
 from app.models.problem import Problem, ProblemTag
 from app.models.submission import Submission
@@ -78,3 +80,35 @@ def get_dashboard_accepted_problem_ids(db: Session, *, user_id: UUID) -> set[UUI
         Submission.problem_id.is_not(None),
     )
     return {problem_id for problem_id in db.scalars(statement).all() if problem_id is not None}
+
+
+def get_dashboard_active_ladder_path(db: Session, *, user_id: UUID) -> LearningPath | None:
+    statement = (
+        select(LearningPath)
+        .options(
+            selectinload(LearningPath.template),
+            selectinload(LearningPath.nodes),
+        )
+        .where(LearningPath.user_id == user_id, LearningPath.status == "active")
+    )
+    return db.scalar(statement)
+
+
+def get_dashboard_latest_ladder_attempts(
+    db: Session,
+    *,
+    user_id: UUID,
+    node_ids: list[UUID],
+) -> list[LadderExamAttempt]:
+    if not node_ids:
+        return []
+    statement = (
+        select(LadderExamAttempt)
+        .where(
+            LadderExamAttempt.user_id == user_id,
+            LadderExamAttempt.node_id.in_(node_ids),
+            LadderExamAttempt.status == "submitted",
+        )
+        .order_by(LadderExamAttempt.created_at.desc(), LadderExamAttempt.id.desc())
+    )
+    return list(db.scalars(statement).all())

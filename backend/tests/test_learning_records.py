@@ -3,6 +3,15 @@ from sqlalchemy import select
 from app.models.learning_record import LearningRecord
 
 
+def _records_for_current_topic(db_session, *, dev_user, published_topic) -> list[LearningRecord]:
+    return db_session.scalars(
+        select(LearningRecord).where(
+            LearningRecord.user_id == dev_user.id,
+            LearningRecord.topic_id == published_topic.id,
+        )
+    ).all()
+
+
 def test_upsert_learning_record_creates_record(client, db_session, dev_user, published_topic) -> None:
     response = client.post(
         "/api/learning/records",
@@ -21,7 +30,7 @@ def test_upsert_learning_record_creates_record(client, db_session, dev_user, pub
     assert body["status"] == "learning"
     assert body["progress_percent"] == 40
 
-    records = db_session.scalars(select(LearningRecord)).all()
+    records = _records_for_current_topic(db_session, dev_user=dev_user, published_topic=published_topic)
     assert len(records) == 1
 
 
@@ -51,6 +60,6 @@ def test_upsert_learning_record_updates_existing_record(client, db_session, dev_
     assert body["status"] == "mastered"
     assert body["progress_percent"] == 100
 
-    records = db_session.scalars(select(LearningRecord)).all()
+    records = _records_for_current_topic(db_session, dev_user=dev_user, published_topic=published_topic)
     assert len(records) == 1
     assert records[0].status == "mastered"

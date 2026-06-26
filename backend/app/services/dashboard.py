@@ -4,6 +4,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.models.ladder import LearningPath, LearningPathNode, NodeUserProgress
+from app.models.ladder_exam import LadderExamAttempt
 from app.models.learning_record import LearningRecord
 from app.models.mistake_note import MistakeNote
 from app.models.problem import Problem
@@ -11,14 +13,18 @@ from app.models.submission import Submission
 from app.models.topic import Topic
 from app.repositories.dashboard import (
     get_dashboard_accepted_problem_ids,
+    get_dashboard_active_ladder_path,
     get_dashboard_failed_submissions,
+    get_dashboard_latest_ladder_attempts,
     get_dashboard_open_mistakes,
     get_dashboard_topic_rows,
     get_dashboard_user_problems,
 )
+from app.repositories.ladder import get_progress_for_path
 from app.schemas.dashboard import (
     DashboardActivityItem,
     DashboardCategoryProgress,
+    DashboardLadderProgress,
     DashboardNextStep,
     DashboardPracticeRecommendation,
     DashboardPracticeTopicTag,
@@ -28,6 +34,7 @@ from app.schemas.dashboard import (
     DashboardSummary,
     DashboardWeakTopic,
 )
+from app.services.ladder import _node_status
 
 
 STALE_LEARNING_DAYS = 7
@@ -82,8 +89,8 @@ def _activity_item(topic: Topic, record: LearningRecord) -> DashboardActivityIte
 
 def _review_reason(record: LearningRecord) -> str:
     if record.status == "learning":
-        return "Learning topic needs another review"
-    return "Continue reviewing to reach mastery"
+        return "学习中的知识点需要再次复习"
+    return "继续复习以提升掌握程度"
 
 
 def _now_utc() -> datetime:
@@ -224,13 +231,186 @@ def _action(
     )
 
 
+def _latest_attempt_by_node(attempts: list[LadderExamAttempt]) -> dict[UUID, LadderExamAttempt]:
+    latest: dict[UUID, LadderExamAttempt] = {}
+    for attempt in attempts:
+        if attempt.node_id not in latest:
+            latest[attempt.node_id] = attempt
+    return latest
+
+
+def _current_ladder_node(
+    nodes: list[LearningPathNode],
+    progress_by_node: dict[UUID, NodeUserProgress],
+) -> LearningPathNode | None:
+    status_by_node = {node.id: _node_status(node, nodes, progress_by_node) for node in nodes}
+    current = next(
+        (
+            node
+            for node in nodes
+            if status_by_node[node.id] != "locked"
+            and not bool(progress_by_node.get(node.id) and progress_by_node[node.id].material_completed)
+        ),
+        None,
+    )
+    if current is None:
+        current = next(
+            (
+                node
+                for node in nodes
+                if status_by_node[node.id] != "locked"
+                and not bool(progress_by_node.get(node.id) and progress_by_node[node.id].exam_passed)
+            ),
+            None,
+        )
+    if current is None and nodes:
+        return nodes[0]
+    return current
+
+
+def _ladder_next_action(
+    *,
+    node: LearningPathNode,
+    status_value: str,
+    progress: NodeUserProgress | None,
+    latest_attempt: LadderExamAttempt | None,
+) -> str | None:
+    if status_value == "locked":
+        return "通过前置节点考试后继续推进。"
+    if progress is None or not progress.material_completed:
+        return f"阅读「{node.title}」资料并标记完成。"
+    if not progress.practice_completed:
+        return f"完成「{node.title}」节点练习。"
+    if not progress.exam_passed:
+        if latest_attempt is not None and latest_attempt.status == "submitted" and not latest_attempt.passed:
+            return f"复盘「{node.title}」考试结果后重新生成考试。"
+        return f"参加「{node.title}」节点考试。"
+    return "当前节点已通过，继续推进后续节点。"
+
+
+def _build_ladder_progress(
+    *,
+    path: LearningPath | None,
+    progress_by_node: dict[UUID, NodeUserProgress],
+    latest_attempts: dict[UUID, LadderExamAttempt],
+) -> DashboardLadderProgress | None:
+    if path is None:
+        return None
+    nodes = sorted(path.nodes, key=lambda node: node.node_index)
+    if not nodes:
+        return DashboardLadderProgress(
+            path_id=path.id,
+            template_name=path.template.name if path.template is not None else "学习天梯",
+            goal_track=path.goal_track,
+            current_level=path.current_level,
+            total_nodes=0,
+            material_completed_nodes=0,
+            practice_completed_nodes=0,
+            exam_passed_nodes=0,
+            current_node_id=None,
+            current_node_title=None,
+            current_node_status=None,
+            next_action=None,
+        )
+
+    current = _current_ladder_node(nodes, progress_by_node)
+    current_status = _node_status(current, nodes, progress_by_node) if current is not None else None
+    current_progress = progress_by_node.get(current.id) if current is not None else None
+    current_attempt = latest_attempts.get(current.id) if current is not None else None
+
+    return DashboardLadderProgress(
+        path_id=path.id,
+        template_name=path.template.name if path.template is not None else "学习天梯",
+        goal_track=path.goal_track,
+        current_level=path.current_level,
+        total_nodes=len(nodes),
+        material_completed_nodes=sum(1 for progress in progress_by_node.values() if progress.material_completed),
+        practice_completed_nodes=sum(1 for progress in progress_by_node.values() if progress.practice_completed),
+        exam_passed_nodes=sum(1 for progress in progress_by_node.values() if progress.exam_passed),
+        current_node_id=current.id if current is not None else None,
+        current_node_title=current.title if current is not None else None,
+        current_node_status=current_status,
+        next_action=_ladder_next_action(
+            node=current,
+            status_value=current_status,
+            progress=current_progress,
+            latest_attempt=current_attempt,
+        )
+        if current is not None and current_status is not None
+        else None,
+    )
+
+
+def _build_ladder_actions(
+    *,
+    ladder_progress: DashboardLadderProgress | None,
+    latest_attempts: dict[UUID, LadderExamAttempt],
+) -> list[DashboardRecommendationAction]:
+    if ladder_progress is None or ladder_progress.current_node_id is None:
+        return []
+    status_value = ladder_progress.current_node_status
+    if status_value == "locked" or status_value == "passed":
+        return []
+
+    current_node_id = ladder_progress.current_node_id
+    latest_attempt = latest_attempts.get(current_node_id)
+    if status_value == "unlocked":
+        return [
+            _action(
+                action_type="read_ladder_material",
+                title=f"阅读天梯资料：{ladder_progress.current_node_title}",
+                reason="当前天梯节点已解锁，先完成资料阅读才能继续练习和考试。",
+                priority=1,
+                target_type="ladder_node",
+                target_id=current_node_id,
+            )
+        ]
+    if status_value == "material_done":
+        return [
+            _action(
+                action_type="complete_ladder_practice",
+                title=f"完成节点练习：{ladder_progress.current_node_title}",
+                reason="资料已经读完，完成节点练习后才能生成考试。",
+                priority=1,
+                target_type="ladder_node",
+                target_id=current_node_id,
+            )
+        ]
+    if status_value == "practice_done":
+        if latest_attempt is not None and latest_attempt.status == "submitted" and not latest_attempt.passed:
+            return [
+                _action(
+                    action_type="retry_ladder_exam",
+                    title=f"重试节点考试：{ladder_progress.current_node_title}",
+                    reason=f"最近一次考试得分 {latest_attempt.score if latest_attempt.score is not None else '未知'}，尚未达到通过线。",
+                    priority=1,
+                    target_type="ladder_node",
+                    target_id=current_node_id,
+                )
+            ]
+        return [
+            _action(
+                action_type="take_ladder_exam",
+                title=f"参加节点考试：{ladder_progress.current_node_title}",
+                reason="节点练习已完成，通过考试后将解锁下一阶段。",
+                priority=1,
+                target_type="ladder_node",
+                target_id=current_node_id,
+            )
+        ]
+    return []
+
+
 def _build_recommendation_actions(
     *,
     weak_topics: list[DashboardWeakTopic],
     open_mistakes: list[MistakeNote],
     failed_submissions: list[Submission],
+    ladder_actions: list[DashboardRecommendationAction],
 ) -> list[DashboardRecommendationAction]:
     actions: list[DashboardRecommendationAction] = []
+    actions.extend(ladder_actions[:2])
+
     for note in open_mistakes[:5]:
         actions.append(
             _action(
@@ -353,24 +533,9 @@ def get_summary(db: Session, *, user_id: UUID) -> DashboardSummary:
     completed_estimated_minutes = sum(topic.estimated_minutes for topic, record in rows if _is_mastered(record))
 
     status_counts = [
-        DashboardStatusCount(
-            status="not_started",
-            label="Not started",
-            count=not_started,
-            percent=_percent(not_started, total),
-        ),
-        DashboardStatusCount(
-            status="learning",
-            label="Learning",
-            count=learning,
-            percent=_percent(learning, total),
-        ),
-        DashboardStatusCount(
-            status="mastered",
-            label="Mastered",
-            count=mastered,
-            percent=_percent(mastered, total),
-        ),
+        DashboardStatusCount(status="not_started", label="未开始", count=not_started, percent=_percent(not_started, total)),
+        DashboardStatusCount(status="learning", label="学习中", count=learning, percent=_percent(learning, total)),
+        DashboardStatusCount(status="mastered", label="已掌握", count=mastered, percent=_percent(mastered, total)),
     ]
 
     category_progress: list[DashboardCategoryProgress] = []
@@ -436,7 +601,7 @@ def get_summary(db: Session, *, user_id: UUID) -> DashboardSummary:
                 level=topic.level,
                 difficulty_score=topic.difficulty_score,
                 estimated_minutes=topic.estimated_minutes,
-                reason="Next published topic with no learning record",
+                reason="下一个尚未开始的已发布知识点",
                 rank=index,
             )
             for index, topic in enumerate(unstarted_topics[:3], start=1)
@@ -452,11 +617,30 @@ def get_summary(db: Session, *, user_id: UUID) -> DashboardSummary:
                 level=topic.level,
                 difficulty_score=topic.difficulty_score,
                 estimated_minutes=topic.estimated_minutes,
-                reason="Continue a topic that is not mastered yet",
+                reason="继续推进尚未掌握的知识点",
                 rank=index,
             )
             for index, (topic, record) in enumerate(non_mastered[:3], start=1)
         ]
+
+    path = get_dashboard_active_ladder_path(db, user_id=user_id)
+    progress_by_node = get_progress_for_path(db, path=path, user_id=user_id) if path is not None else {}
+    latest_ladder_attempts = _latest_attempt_by_node(
+        get_dashboard_latest_ladder_attempts(
+            db,
+            user_id=user_id,
+            node_ids=[node.id for node in path.nodes] if path is not None else [],
+        )
+    )
+    ladder_progress = _build_ladder_progress(
+        path=path,
+        progress_by_node=progress_by_node,
+        latest_attempts=latest_ladder_attempts,
+    )
+    ladder_actions = _build_ladder_actions(
+        ladder_progress=ladder_progress,
+        latest_attempts=latest_ladder_attempts,
+    )
 
     open_mistakes = get_dashboard_open_mistakes(db, user_id=user_id)
     failed_submissions = get_dashboard_failed_submissions(db, user_id=user_id)
@@ -469,6 +653,7 @@ def get_summary(db: Session, *, user_id: UUID) -> DashboardSummary:
         weak_topics=weak_topics,
         open_mistakes=open_mistakes,
         failed_submissions=failed_submissions,
+        ladder_actions=ladder_actions,
     )
     practice_recommendations = _build_practice_recommendations(
         weak_by_topic=weak_by_topic,
@@ -493,4 +678,5 @@ def get_summary(db: Session, *, user_id: UUID) -> DashboardSummary:
         weak_topics=weak_topics,
         recommendation_actions=recommendation_actions,
         practice_recommendations=practice_recommendations,
+        ladder_progress=ladder_progress,
     )

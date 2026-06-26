@@ -71,7 +71,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions, Phase 12 adding rule-based Dashboard weakness recommendations, Phase 13 adding student profiles, Phase 14 adding the first learning ladder foundation, Phase 15 adding seeded ladder practice progress, Phase 16 adding a minimal admin role plus public problem bank, and Phase 17 adding AI ladder exams with deterministic backend scoring.
+`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions, Phase 12 adding rule-based Dashboard weakness recommendations, Phase 13 adding student profiles, Phase 14 adding the first learning ladder foundation, Phase 15 adding seeded ladder practice progress, Phase 16 adding a minimal admin role plus public problem bank, Phase 17 adding AI ladder exams with deterministic backend scoring, and Phase 18 connecting profile plus ladder progress to AI context and Dashboard recommendations.
 
 ## MVP v0.1 Focus
 
@@ -575,9 +575,9 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 17 AI Ladder Exam And Unlock Flow.
+Current: Post-MVP Phase 18 Profile-Aware AI Context And Recommendation Integration.
 
-Next: Phase 18 Profile-Aware AI Context And Recommendation Integration.
+Next: Phase 19 RAG Knowledge Retrieval.
 
 Later: RAG and production hardening.
 

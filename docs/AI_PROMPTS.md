@@ -122,6 +122,13 @@ Runtime behavior:
 - `ai_call_logs` stores only metadata.
 - Diagnosis is not persisted unless the user explicitly saves it as a code review.
 
+Phase 18 learning background:
+
+- AI prompts may receive a short `[用户学习背景 ...]` block from `ContextBuilder`.
+- The block includes profile labels and concise active-ladder progress only.
+- Character-level truncation is used in Phase 18.
+- Full ladder material, practice answer keys, exam answer keys, and full exam payloads must not be injected.
+
 ### complexity_analysis
 
 Purpose:
@@ -218,6 +225,11 @@ Template variables:
 - `material_excerpt`
 - `practice_summary`
 - `difficulty_level`
+
+Phase 18 behavior:
+
+- `user_profile` includes the same short learning-background block used by other AI calls.
+- The ladder exam prompt receives the current node material excerpt and practice summary, but not practice answers or previous exam answer keys.
 
 Required output:
 

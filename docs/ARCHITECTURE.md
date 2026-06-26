@@ -122,6 +122,13 @@ Phase 13 student profile extension:
 - AI ContextBuilder may add a short profile summary to prompts, but must not inject full learning history or store full prompts in logs.
 - no production-grade permission system
 
+Phase 18 profile-aware context extension:
+
+- ContextBuilder combines the student profile with a concise active-ladder progress summary.
+- The summary is used only as learning background and is character-truncated.
+- It must not include full ladder material, practice answer keys, exam answer keys, full exam payloads, or full learning history.
+- AI call logs continue to store metadata only.
+
 Phase 16 minimal role extension:
 
 - `users.role` is limited to `user` and `admin`.
@@ -282,6 +289,8 @@ Dashboard API
 - No AI Provider, Prompt template, RetrievalService, embedding, pgvector, or RAG path is used.
 - Recommendations are scoped to the current user and remain explainable through visible signals.
 - Existing `review_queue` and `next_steps` remain learning-record/path recommendations; Phase 12 `recommendation_actions` add mistake/submission-driven actions.
+- Phase 18 adds active-ladder progress to the Dashboard summary and may add ladder-node recommendation actions.
+- Ladder recommendation actions are computed from current-user ladder progress and submitted exam attempts; they do not call AI or prompt templates.
 
 ## Phase 14-17 Learning Ladder Architecture
 
@@ -315,6 +324,7 @@ Student profile
 - Passing an exam at 80 or above sets `exam_passed=true` and unlocks the next node.
 - Ladder exams do not call Judge, create submissions, run user code, use RetrievalService/RAG, or call recommendation services.
 - External resource links are displayed only and are not fetched or copied by the backend.
+- Phase 18 allows Dashboard links to target `/ladder?node_id=...`; the ladder page validates the node against the current user's summary and falls back safely.
 
 Future RAG shape:
 

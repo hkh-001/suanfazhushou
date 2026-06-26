@@ -570,6 +570,8 @@ high
 
 ## Phase 18: Profile-Aware AI Context And Recommendation Integration
 
+Status: implemented as concise profile + ladder context for AI calls and rule-based ladder recommendations on Dashboard.
+
 ### Goal
 
 Use student profile and ladder progress to improve AI context and Dashboard recommendations.
@@ -599,6 +601,7 @@ medium
 
 - AI context includes concise profile and ladder summaries.
 - Recommendations remain explainable and user-scoped.
+- Dashboard exposes `ladder_progress` and ladder-node recommendation actions.
 
 ## Phase 19: RAG Knowledge Retrieval
 

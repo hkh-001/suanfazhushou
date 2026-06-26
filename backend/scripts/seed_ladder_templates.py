@@ -8,7 +8,7 @@ from sqlalchemy import select
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.db.session import SessionLocal
-from app.models.ladder import LadderTemplate
+from app.models.ladder import LadderTemplate, LearningPathNode
 
 
 def _practice_items(key: str, title: str) -> list[dict]:
@@ -16,32 +16,32 @@ def _practice_items(key: str, title: str) -> list[dict]:
         {
             "id": f"{key}-choice-1",
             "type": "choice",
-            "prompt": f"What should you check first when applying {title}?",
+            "prompt": f"使用「{title}」解题前，最先应该确认什么？",
             "options": [
-                {"id": "a", "text": "Whether the approach matches the input limits"},
-                {"id": "b", "text": "Whether the variable names are short enough"},
-                {"id": "c", "text": "Whether the code uses the newest syntax"},
+                {"id": "a", "text": "算法复杂度是否匹配输入规模"},
+                {"id": "b", "text": "变量名是否足够短"},
+                {"id": "c", "text": "代码是否使用了最新语法"},
             ],
             "correct_option_id": "a",
-            "explanation": "Algorithm practice starts by matching the idea with constraints and input size.",
+            "explanation": "算法练习首先要确认思路能否在题目给定的数据范围内完成。",
         },
         {
             "id": f"{key}-choice-2",
             "type": "choice",
-            "prompt": "Which habit is most useful for avoiding boundary mistakes?",
+            "prompt": "哪种习惯最有助于避免边界错误？",
             "options": [
-                {"id": "a", "text": "Skip small examples and write code immediately"},
-                {"id": "b", "text": "Trace one small example and mark indexes or states"},
-                {"id": "c", "text": "Only test the largest possible input"},
+                {"id": "a", "text": "跳过样例，直接写代码"},
+                {"id": "b", "text": "手算一个小例子，并标出下标或状态变化"},
+                {"id": "c", "text": "只测试最大规模数据"},
             ],
             "correct_option_id": "b",
-            "explanation": "A small hand trace exposes off-by-one and state-update mistakes early.",
+            "explanation": "手算小例子能尽早暴露下标越界、少算一项或状态更新顺序错误。",
         },
         {
             "id": f"{key}-coding-1",
             "type": "coding",
-            "prompt": f"Write a short implementation or pseudocode exercise using {title}.",
-            "self_check": "Confirm you tested an empty or minimal case, a normal case, and a boundary case.",
+            "prompt": f"写一个使用「{title}」的小实现或伪代码片段。",
+            "self_check": "确认你测试了最小规模、普通规模和边界规模三类情况。",
         },
     ]
 
@@ -71,37 +71,34 @@ def _template_data(*, focus: str) -> dict:
     return {
         "phases": [
             {
-                "title": "Foundation",
-                "description": "Build the vocabulary and habits needed for algorithm practice.",
+                "title": "基础阶段",
+                "description": "建立算法学习所需的基本概念和解题习惯。",
                 "nodes": [
                     _node(
                         "time-complexity",
-                        "Time Complexity",
-                        "Learn to estimate running time before writing code.",
+                        "时间复杂度",
+                        "学习在写代码前估算程序运行规模。",
                         (
-                            "# Time Complexity\n\n"
-                            "Complexity analysis asks how the number of operations grows with input size. "
-                            "For beginner practice, first distinguish constant, linear, logarithmic, and quadratic "
-                            "growth. When solving a problem, write down the expected maximum input size and choose "
-                            "an approach whose growth can finish in time.\n\n"
-                            "## Checklist\n\n"
-                            "- Identify the main loop or recursion.\n"
-                            "- Count how often each element is processed.\n"
-                            "- Compare the result with the input limit.\n"
+                            "# 时间复杂度\n\n"
+                            "时间复杂度用来描述操作次数随输入规模增长的速度。入门阶段先区分常数、线性、"
+                            "对数、平方等常见增长方式。解题时先写下题目的最大数据范围，再选择能在限制内完成的算法。\n\n"
+                            "## 检查清单\n\n"
+                            "- 找出主要循环或递归。\n"
+                            "- 估算每个元素会被处理多少次。\n"
+                            "- 将复杂度和输入上限进行比较。\n"
                         ),
                         topic_slug="time-complexity",
                     ),
                     _node(
                         "array-and-string-basics",
-                        "Arrays And Strings",
-                        "Practice indexing, boundaries, and simple scans.",
+                        "数组与字符串基础",
+                        "练习下标、边界和简单扫描。",
                         (
-                            "# Arrays And Strings\n\n"
-                            "Most entry-level algorithm tasks are built on arrays and strings. "
-                            "Focus on index ranges, off-by-one errors, and whether a scan should keep a running "
-                            "state such as a sum, maximum, or frequency table.\n\n"
-                            "## Practice habit\n\n"
-                            "Before coding, write one small example and mark each index that will be visited."
+                            "# 数组与字符串基础\n\n"
+                            "大多数入门算法题都建立在数组和字符串之上。学习重点是下标范围、边界条件、"
+                            "以及扫描过程中是否需要维护当前和、最大值或频次数组等状态。\n\n"
+                            "## 练习习惯\n\n"
+                            "写代码前先构造一个小例子，并标出每一步会访问的下标。"
                         ),
                         topic_slug="array-basics",
                     ),
@@ -109,34 +106,32 @@ def _template_data(*, focus: str) -> dict:
             },
             {
                 "title": focus,
-                "description": "Move from basic tools to common contest patterns.",
+                "description": "从基础工具过渡到常见算法题型。",
                 "nodes": [
                     _node(
                         "sorting",
-                        "Sorting",
-                        "Use ordering to simplify selection and counting tasks.",
+                        "排序",
+                        "利用有序性简化选择、统计和配对问题。",
                         (
-                            "# Sorting\n\n"
-                            "Sorting turns an unordered collection into a structure that is easier to reason about. "
-                            "After sorting, adjacent elements often reveal duplicates, gaps, or best pairings.\n\n"
-                            "## Common questions\n\n"
-                            "- Does ordering change the answer?\n"
-                            "- Can the sorted order make a greedy choice obvious?\n"
-                            "- Is `O(n log n)` acceptable for the input size?"
+                            "# 排序\n\n"
+                            "排序会把无序数据变成更容易分析的结构。排序后，相邻元素经常能揭示重复、间隔、"
+                            "最优配对或贪心选择。\n\n"
+                            "## 常见思考\n\n"
+                            "- 排序是否会改变题目的答案？\n"
+                            "- 有序之后是否能看出显然的贪心选择？\n"
+                            "- `O(n log n)` 是否能通过当前数据范围？"
                         ),
                         topic_slug="sorting",
                     ),
                     _node(
                         "two-pointers",
-                        "Two Pointers",
-                        "Maintain two moving indexes instead of nested loops.",
+                        "双指针",
+                        "用两个移动下标替代部分嵌套循环。",
                         (
-                            "# Two Pointers\n\n"
-                            "Two pointers reduce repeated work by moving indexes monotonically. "
-                            "They are useful on sorted arrays, intervals, and window-like conditions.\n\n"
-                            "## Key idea\n\n"
-                            "Each pointer should move only forward when possible. If a pointer can move backward "
-                            "many times, the algorithm may no longer be linear."
+                            "# 双指针\n\n"
+                            "双指针通过让下标单调移动来减少重复工作，常用于有序数组、区间、窗口条件等场景。\n\n"
+                            "## 核心想法\n\n"
+                            "尽量保证每个指针只向一个方向移动。如果指针频繁回退，算法通常就不再是线性的。"
                         ),
                         topic_slug="two-pointers",
                     ),
@@ -150,32 +145,50 @@ DEFAULT_TEMPLATES = [
     {
         "goal_track": "self_study",
         "current_level": "beginner",
-        "name": "Self-study Beginner Path",
-        "description": "A compact path for independent algorithm foundations.",
-        "template_data": _template_data(focus="Core Patterns"),
+        "name": "自学入门路径",
+        "description": "适合独立打基础的紧凑算法路径。",
+        "template_data": _template_data(focus="核心题型"),
     },
     {
         "goal_track": "course",
         "current_level": "beginner",
-        "name": "Course Support Beginner Path",
-        "description": "A path for strengthening programming-course fundamentals.",
-        "template_data": _template_data(focus="Course Practice"),
+        "name": "课程基础提升路径",
+        "description": "面向高级语言程序设计等课程的基础巩固路径。",
+        "template_data": _template_data(focus="课程练习"),
     },
     {
         "goal_track": "lanqiao",
         "current_level": "elementary",
-        "name": "Lanqiao Elementary Path",
-        "description": "A path for preparing common Lanqiao Cup algorithm patterns.",
-        "template_data": _template_data(focus="Lanqiao Patterns"),
+        "name": "蓝桥杯入门路径",
+        "description": "面向蓝桥杯常见基础题型的准备路径。",
+        "template_data": _template_data(focus="蓝桥杯题型"),
     },
     {
         "goal_track": "icpc",
         "current_level": "popularization",
-        "name": "ICPC Popularization Path",
-        "description": "A path for moving from basic contest patterns toward ICPC preparation.",
-        "template_data": _template_data(focus="Contest Patterns"),
+        "name": "ICPC 普及进阶路径",
+        "description": "从基础竞赛题型过渡到 ICPC 训练的路径。",
+        "template_data": _template_data(focus="竞赛题型"),
     },
 ]
+
+
+def _sync_existing_path_nodes(db) -> None:
+    latest_by_key: dict[str, dict] = {}
+    for template in DEFAULT_TEMPLATES:
+        for phase in template["template_data"]["phases"]:
+            for node in phase["nodes"]:
+                latest_by_key[node["algorithm_key"]] = node
+
+    for node in db.scalars(select(LearningPathNode)).all():
+        source = latest_by_key.get(node.algorithm_key)
+        if source is None:
+            continue
+        node.title = source["title"]
+        node.summary = source["summary"]
+        node.material_markdown = source["material_markdown"]
+        node.resource_links = source["resource_links"]
+        node.practice_items = source["practice_items"]
 
 
 def seed_ladder_templates() -> None:
@@ -199,6 +212,7 @@ def seed_ladder_templates() -> None:
             existing.description = item["description"]
             existing.template_data = item["template_data"]
             existing.is_default = True
+        _sync_existing_path_nodes(db)
         db.commit()
 
 

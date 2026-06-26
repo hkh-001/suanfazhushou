@@ -39,6 +39,25 @@ def get_attempt_for_user(db: Session, *, attempt_id: UUID, user_id: UUID) -> Lad
     return db.scalar(stmt)
 
 
+def get_latest_submitted_attempt_for_node(
+    db: Session,
+    *,
+    user_id: UUID,
+    node_id: UUID,
+) -> LadderExamAttempt | None:
+    stmt = (
+        select(LadderExamAttempt)
+        .where(
+            LadderExamAttempt.user_id == user_id,
+            LadderExamAttempt.node_id == node_id,
+            LadderExamAttempt.status == "submitted",
+        )
+        .order_by(LadderExamAttempt.submitted_at.desc(), LadderExamAttempt.created_at.desc(), LadderExamAttempt.id.desc())
+        .limit(1)
+    )
+    return db.scalar(stmt)
+
+
 def create_exam_attempt(
     db: Session,
     *,

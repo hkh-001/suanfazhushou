@@ -10,6 +10,7 @@ import { useDashboardSummary } from "./hooks";
 import type {
   DashboardActivityItem,
   DashboardCategoryProgress,
+  DashboardLadderProgress,
   DashboardNextStep,
   DashboardPracticeRecommendation,
   DashboardRecommendationAction,
@@ -38,11 +39,37 @@ const difficultyLabels: Record<string, string> = {
   advanced: "进阶"
 };
 
-const actionTypeLabels: Record<string, string> = {
+const actionTypeLabels: Record<DashboardRecommendationAction["type"], string> = {
   review_topic: "复习知识点",
   review_mistake: "处理复盘",
   retry_problem: "重做题目",
-  practice_problem: "练习巩固"
+  practice_problem: "练习巩固",
+  read_ladder_material: "阅读天梯资料",
+  complete_ladder_practice: "完成节点练习",
+  take_ladder_exam: "参加节点考试",
+  retry_ladder_exam: "重试节点考试"
+};
+
+const ladderStatusLabels: Record<NonNullable<DashboardLadderProgress["current_node_status"]>, string> = {
+  locked: "未解锁",
+  unlocked: "等待阅读资料",
+  material_done: "等待完成练习",
+  practice_done: "等待参加考试",
+  passed: "已通过"
+};
+
+const goalTrackLabels: Record<string, string> = {
+  course: "课程提分",
+  lanqiao: "蓝桥杯",
+  icpc: "ICPC/CCPC",
+  self_study: "自学提升"
+};
+
+const levelLabels: Record<string, string> = {
+  beginner: "0 基础",
+  elementary: "入门",
+  popularization: "普及",
+  improvement: "提高"
 };
 
 function formatDate(value: string) {
@@ -180,6 +207,9 @@ function targetHref(targetType: DashboardRecommendationAction["target_type"], ta
   if (targetType === "problem") {
     return `/problems/${targetId}`;
   }
+  if (targetType === "ladder_node") {
+    return `/ladder?node_id=${targetId}`;
+  }
   return `/submissions/${targetId}`;
 }
 
@@ -262,6 +292,73 @@ function PracticeRecommendationRow({ item }: { item: DashboardPracticeRecommenda
   );
 }
 
+function LadderProgressPanel({ progress }: { progress: DashboardLadderProgress | null }) {
+  if (!progress) {
+    return (
+      <Panel title="学习天梯进度">
+        <p className="py-4 text-sm text-[#64748b]">还没有生成学习天梯。进入学习天梯后会根据你的画像创建路径。</p>
+        <Link className="mt-2 inline-block text-sm font-semibold text-[#2563eb]" href="/ladder">
+          进入学习天梯
+        </Link>
+      </Panel>
+    );
+  }
+
+  const progressPercent = progress.total_nodes ? Math.round((progress.exam_passed_nodes / progress.total_nodes) * 100) : 0;
+  const ladderHref = progress.current_node_id ? `/ladder?node_id=${progress.current_node_id}` : "/ladder";
+
+  return (
+    <Panel title="学习天梯进度">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-semibold text-[#0f172a]">{progress.template_name}</p>
+          <p className="mt-1 text-sm text-[#64748b]">
+            {goalTrackLabels[progress.goal_track] ?? progress.goal_track} / {levelLabels[progress.current_level] ?? progress.current_level}
+          </p>
+        </div>
+        <span className="rounded-full bg-[#eff6ff] px-3 py-1 text-sm font-semibold text-[#1d4ed8]">
+          {progressPercent}%
+        </span>
+      </div>
+      <div className="mt-4">
+        <ProgressBar value={progressPercent} />
+      </div>
+      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+        <div className="rounded-lg bg-[#f8fafc] p-3">
+          <p className="text-[#64748b]">资料已读</p>
+          <p className="mt-1 font-semibold text-[#0f172a]">
+            {progress.material_completed_nodes}/{progress.total_nodes}
+          </p>
+        </div>
+        <div className="rounded-lg bg-[#f8fafc] p-3">
+          <p className="text-[#64748b]">练习完成</p>
+          <p className="mt-1 font-semibold text-[#0f172a]">
+            {progress.practice_completed_nodes}/{progress.total_nodes}
+          </p>
+        </div>
+        <div className="rounded-lg bg-[#f8fafc] p-3">
+          <p className="text-[#64748b]">考试通过</p>
+          <p className="mt-1 font-semibold text-[#0f172a]">
+            {progress.exam_passed_nodes}/{progress.total_nodes}
+          </p>
+        </div>
+      </div>
+      {progress.current_node_title ? (
+        <div className="mt-4 rounded-lg border border-[#dbeafe] bg-[#eff6ff] p-3">
+          <p className="text-sm font-semibold text-[#0f172a]">当前节点：{progress.current_node_title}</p>
+          <p className="mt-1 text-sm text-[#475569]">
+            {progress.current_node_status ? ladderStatusLabels[progress.current_node_status] : "暂无状态"}
+          </p>
+          {progress.next_action ? <p className="mt-2 text-sm text-[#1d4ed8]">{progress.next_action}</p> : null}
+        </div>
+      ) : null}
+      <Link className="mt-4 inline-block text-sm font-semibold text-[#2563eb]" href={ladderHref}>
+        继续学习天梯
+      </Link>
+    </Panel>
+  );
+}
+
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="rounded-xl border border-[#dbeafe] bg-white/95 p-5 shadow-sm shadow-blue-100/60">
@@ -335,7 +432,7 @@ export function DashboardPage() {
             </Link>
           </>
         }
-        description="查看你的知识点掌握情况、最近学习记录、复习队列和下一步建议。"
+        description="查看你的知识点掌握情况、学习天梯进度、复习队列和下一步建议。"
         title="学习看板"
       />
 
@@ -351,18 +448,31 @@ export function DashboardPage() {
         />
       </section>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <LadderProgressPanel progress={data.ladder_progress} />
         <Panel title="进度分布">
           {data.status_counts.map((item) => (
             <StatusRow item={item} key={item.status} />
           ))}
         </Panel>
+      </div>
 
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel title="分类进度">
           {data.category_progress.length > 0 ? (
             data.category_progress.map((item) => <CategoryRow item={item} key={item.category} />)
           ) : (
             <p className="py-4 text-sm text-[#64748b]">暂无已发布知识点。</p>
+          )}
+        </Panel>
+
+        <Panel title="推荐行动">
+          {data.recommendation_actions.length > 0 ? (
+            data.recommendation_actions.map((item) => (
+              <RecommendationActionRow item={item} key={`${item.target_type}-${item.target_id}-${item.type}`} />
+            ))
+          ) : (
+            <p className="py-4 text-sm text-[#64748b]">暂无需要优先处理的复盘、失败提交或天梯节点。</p>
           )}
         </Panel>
       </div>
@@ -376,16 +486,6 @@ export function DashboardPage() {
           )}
         </Panel>
 
-        <Panel title="推荐行动">
-          {data.recommendation_actions.length > 0 ? (
-            data.recommendation_actions.map((item) => (
-              <RecommendationActionRow item={item} key={`${item.target_type}-${item.target_id}-${item.type}`} />
-            ))
-          ) : (
-            <p className="py-4 text-sm text-[#64748b]">暂无需要优先处理的复盘或失败提交。</p>
-          )}
-        </Panel>
-
         <Panel title="推荐练习">
           {data.practice_recommendations.length > 0 ? (
             data.practice_recommendations.map((item) => <PracticeRecommendationRow item={item} key={item.problem_id} />)
@@ -393,9 +493,7 @@ export function DashboardPage() {
             <p className="py-4 text-sm text-[#64748b]">暂无匹配的个人题库练习。</p>
           )}
         </Panel>
-      </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Panel title="最近学习">
           {data.recent_activity.length > 0 ? (
             data.recent_activity.map((item) => <ActivityRow item={item} key={item.topic_id} />)
@@ -408,7 +506,9 @@ export function DashboardPage() {
             </div>
           )}
         </Panel>
+      </div>
 
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel title="复习队列">
           {data.review_queue.length > 0 ? (
             data.review_queue.map((item) => <ReviewRow item={item} key={item.topic_id} />)

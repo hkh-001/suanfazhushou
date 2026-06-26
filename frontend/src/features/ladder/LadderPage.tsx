@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
@@ -50,6 +51,20 @@ const nodeDotStyles: Record<LadderNodeStatus, string> = {
   passed: "bg-emerald-500"
 };
 
+const goalTrackLabels: Record<string, string> = {
+  course: "课程提分",
+  lanqiao: "蓝桥杯",
+  icpc: "ICPC/CCPC",
+  self_study: "自学提升"
+};
+
+const levelLabels: Record<string, string> = {
+  beginner: "0 基础",
+  elementary: "入门",
+  popularization: "普及",
+  improvement: "提高"
+};
+
 function flattenNodes(summary: LadderSummary | null): LadderNodeSummary[] {
   return summary?.phases.flatMap((phase) => phase.nodes) ?? [];
 }
@@ -85,6 +100,8 @@ function resultMap(attempt: LadderExamAttempt | null): Record<string, LadderExam
 }
 
 export function LadderPage() {
+  const searchParams = useSearchParams();
+  const initialNodeId = searchParams.get("node_id");
   const { data, loading, error, reload, setData } = useLadder();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const selectedSummary = useMemo(() => findNode(data, selectedNodeId), [data, selectedNodeId]);
@@ -104,10 +121,11 @@ export function LadderPage() {
       return;
     }
     const nodes = flattenNodes(data);
+    const requestedNode = initialNodeId && nodes.some((node) => node.id === initialNodeId) ? initialNodeId : null;
     if (!selectedNodeId || !nodes.some((node) => node.id === selectedNodeId)) {
-      setSelectedNodeId(data.current_node_id ?? nodes[0]?.id ?? null);
+      setSelectedNodeId(requestedNode ?? data.current_node_id ?? nodes[0]?.id ?? null);
     }
-  }, [data, selectedNodeId]);
+  }, [data, initialNodeId, selectedNodeId]);
 
   useEffect(() => {
     setChoiceAnswers({});
@@ -257,10 +275,10 @@ export function LadderPage() {
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
             <span className="rounded-full bg-[#eff6ff] px-3 py-1 font-semibold text-[#1d4ed8]">
-              {data.path.goal_track}
+              {goalTrackLabels[data.path.goal_track] ?? data.path.goal_track}
             </span>
             <span className="rounded-full bg-[#f8fafc] px-3 py-1 font-semibold text-[#475569]">
-              {data.path.current_level}
+              {levelLabels[data.path.current_level] ?? data.path.current_level}
             </span>
             <span className="rounded-full bg-[#f8fafc] px-3 py-1 font-semibold text-[#475569]">
               共 {nodeCount} 个节点
@@ -303,11 +321,7 @@ export function LadderPage() {
                           <span className="min-w-0 flex-1">
                             <span className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-semibold text-[#1e3a8a]">{nodeLabel(node)}</span>
-                              <span
-                                className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
-                                  statusStyles[node.status]
-                                }`}
-                              >
+                              <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${statusStyles[node.status]}`}>
                                 {statusLabels[node.status]}
                               </span>
                             </span>
@@ -335,11 +349,7 @@ export function LadderPage() {
                   <h2 className="mt-2 text-2xl font-semibold text-[#0f172a]">{selectedSummary.title}</h2>
                   <p className="mt-2 text-sm text-[#64748b]">{selectedSummary.summary}</p>
                 </div>
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                    statusStyles[selectedSummary.status]
-                  }`}
-                >
+                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[selectedSummary.status]}`}>
                   {statusLabels[selectedSummary.status]}
                 </span>
               </div>
@@ -355,9 +365,7 @@ export function LadderPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xl font-semibold text-[#0f172a]">资料阅读</h3>
                   {nodeDetail.material_completed ? (
-                    <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">
-                      资料已读
-                    </span>
+                    <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">资料已读</span>
                   ) : null}
                 </div>
                 {nodeDetail.locked ? (
@@ -383,7 +391,7 @@ export function LadderPage() {
                               >
                                 {link.title}
                               </a>
-                              <span className="ml-2 text-xs text-[#94a3b8]">{link.source}</span>
+                              {link.source ? <span className="ml-2 text-xs text-[#94a3b8]">{link.source}</span> : null}
                             </li>
                           ))}
                         </ul>
@@ -411,9 +419,7 @@ export function LadderPage() {
                     <p className="mt-1 text-sm text-[#64748b]">选择题由后端判分，编程题仅做自查确认。</p>
                   </div>
                   {practiceCompleted ? (
-                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                      练习已完成
-                    </span>
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">练习已完成</span>
                   ) : null}
                 </div>
 
@@ -440,18 +446,13 @@ export function LadderPage() {
                           </p>
                           <div className="mt-3 grid gap-2">
                             {item.options.map((option) => (
-                              <label
-                                className="flex cursor-pointer items-start gap-2 rounded-md border border-[#dbeafe] bg-white px-3 py-2 text-sm text-[#334155]"
-                                key={option.id}
-                              >
+                              <label className="flex cursor-pointer items-start gap-2 rounded-md border border-[#dbeafe] bg-white px-3 py-2 text-sm text-[#334155]" key={option.id}>
                                 <input
                                   checked={choiceAnswers[item.id] === option.id}
                                   className="mt-1"
                                   disabled={practiceCompleted}
                                   name={item.id}
-                                  onChange={() =>
-                                    setChoiceAnswers((current) => ({ ...current, [item.id]: option.id }))
-                                  }
+                                  onChange={() => setChoiceAnswers((current) => ({ ...current, [item.id]: option.id }))}
                                   type="radio"
                                 />
                                 <span>{option.text}</span>
@@ -459,13 +460,7 @@ export function LadderPage() {
                             ))}
                           </div>
                           {result ? (
-                            <div
-                              className={`mt-3 rounded-md border px-3 py-2 text-sm ${
-                                result.correct
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-red-200 bg-red-50 text-red-700"
-                              }`}
-                            >
+                            <div className={`mt-3 rounded-md border px-3 py-2 text-sm ${result.correct ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
                               <p className="font-semibold">{result.correct ? "回答正确" : "回答错误"}</p>
                               <p className="mt-1">{result.explanation}</p>
                             </div>
@@ -475,10 +470,7 @@ export function LadderPage() {
                     })}
 
                     {codingItems.map((item) => (
-                      <label
-                        className="block rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4"
-                        key={item.id}
-                      >
+                      <label className="block rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4" key={item.id}>
                         <span className="text-sm font-semibold text-[#0f172a]">{item.prompt}</span>
                         <span className="mt-2 block text-sm text-[#64748b]">{item.self_check}</span>
                         <span className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#1e3a8a]">
@@ -502,19 +494,11 @@ export function LadderPage() {
                       >
                         {practiceCompleted ? "练习已完成" : submittingPractice ? "正在提交..." : "提交练习"}
                       </button>
-                      {submitPracticeError ? (
-                        <span className="text-sm font-semibold text-red-700">{submitPracticeError}</span>
-                      ) : null}
+                      {submitPracticeError ? <span className="text-sm font-semibold text-red-700">{submitPracticeError}</span> : null}
                     </div>
 
                     {practiceResult ? (
-                      <div
-                        className={`rounded-lg border p-4 text-sm ${
-                          practiceResult.passed
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-amber-200 bg-amber-50 text-amber-700"
-                        }`}
-                      >
+                      <div className={`rounded-lg border p-4 text-sm ${practiceResult.passed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                         <p className="font-semibold">
                           得分 {practiceResult.score} 分，{practiceResult.passed ? "练习通过" : "暂未通过"}
                         </p>
@@ -534,9 +518,7 @@ export function LadderPage() {
                     </p>
                   </div>
                   {examPassed ? (
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      考试已通过
-                    </span>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">考试已通过</span>
                   ) : null}
                 </div>
 
@@ -572,11 +554,7 @@ export function LadderPage() {
                         onClick={() => void handleGenerateExam()}
                         type="button"
                       >
-                        {generatingExam
-                          ? "正在生成..."
-                          : examAttempt?.status === "generated"
-                            ? "考试已生成"
-                            : "生成考试"}
+                        {generatingExam ? "正在生成..." : examAttempt?.status === "generated" ? "考试已生成" : "生成考试"}
                       </button>
                       {examAttempt?.status === "submitted" && !examAttempt.passed ? (
                         <button
@@ -592,21 +570,13 @@ export function LadderPage() {
                           重新生成考试
                         </button>
                       ) : null}
-                      {generateExamError ? (
-                        <span className="text-sm font-semibold text-red-700">{generateExamError}</span>
-                      ) : null}
+                      {generateExamError ? <span className="text-sm font-semibold text-red-700">{generateExamError}</span> : null}
                     </div>
 
                     {examAttempt ? (
                       <div className="space-y-4">
                         {examAttempt.status === "submitted" ? (
-                          <div
-                            className={`rounded-lg border p-4 text-sm ${
-                              examAttempt.passed
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-amber-200 bg-amber-50 text-amber-700"
-                            }`}
-                          >
+                          <div className={`rounded-lg border p-4 text-sm ${examAttempt.passed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                             <p className="font-semibold">
                               得分 {examAttempt.score ?? 0} 分，{examAttempt.passed ? "考试通过" : "暂未通过"}
                             </p>
@@ -633,22 +603,14 @@ export function LadderPage() {
                                   const correct = result?.correct_option_id === option.id;
                                   return (
                                     <label
-                                      className={`flex cursor-pointer items-start gap-2 rounded-md border bg-white px-3 py-2 text-sm text-[#334155] ${
-                                        correct
-                                          ? "border-emerald-300"
-                                          : submittedSelected
-                                            ? "border-amber-300"
-                                            : "border-[#dbeafe]"
-                                      }`}
+                                      className={`flex cursor-pointer items-start gap-2 rounded-md border bg-white px-3 py-2 text-sm text-[#334155] ${correct ? "border-emerald-300" : submittedSelected ? "border-amber-300" : "border-[#dbeafe]"}`}
                                       key={option.id}
                                     >
                                       <input
                                         checked={selected}
                                         disabled={examAttempt.status === "submitted"}
                                         name={question.id}
-                                        onChange={() =>
-                                          setExamAnswers((current) => ({ ...current, [question.id]: option.id }))
-                                        }
+                                        onChange={() => setExamAnswers((current) => ({ ...current, [question.id]: option.id }))}
                                         type="radio"
                                       />
                                       <span>{option.text}</span>
@@ -657,14 +619,10 @@ export function LadderPage() {
                                 })}
                               </div>
                               {result ? (
-                                <div
-                                  className={`mt-3 rounded-md border px-3 py-2 text-sm ${
-                                    result.correct
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                      : "border-red-200 bg-red-50 text-red-700"
-                                  }`}
-                                >
-                                  <p className="font-semibold">{result.correct ? "回答正确" : "回答错误"}</p>
+                                <div className={`mt-3 rounded-md border px-3 py-2 text-sm ${result.correct ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+                                  <p className="font-semibold">
+                                    {result.correct ? "回答正确" : "回答错误"}，本题 {result.points} 分
+                                  </p>
                                   <p className="mt-1">正确答案：{result.correct_option_id}</p>
                                   <p className="mt-1">{result.explanation}</p>
                                 </div>
@@ -683,12 +641,8 @@ export function LadderPage() {
                             >
                               {submittingExam ? "正在提交..." : "提交考试"}
                             </button>
-                            {!canSubmitExam ? (
-                              <span className="text-sm text-[#64748b]">请完成全部 12 道题后提交。</span>
-                            ) : null}
-                            {submitExamError ? (
-                              <span className="text-sm font-semibold text-red-700">{submitExamError}</span>
-                            ) : null}
+                            {!canSubmitExam ? <span className="text-sm text-[#64748b]">请完成全部 12 道题后提交。</span> : null}
+                            {submitExamError ? <span className="text-sm font-semibold text-red-700">{submitExamError}</span> : null}
                           </div>
                         ) : null}
                       </div>

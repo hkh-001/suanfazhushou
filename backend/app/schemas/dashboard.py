@@ -22,6 +22,7 @@ class DashboardSummary(BaseModel):
     weak_topics: list["DashboardWeakTopic"]
     recommendation_actions: list["DashboardRecommendationAction"]
     practice_recommendations: list["DashboardPracticeRecommendation"]
+    ladder_progress: "DashboardLadderProgress | None" = None
 
 
 class DashboardStatusCount(BaseModel):
@@ -79,12 +80,36 @@ class DashboardWeakTopic(BaseModel):
 
 
 class DashboardRecommendationAction(BaseModel):
-    type: Literal["review_topic", "review_mistake", "retry_problem", "practice_problem"]
+    type: Literal[
+        "review_topic",
+        "review_mistake",
+        "retry_problem",
+        "practice_problem",
+        "read_ladder_material",
+        "complete_ladder_practice",
+        "take_ladder_exam",
+        "retry_ladder_exam",
+    ]
     title: str
     reason: str
     priority: int
-    target_type: Literal["topic", "mistake", "problem", "submission"]
+    target_type: Literal["topic", "mistake", "problem", "submission", "ladder_node"]
     target_id: UUID
+
+
+class DashboardLadderProgress(BaseModel):
+    path_id: UUID
+    template_name: str
+    goal_track: str
+    current_level: str
+    total_nodes: int
+    material_completed_nodes: int
+    practice_completed_nodes: int
+    exam_passed_nodes: int
+    current_node_id: UUID | None
+    current_node_title: str | None
+    current_node_status: Literal["locked", "unlocked", "material_done", "practice_done", "passed"] | None
+    next_action: str | None
 
 
 class DashboardPracticeTopicTag(BaseModel):

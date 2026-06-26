@@ -156,6 +156,29 @@ Risk signals:
 - README commands do not match the implemented project.
 - Demo flow requires undocumented manual setup.
 
+## 1.18 Phase 18 Profile And Ladder Context Pressure
+
+Questions:
+
+- Does AI personalization use concise learning background instead of full history?
+- Does Dashboard recommend the current stuck ladder node without hiding mistake/submission recommendations?
+- Can users jump from Dashboard directly to the relevant ladder node?
+- Are ladder recommendations still deterministic and explainable?
+
+Pass criteria:
+
+- AI prompts receive only profile labels and a short active-ladder summary.
+- Full material, practice answer keys, exam answer keys, and full exam payloads are excluded.
+- `/dashboard` returns `ladder_progress` for users with an active ladder path.
+- Ladder recommendation actions link to `/ladder?node_id=...`.
+
+Risk signals:
+
+- Dashboard recommendations call the AI Provider.
+- AI context includes full ladder materials, answer keys, or complete exam history.
+- Ladder progress queries leak another user's path or attempts.
+- `/ladder?node_id=...` selects a node outside the current user's ladder.
+
 ## 1.5 Content Quality And Copyright
 
 Questions:

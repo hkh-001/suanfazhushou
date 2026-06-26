@@ -6,6 +6,8 @@ from sqlalchemy import select
 from app.core.deps import get_ai_provider
 from app.main import app
 from app.models.ai_call_log import AICallLog
+from app.models.ladder import LadderTemplate, LearningPath, LearningPathNode, NodeUserProgress
+from app.models.ladder_exam import LadderExamAttempt
 from app.models.prompt_template import PromptTemplate
 from app.providers.ai.base import AIProvider, AIProviderError, AIProviderResult, AIProviderUsage
 from app.services.ai.context_builder import ContextBuilder
@@ -113,11 +115,11 @@ def test_ai_prompt_includes_short_user_profile_context(client: TestClient, db_se
 
     assert response.status_code == 200
     prompt = provider.prompts[0]
-    assert "\u7528\u6237\u753b\u50cf - \u4ec5\u4f5c\u4e3a\u5b66\u4e60\u80cc\u666f\u53c2\u8003" in prompt
+    assert "用户学习背景 - 仅作为个性化教学参考" in prompt
     assert "\u5f53\u524d\u6c34\u5e73\uff1a" in prompt
     assert "\u5b66\u4e60\u76ee\u6807\uff1a" in prompt
     assert "\u5e0c\u671b\u51c6\u5907\u7701\u8d5b\u3002" in prompt
-    assert "\u7528\u6237\u753b\u50cf\u7ed3\u675f" in prompt
+    assert "用户学习背景结束" in prompt
     log = db_session.scalar(select(AICallLog).where(AICallLog.prompt_type == "concept_explanation"))
     assert log is not None
     assert not hasattr(log, "prompt")
@@ -132,6 +134,84 @@ def test_user_profile_context_uses_defaults_for_missing_profile_fields(db_sessio
     assert "\u5f53\u524d\u6c34\u5e73\uff1a" in context
     assert "\u5b66\u4e60\u76ee\u6807\uff1a" in context
     assert "None" not in context
+
+
+def test_user_profile_context_includes_ladder_summary_without_exam_payload(db_session, dev_user) -> None:
+    template = LadderTemplate(
+        goal_track="self_study",
+        current_level="beginner",
+        name="测试天梯路径",
+        description="Context test path",
+        template_data={"phases": []},
+        version=1,
+        is_default=False,
+    )
+    db_session.add(template)
+    db_session.flush()
+    path = LearningPath(
+        user_id=dev_user.id,
+        template_id=template.id,
+        goal_track="self_study",
+        current_level="beginner",
+        status="active",
+    )
+    db_session.add(path)
+    db_session.flush()
+    node = LearningPathNode(
+        path_id=path.id,
+        phase_index=1,
+        node_index=1,
+        algorithm_key="binary-search",
+        title="二分查找",
+        summary="学习二分边界。",
+        material_markdown="# 二分查找\n\n很长的资料不应完整进入画像上下文。",
+        resource_links=[],
+        practice_items=[
+            {
+                "id": "choice-1",
+                "type": "choice",
+                "prompt": "二分查找的关键是什么？",
+                "options": [{"id": "a", "text": "边界"}],
+                "correct_option_id": "a",
+                "explanation": "检查边界。",
+            }
+        ],
+        unlock_rule={},
+    )
+    db_session.add(node)
+    db_session.flush()
+    db_session.add(
+        NodeUserProgress(
+            user_id=dev_user.id,
+            node_id=node.id,
+            material_completed=True,
+            practice_completed=True,
+            exam_passed=False,
+        )
+    )
+    db_session.add(
+        LadderExamAttempt(
+            user_id=dev_user.id,
+            path_id=path.id,
+            node_id=node.id,
+            status="submitted",
+            exam_payload={"questions": [{"correct_option_id": "a", "secret": "full exam payload"}]},
+            submitted_answers={"answers": []},
+            result_payload={"results": []},
+            score=72,
+            passed=False,
+        )
+    )
+    db_session.commit()
+
+    context = ContextBuilder(db_session).build_user_profile_context(dev_user)
+
+    assert "天梯路径：测试天梯路径" in context
+    assert "当前节点：二分查找" in context
+    assert "已完成练习 1 个" in context
+    assert "最近考试：二分查找 考试未通过，得分 72" in context
+    assert "correct_option_id" not in context
+    assert "full exam payload" not in context
 
 
 def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) -> None:

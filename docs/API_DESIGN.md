@@ -140,6 +140,18 @@ Phase 12 dashboard recommendation additions:
 - `recommendation_actions` complement `review_queue` and `next_steps`; they do not replace the Phase 4 learning-record flow.
 - Recommendations are rule-based and do not call AI Provider, Prompt templates, RAG, or `recommendation_logs`.
 
+Phase 18 dashboard ladder recommendation additions:
+
+- `GET /api/dashboard/summary` additionally returns `ladder_progress`, or `null` when the current user has no active ladder path.
+- `ladder_progress` summarizes the current user's active path, current node, material/practice/exam counts, and next action.
+- `recommendation_actions` may include ladder actions:
+  - `read_ladder_material`
+  - `complete_ladder_practice`
+  - `take_ladder_exam`
+  - `retry_ladder_exam`
+- Ladder actions use `target_type="ladder_node"` and link to `/ladder?node_id={id}` on the frontend.
+- These recommendations are still rule-based and do not call AI Provider, Prompt templates, RAG, or `recommendation_logs`.
+
 AI:
 
 - `POST /api/ai/chat`
@@ -158,6 +170,13 @@ Phase 3 AI rules:
 - Generated problem parse failures return `AI_OUTPUT_PARSE_ERROR`.
 - Missing runtime prompt templates return `PROMPT_TEMPLATE_NOT_FOUND`.
 - The backend must not expose provider stack traces or full provider responses.
+
+Phase 18 AI context notes:
+
+- AI tutoring, problem generation, code review, submission diagnosis, and ladder exam generation receive a short learning-background block.
+- The block contains profile fields and a concise active-ladder summary only.
+- Context truncation is character-based in Phase 18; no tokenizer is introduced.
+- Full ladder material, practice answer keys, exam answer keys, full exam payloads, and full learning history are not sent to the AI provider.
 
 Auth:
 
