@@ -4,8 +4,21 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "@/lib/api/client";
 
-import { completeLadderNodeMaterial, fetchLadder, fetchLadderNode, submitLadderNodePractice } from "./api";
-import type { LadderNodeDetail, LadderPracticeSubmitPayload, LadderSummary } from "./types";
+import {
+  completeLadderNodeMaterial,
+  fetchLadder,
+  fetchLadderNode,
+  generateLadderExam,
+  submitLadderExam,
+  submitLadderNodePractice
+} from "./api";
+import type {
+  LadderExamGenerationResult,
+  LadderExamSubmitPayload,
+  LadderNodeDetail,
+  LadderPracticeSubmitPayload,
+  LadderSummary
+} from "./types";
 
 function userMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -21,7 +34,7 @@ function userMessage(error: unknown) {
       return "暂未找到适合当前画像的学习天梯模板。";
     }
     if (error.code === "NODE_LOCKED") {
-      return "该节点尚未解锁，请先完成前置节点资料。";
+      return "该节点尚未解锁，请先通过前置节点考试。";
     }
     if (error.code === "NODE_MATERIAL_REQUIRED") {
       return "先完成资料阅读后再开始练习。";
@@ -31,6 +44,33 @@ function userMessage(error: unknown) {
     }
     if (error.code === "LADDER_PRACTICE_VALIDATION_ERROR") {
       return "练习提交内容有误，请检查选项。";
+    }
+    if (error.code === "LADDER_EXAM_REQUIRE_MATERIAL") {
+      return "先完成资料阅读后再参加考试。";
+    }
+    if (error.code === "LADDER_EXAM_REQUIRE_PRACTICE") {
+      return "先通过节点练习后再参加考试。";
+    }
+    if (error.code === "LADDER_EXAM_ALREADY_PASSED") {
+      return "该节点考试已经通过。";
+    }
+    if (error.code === "LADDER_EXAM_GENERATION_FAILED") {
+      return "AI 生成考试失败，请重新生成。";
+    }
+    if (error.code === "LADDER_EXAM_VALIDATION_ERROR") {
+      return "考试提交内容有误，请检查答案。";
+    }
+    if (error.code === "AI_CONFIG_MISSING") {
+      return "AI 服务尚未配置，无法生成考试。";
+    }
+    if (error.code === "AI_PROVIDER_TIMEOUT") {
+      return "AI 服务请求超时，请稍后重试。";
+    }
+    if (error.code === "AI_PROVIDER_ERROR") {
+      return "AI 服务暂时不可用，请稍后重试。";
+    }
+    if (error.code === "PROMPT_TEMPLATE_NOT_FOUND") {
+      return "考试生成模板尚未初始化，请先运行 prompt seed。";
     }
     return error.message;
   }
@@ -121,6 +161,48 @@ export function useSubmitLadderPractice() {
     setError(null);
     try {
       return await submitLadderNodePractice(nodeId, payload);
+    } catch (err) {
+      const message = userMessage(err);
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { submit, loading, error };
+}
+
+export function useGenerateLadderExam() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const generate = useCallback(async (nodeId: string): Promise<LadderExamGenerationResult> => {
+    setLoading(true);
+    setError(null);
+    try {
+      return await generateLadderExam(nodeId);
+    } catch (err) {
+      const message = userMessage(err);
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { generate, loading, error };
+}
+
+export function useSubmitLadderExam() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = useCallback(async (attemptId: string, payload: LadderExamSubmitPayload) => {
+    setLoading(true);
+    setError(null);
+    try {
+      return await submitLadderExam(attemptId, payload);
     } catch (err) {
       const message = userMessage(err);
       setError(message);

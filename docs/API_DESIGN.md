@@ -378,14 +378,17 @@ Errors:
 - existing AI configuration/provider errors
 - inherited auth errors
 
-## Phase 14-15 Learning Ladder APIs
+## Phase 14-17 Learning Ladder APIs
 
-Implemented across Post-MVP Phase 14-15:
+Implemented across Post-MVP Phase 14-17:
 
 - `GET /api/ladder`
 - `GET /api/ladder/nodes/{id}`
 - `POST /api/ladder/nodes/{id}/material-complete`
 - `POST /api/ladder/nodes/{id}/practice-submit`
+- `POST /api/ladder/nodes/{id}/exam-generate`
+- `GET /api/ladder/exams/{id}`
+- `POST /api/ladder/exams/{id}/submit`
 
 Rules:
 
@@ -397,17 +400,22 @@ Rules:
 - Phase 15 copies seeded `practice_items` from template data into `learning_path_nodes` when the path is created; already generated paths do not automatically follow later template updates.
 - Node status is computed from progress booleans and is not stored as a separate database column.
 - The first node is unlocked by default.
-- Completing node N's material unlocks node N+1.
+- Phase 17 changes the unlock rule: node N+1 unlocks only after node N has `exam_passed=true`.
 - `POST /api/ladder/nodes/{id}/material-complete` is idempotent for already completed unlocked nodes and returns the full updated ladder summary.
 - `GET /api/ladder/nodes/{id}` returns public practice items but never returns `correct_option_id`.
 - `POST /api/ladder/nodes/{id}/practice-submit` accepts choice answers and coding self-check confirmations, scores choices on the backend, and returns per-choice correctness plus the updated full ladder summary.
 - `practice_completed` is set when the score is at least 80 and all coding self-check items are confirmed.
 - Coding practice is self-check only; it does not execute code, create submissions, call Judge, or call AI.
+- `POST /api/ladder/nodes/{id}/exam-generate` requires an unlocked node with `material_completed=true` and `practice_completed=true`.
+- Exam generation is explicit. Existing unsubmitted `generated` attempts are reused instead of calling AI again.
+- Generated exams contain 10 `single_choice` questions worth 6 points each and 2 `code_reading` questions worth 20 points each.
+- `GET /api/ladder/exams/{id}` hides `correct_option_id` and `explanation` before submission, then returns them after submission.
+- `POST /api/ladder/exams/{id}/submit` requires exactly 12 answers, scores deterministically from the stored answer key, marks `exam_passed=true` at 80 or above, and returns the updated full ladder summary.
+- Phase 17 AI only generates exam questions. It does not score answers, call Judge, create submissions, run user code, use RAG, or call recommendation services.
+- Code-related exam questions are code reading or code completion multiple-choice questions only.
 - Locked nodes return `NODE_LOCKED`.
 - Practice submission before material completion returns `NODE_MATERIAL_REQUIRED`.
 - Other users' nodes return `LADDER_NODE_NOT_FOUND`.
-- `exam_passed` remains reserved for Phase 17.
-- Phase 15 does not call AI Provider, Judge, RAG, recommendation services, or submission creation.
 
 Response shape:
 
@@ -416,6 +424,9 @@ GET /api/ladder -> DataResponse[LadderSummary]
 GET /api/ladder/nodes/{id} -> DataResponse[LadderNodeDetail]
 POST /api/ladder/nodes/{id}/material-complete -> DataResponse[LadderSummary]
 POST /api/ladder/nodes/{id}/practice-submit -> DataResponse[LadderPracticeSubmitResult]
+POST /api/ladder/nodes/{id}/exam-generate -> DataResponse[LadderExamGenerationResult]
+GET /api/ladder/exams/{id} -> DataResponse[LadderExamAttemptDetail]
+POST /api/ladder/exams/{id}/submit -> DataResponse[LadderExamSubmitResult]
 ```
 
 Errors:
@@ -425,8 +436,15 @@ Errors:
 - `LADDER_PATH_CREATE_FAILED`
 - `LADDER_PRACTICE_NOT_FOUND`
 - `LADDER_PRACTICE_VALIDATION_ERROR`
+- `LADDER_EXAM_NOT_FOUND`
+- `LADDER_EXAM_ALREADY_PASSED`
+- `LADDER_EXAM_REQUIRE_MATERIAL`
+- `LADDER_EXAM_REQUIRE_PRACTICE`
+- `LADDER_EXAM_GENERATION_FAILED`
+- `LADDER_EXAM_VALIDATION_ERROR`
 - `NODE_LOCKED`
 - `NODE_MATERIAL_REQUIRED`
+- inherited AI errors: `AI_CONFIG_MISSING`, `AI_PROVIDER_TIMEOUT`, `AI_PROVIDER_ERROR`, `PROMPT_TEMPLATE_NOT_FOUND`
 - inherited auth errors
 
 ## Post-MVP Planned APIs

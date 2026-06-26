@@ -4,8 +4,8 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.user import User
 from app.models.submission import Submission, SubmissionCaseResult
+from app.models.user import User
 from app.repositories.topics import get_published_topic
 from app.schemas.submission import DiagnosisContextInfo
 
@@ -21,10 +21,12 @@ MAX_FAILED_CASES = 5
 FIRST_SAMPLE_DETAIL_LIMIT = 2000
 OTHER_SAMPLE_DETAIL_LIMIT = 1000
 SOURCE_TRUNCATION_MARKER = "\n\n[... source code truncated ...]\n\n"
+LADDER_MATERIAL_EXCERPT_LIMIT = 4000
+LADDER_PRACTICE_SUMMARY_LIMIT = 2000
 
 
 LEVEL_LABELS = {
-    "beginner": "0基础",
+    "beginner": "0 基础",
     "elementary": "入门",
     "popularization": "普及",
     "improvement": "提高",
@@ -42,6 +44,11 @@ GOAL_LABELS = {
 class SubmissionDiagnosisContext:
     values: dict[str, str]
     info: DiagnosisContextInfo
+
+
+@dataclass(frozen=True)
+class LadderExamContext:
+    values: dict[str, str]
 
 
 def _clip(value: str | None, limit: int) -> str:
@@ -114,9 +121,7 @@ def _build_case_context(case_results: list[SubmissionCaseResult]) -> tuple[str, 
     for case in selected:
         if not case.is_sample or used >= CASE_CONTEXT_LIMIT:
             continue
-        detail_limit = (
-            FIRST_SAMPLE_DETAIL_LIMIT if sample_index == 0 else OTHER_SAMPLE_DETAIL_LIMIT
-        )
+        detail_limit = FIRST_SAMPLE_DETAIL_LIMIT if sample_index == 0 else OTHER_SAMPLE_DETAIL_LIMIT
         sample_index += 1
         remaining = CASE_CONTEXT_LIMIT - used - 2
         if remaining <= 0:
@@ -126,6 +131,24 @@ def _build_case_context(case_results: list[SubmissionCaseResult]) -> tuple[str, 
         used += 2 + len(detail)
 
     return "\n\n".join(chunks), len(selected)
+
+
+def _practice_summary(raw_items: object) -> str:
+    if not isinstance(raw_items, list) or not raw_items:
+        return "该节点暂无练习题摘要。"
+    lines: list[str] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get("type") or "")
+        prompt = str(item.get("prompt") or "").strip()
+        if not prompt:
+            continue
+        if item_type == "choice":
+            lines.append(f"- 选择题：{prompt}")
+        elif item_type == "coding":
+            lines.append(f"- 编程自查：{prompt}")
+    return _clip("\n".join(lines) or "该节点暂无练习题摘要。", LADDER_PRACTICE_SUMMARY_LIMIT)
 
 
 class ContextBuilder:
@@ -165,6 +188,19 @@ class ContextBuilder:
             parts.append(f"Common pitfalls: {topic.common_pitfalls}")
         return "\n\n".join(parts)
 
+    def build_ladder_exam_context(self, *, user: User, node_title: str, node_summary: str, material: str, practice_items: object) -> LadderExamContext:
+        current_level = (user.current_level or "").strip() or "beginner"
+        return LadderExamContext(
+            values={
+                "user_profile": self.build_user_profile_context(user),
+                "node_title": node_title,
+                "node_summary": node_summary,
+                "material_excerpt": _clip(material, LADDER_MATERIAL_EXCERPT_LIMIT),
+                "practice_summary": _practice_summary(practice_items),
+                "difficulty_level": LEVEL_LABELS.get(current_level, current_level),
+            }
+        )
+
     def build_submission_diagnosis_context(
         self,
         submission: Submission,
@@ -200,8 +236,7 @@ class ContextBuilder:
                 "language": submission.language,
                 "problem_context": problem_context,
                 "source_code": source_code,
-                "compile_output": _clip(submission.compile_output, COMPILE_OUTPUT_LIMIT)
-                or "No compile output.",
+                "compile_output": _clip(submission.compile_output, COMPILE_OUTPUT_LIMIT) or "No compile output.",
                 "error_message": _clip(submission.error_message, ERROR_MESSAGE_LIMIT)
                 or "No submission-level error message.",
                 "case_context": case_context,

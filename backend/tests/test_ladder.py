@@ -207,7 +207,7 @@ def test_missing_template_returns_error(client, dev_user) -> None:
     assert response.json()["error"]["code"] == "LADDER_TEMPLATE_NOT_FOUND"
 
 
-def test_material_complete_unlocks_next_node_and_is_idempotent(client, db_session) -> None:
+def test_material_complete_marks_material_done_but_does_not_unlock_next_node(client, db_session) -> None:
     _add_template(db_session)
     _register(client)
     first = client.get("/api/ladder")
@@ -221,8 +221,8 @@ def test_material_complete_unlocks_next_node_and_is_idempotent(client, db_sessio
     assert complete.status_code == 200
     nodes = _nodes(complete.json())
     assert nodes[0]["status"] == "material_done"
-    assert nodes[1]["status"] == "unlocked"
-    assert complete.json()["data"]["current_node_id"] == nodes[1]["id"]
+    assert nodes[1]["status"] == "locked"
+    assert complete.json()["data"]["current_node_id"] == nodes[0]["id"]
 
     repeat = client.post(f"/api/ladder/nodes/{node_ids[0]}/material-complete")
     assert repeat.status_code == 200

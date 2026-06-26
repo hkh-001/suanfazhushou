@@ -522,6 +522,8 @@ Add a minimal `admin` role and a public problem bank before AI ladder exams and 
 
 ## Phase 17: AI Ladder Exam And Unlock Flow
 
+Status: implemented.
+
 ### Goal
 
 Generate and grade node exams, then mark nodes as passed after successful evaluation.
@@ -534,16 +536,24 @@ Generate and grade node exams, then mark nodes as passed after successful evalua
 
 ### Expected Features
 
-- AI-generated node exams
-- 10 choice questions and 2 code-analysis or code-completion questions
+- Explicit AI-generated node exams
+- `ladder_exam_attempts` persistence for generated/submitted attempts
+- 10 normal single-choice questions and 2 code-reading/code-completion multiple-choice questions
+- Backend deterministic scoring from the stored answer key
 - Score out of 100 with 80 as passing threshold
+- Submitted passing exam sets `exam_passed=true`
 - Passed exam unlocks the next node
+- Unsubmitted generated attempts are reused instead of repeatedly calling AI
 
 ### Not Included
 
 - Running exam code through Judge
+- Creating submissions
+- AI-based scoring
+- RAG or retrieval
 - Contest mode
 - Ranking
+- Classroom or teacher workflows
 
 ### Risk Level
 
@@ -555,6 +565,8 @@ high
 - Invalid AI JSON is rejected safely.
 - Locked nodes cannot be skipped.
 - Passing unlocks the next node.
+- Exam attempts do not leak answer keys before submission.
+- AI call logs store only metadata, not full exams or answer keys.
 
 ## Phase 18: Profile-Aware AI Context And Recommendation Integration
 

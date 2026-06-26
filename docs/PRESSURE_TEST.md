@@ -739,18 +739,20 @@ Risk signals:
 
 ## 3.7 Learning Ladder Pressure Test
 
-Phase 14-15 implemented baseline:
+Phase 14-17 implemented baseline:
 
 - Ladder templates are seeded database records.
 - `GET /api/ladder` creates or returns one active path for the current user.
 - Path nodes are expanded from templates and tracked through `node_user_progress`.
 - Node status is computed from progress booleans.
 - The first node is unlocked by default.
-- Completing node N's material unlocks node N+1.
+- Phase 17 unlock rule: node N+1 unlocks only after node N has `exam_passed=true`.
 - Phase 15 stores seeded practice items in `learning_path_nodes.practice_items`.
 - Phase 15 scores choice practice on the backend and sets `practice_completed` after passing.
 - Coding practice is self-check only and does not execute code.
-- Phase 15 does not update exam completion.
+- Phase 17 stores generated exams in `ladder_exam_attempts`.
+- Phase 17 AI generates exam questions only; the backend validates JSON and scores submitted answers deterministically.
+- Phase 17 code questions are code reading or completion multiple-choice questions, not executable code.
 
 Questions:
 
@@ -766,20 +768,29 @@ Questions:
 - Does coding self-check remain a confirmation only, without Judge or submissions?
 - Are repeated practice item IDs rejected safely?
 - Are external resource links displayed without crawling or copying content?
-- Does `/ladder` remain useful without adding AI exams or Judge scoring early?
+- Does exam generation require unlocked node, completed material, and completed practice?
+- Does an unsubmitted generated attempt get reused?
+- Does invalid AI JSON fail safely without saving an attempt?
+- Are answer keys and explanations hidden before submission?
+- Does backend scoring pass at 80 and fail below 80?
+- Does passing a node exam unlock the next node?
+- Does Phase 17 avoid Judge, submissions, code execution, RAG, and AI scoring?
 
 Pass criteria:
 
 - Each user has at most one active learning path.
 - Current-user ownership is enforced for list, detail, and completion endpoints.
 - First node starts unlocked and second node starts locked.
-- Completing the first node material unlocks the second node immediately.
+- Completing first-node material or practice does not unlock the second node by itself.
 - `practice_completed` is changed only by Phase 15 practice submission.
-- `exam_passed` remains unchanged until Phase 17.
+- `exam_passed` is changed only by submitted Phase 17 exams scoring at least 80.
+- Passing the first-node exam unlocks the second node.
 - `scripts/seed_ladder_templates.py` is idempotent.
 - Choice answers below 80 points do not complete practice.
 - Coding self-check is required for practice completion when coding items exist.
-- No AI Provider, Judge, submission creation, RAG, embedding, or recommendation service is called by ladder practice APIs.
+- Ladder practice APIs do not call AI Provider, Judge, submission creation, RAG, embedding, or recommendation services.
+- Ladder exam APIs call AI only for generation, never for scoring.
+- No submission records are created by ladder exams.
 
 Risk signals:
 
@@ -788,7 +799,10 @@ Risk signals:
 - Template seed content copies third-party material without license review.
 - API responses leak `correct_option_id`.
 - Practice can be submitted before material completion.
-- Phase 15 starts implementing exams, Judge integration, submissions, RAG, or complex adaptive curriculum.
+- Exam answer keys leak before submission.
+- AI-generated invalid exams are persisted.
+- Failed or passed exams create submissions or call Judge.
+- Phase 17 starts implementing Judge integration, executable coding exams, submissions, RAG, or complex adaptive curriculum.
 
 ## 3.8 RAG Pressure Test
 

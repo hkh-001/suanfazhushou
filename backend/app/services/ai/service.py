@@ -17,6 +17,7 @@ from app.schemas.ai import (
     GeneratedProblem,
     ProblemGenerationRequest,
 )
+from app.schemas.ladder_exam import LadderExamAIResult, LadderExamPayload
 from app.models.submission import Submission
 from app.schemas.submission import SubmissionDiagnosisResponse
 from app.services.ai.context_builder import ContextBuilder
@@ -35,6 +36,16 @@ _ERROR_MESSAGES = {
 
 def _safe_error_message(code: str) -> str:
     return _ERROR_MESSAGES.get(code, code.replace("_", " ").title())
+
+
+def _strip_json_fence(content: str) -> str:
+    stripped = content.strip()
+    if not stripped.startswith("```"):
+        return stripped
+    lines = stripped.splitlines()
+    if len(lines) >= 3 and lines[0].strip().lower() in {"```json", "```"} and lines[-1].strip() == "```":
+        return "\n".join(lines[1:-1]).strip()
+    return stripped
 
 
 class AIService:
@@ -153,6 +164,72 @@ class AIService:
             model=result.model,
             usage=result.usage,
             context_info=context.info,
+        )
+
+    def generate_ladder_exam(
+        self,
+        *,
+        user: User,
+        node_title: str,
+        node_summary: str,
+        material: str,
+        practice_items: object,
+    ) -> LadderExamAIResult:
+        context = self.context_builder.build_ladder_exam_context(
+            user=user,
+            node_title=node_title,
+            node_summary=node_summary,
+            material=material,
+            practice_items=practice_items,
+        )
+        prompt = self.prompt_renderer.render(
+            template_key="ladder_exam_generation",
+            values=context.values,
+        )
+        started = perf_counter()
+        provider_result = self._call_provider(
+            prompt=prompt,
+            prompt_type="ladder_exam_generation",
+            started=started,
+            user=user,
+        )
+        try:
+            parsed = LadderExamPayload.model_validate(json.loads(_strip_json_fence(provider_result.content)))
+        except (json.JSONDecodeError, ValidationError) as exc:
+            self._log_call(
+                user=user,
+                model=provider_result.model,
+                prompt_type="ladder_exam_generation",
+                input_tokens=provider_result.usage.input_tokens,
+                output_tokens=provider_result.usage.output_tokens,
+                latency_ms=round((perf_counter() - started) * 1000),
+                success=False,
+                error_code="AI_OUTPUT_PARSE_ERROR",
+                error_message="Ai Output Parse Error",
+            )
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "code": "LADDER_EXAM_GENERATION_FAILED",
+                    "message": "AI generated exam could not be parsed",
+                },
+            ) from exc
+        self._log_call(
+            user=user,
+            model=provider_result.model,
+            prompt_type="ladder_exam_generation",
+            input_tokens=provider_result.usage.input_tokens,
+            output_tokens=provider_result.usage.output_tokens,
+            latency_ms=round((perf_counter() - started) * 1000),
+            success=True,
+        )
+        return LadderExamAIResult(
+            payload=parsed,
+            model=provider_result.model,
+            usage=AIUsage(
+                input_tokens=provider_result.usage.input_tokens,
+                output_tokens=provider_result.usage.output_tokens,
+            ),
         )
 
     def _complete(self, *, user: User, prompt: str, prompt_type: str) -> AIResponseData:

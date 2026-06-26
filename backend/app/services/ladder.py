@@ -250,7 +250,7 @@ def _is_unlocked(node: LearningPathNode, nodes: list[LearningPathNode], progress
     if previous is None:
         return False
     previous_progress = progress_by_node.get(previous.id)
-    return bool(previous_progress and previous_progress.material_completed)
+    return bool(previous_progress and previous_progress.exam_passed)
 
 
 def _node_status(

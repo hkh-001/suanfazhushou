@@ -203,6 +203,45 @@ Expected structure:
 5. similar future warning signs
 6. review suggestion
 
+### ladder_exam_generation
+
+Purpose:
+
+- Generate a bounded node exam for the current learning ladder node.
+- Produce questions only; scoring is always deterministic backend logic.
+
+Template variables:
+
+- `user_profile`
+- `node_title`
+- `node_summary`
+- `material_excerpt`
+- `practice_summary`
+- `difficulty_level`
+
+Required output:
+
+- JSON only.
+- Exactly 12 questions:
+  - 10 `single_choice` questions worth 6 points each
+  - 2 `code_reading` questions worth 20 points each
+- Each question has a unique `id`, `type`, `prompt`, exactly 4 options, `correct_option_id`, and Chinese `explanation`.
+- `correct_option_id` must match one of the option ids.
+
+Safety and boundary rules:
+
+- The AI only generates exam content and does not score submissions.
+- Code-related questions must be code reading or code completion multiple-choice questions.
+- Do not ask users to execute code, upload files, use network access, or rely on Judge/OJ behavior.
+- Do not include hidden tests, private problem data, or any content copied from third-party sources.
+- `ai_call_logs` stores only metadata, not full prompts, generated exam JSON, or answer keys.
+
+Runtime behavior:
+
+- `scripts/seed_prompt_templates.py` syncs `ladder_exam_generation.md` into `prompt_templates`.
+- The backend strips a simple outer Markdown JSON code fence before parsing, but invalid JSON or invalid schema is rejected.
+- Invalid AI output returns `LADDER_EXAM_GENERATION_FAILED` and does not save a `ladder_exam_attempts` row.
+
 ## Teaching Modes
 
 Supported modes:

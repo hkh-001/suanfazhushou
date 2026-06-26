@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 16: Admin Role And Public Problem Bank.
+The project is currently in Post-MVP Phase 17: AI Ladder Exam And Unlock Flow.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -39,7 +39,7 @@ This repository currently contains:
 - Dashboard page with learning progress, review queue, and rule-based next steps
 - local-only runtime AI settings page and API guarded by `ENABLE_RUNTIME_AI_SETTINGS`
 - student-account auth with register, login, logout, current user, HttpOnly Cookie, JWT, and initial learning profile
-- learning ladder foundation with seeded templates, per-user active paths, material reading progress, seeded node practice, and a `/ladder` page
+- learning ladder foundation with seeded templates, per-user active paths, material reading progress, seeded node practice, AI-generated node exams, deterministic backend scoring, and a `/ladder` page
 - personal problem bank with manual create, list, edit, delete, topic association, and admin-managed public problems
 
 It does not yet contain:
@@ -71,7 +71,7 @@ Planned future structure:
 └─ docker-compose.yml
 ```
 
-`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions, Phase 12 adding rule-based Dashboard weakness recommendations, Phase 13 adding student profiles, Phase 14 adding the first learning ladder foundation, Phase 15 adding seeded ladder practice progress, and Phase 16 adding a minimal admin role plus public problem bank.
+`frontend/`, `backend/`, `judge/`, and `docker-compose.yml` contain the isolated judging loop, with Phase 11 adding user-triggered AI explanations for persisted failed submissions, Phase 12 adding rule-based Dashboard weakness recommendations, Phase 13 adding student profiles, Phase 14 adding the first learning ladder foundation, Phase 15 adding seeded ladder practice progress, Phase 16 adding a minimal admin role plus public problem bank, and Phase 17 adding AI ladder exams with deterministic backend scoring.
 
 ## MVP v0.1 Focus
 
@@ -333,16 +333,19 @@ Student account auth notes:
 - `SECRET_KEY=change-me-in-production-32-bytes-long!!` is for local development only. Production must use a unique strong secret of at least 32 bytes.
 - Phase 13 does not implement RBAC, OAuth, refresh tokens, password reset, classroom/teacher systems, ZIP import, judging, OJ, or RAG.
 
-Phase 14-15 ladder APIs:
+Phase 14-17 ladder APIs:
 
 ```text
 GET /api/ladder
 GET /api/ladder/nodes/{id}
 POST /api/ladder/nodes/{id}/material-complete
 POST /api/ladder/nodes/{id}/practice-submit
+POST /api/ladder/nodes/{id}/exam-generate
+GET /api/ladder/exams/{id}
+POST /api/ladder/exams/{id}/submit
 ```
 
-Phase 14-15 ladder notes:
+Phase 14-17 ladder notes:
 
 - `/api/ladder` creates or returns one active path for the current user based on `goal_track` and `current_level`.
 - Ladder content comes from seeded database templates in `ladder_templates`.
@@ -350,20 +353,23 @@ Phase 14-15 ladder notes:
 - Already generated paths do not automatically receive updated practice content when templates change.
 - Path generation creates `learning_path_nodes` and `node_user_progress` rows for the current user.
 - Node status is computed by the API; `node_user_progress` does not store a status string.
-- The first node is unlocked by default. Completing node N's material unlocks node N+1.
-- `practice_completed` is updated only after seeded practice passes; `exam_passed` remains reserved for Phase 17.
+- Phase 17 unlock rule: the first node is unlocked by default, and node N+1 unlocks only after node N has `exam_passed=true`.
+- `material_completed` only means the learning material was read.
+- `practice_completed` is updated only after seeded practice passes.
+- `exam_passed` is updated only after a generated exam is submitted and scored at least 80.
 - Choice practice is scored by the backend with an 80-point threshold.
 - Coding practice is self-check only and is not executed, submitted, judged, or sent to AI.
-- Phase 15 does not implement AI exams, Judge integration, submissions, RAG, classroom/teacher features, or leaderboards.
+- Phase 17 AI only generates exam questions. It does not judge answers, run code, call Judge, create submissions, use RAG, create leaderboards, or add classroom/teacher features.
+- Exam code-related questions are code reading or code completion multiple-choice questions.
 - External learning links are displayed only; the backend does not crawl, copy, or execute external content.
 
-Phase 14-15 frontend page:
+Phase 14-17 frontend page:
 
 ```text
 /ladder
 ```
 
-The `/ladder` page shows material reading and node practice in the same node detail view.
+The `/ladder` page shows material reading, node practice, and node exam sections in the same node detail view.
 
 Phase 6-9 problem bank APIs:
 
@@ -569,10 +575,10 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 16 Admin Role And Public Problem Bank.
+Current: Post-MVP Phase 17 AI Ladder Exam And Unlock Flow.
 
-Next: Phase 17 AI Ladder Exam And Unlock Flow.
+Next: Phase 18 Profile-Aware AI Context And Recommendation Integration.
 
-Later: AI ladder exams, profile-aware AI context integration, RAG, and production hardening.
+Later: RAG and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

@@ -283,7 +283,7 @@ Dashboard API
 - Recommendations are scoped to the current user and remain explainable through visible signals.
 - Existing `review_queue` and `next_steps` remain learning-record/path recommendations; Phase 12 `recommendation_actions` add mistake/submission-driven actions.
 
-## Phase 14-15 Learning Ladder Architecture
+## Phase 14-17 Learning Ladder Architecture
 
 ```text
 Student profile
@@ -291,6 +291,8 @@ Student profile
 -> Active learning path
 -> Expanded path nodes
 -> Seeded practice items copied into nodes
+-> AI-generated exam attempt
+-> Deterministic backend scoring
 -> Node progress booleans
 -> /ladder page
 ```
@@ -300,14 +302,18 @@ Student profile
 - A path expands template nodes into `learning_path_nodes` and creates `node_user_progress` rows for that user.
 - Phase 15 copies seeded `practice_items` into `learning_path_nodes` during path creation; existing paths do not automatically update when templates change.
 - Node status is computed in the ladder service instead of stored as a `status` column.
-- The first node is unlocked by default; completing node N's material unlocks node N+1.
+- The first node is unlocked by default.
+- Phase 17 changes the unlock rule: node N+1 unlocks only after node N has `exam_passed=true`.
 - Phase 14 updates `material_completed`; Phase 15 updates `practice_completed`.
-- `practice_completed` does not affect unlock rules; it only changes the current node status display.
+- `material_completed` and `practice_completed` are prerequisites for generating the Phase 17 node exam.
 - Choice practice is scored synchronously by the ladder service.
 - Coding practice is self-check only and never reaches the Judge, submission service, AI Provider, or code execution path.
 - No practice attempt history is stored in Phase 15.
-- `exam_passed` is reserved for Phase 17.
-- Phase 15 does not call AI Provider, Judge, RetrievalService, RAG, recommendation services, or submission creation.
+- Phase 17 stores AI-generated exams in `ladder_exam_attempts`; unsubmitted attempts are reused.
+- AI only generates exam questions. The backend validates the JSON payload and scores submitted answers from the stored answer key.
+- Phase 17 code questions are code reading or code completion multiple-choice questions, not executable programs.
+- Passing an exam at 80 or above sets `exam_passed=true` and unlocks the next node.
+- Ladder exams do not call Judge, create submissions, run user code, use RetrievalService/RAG, or call recommendation services.
 - External resource links are displayed only and are not fetched or copied by the backend.
 
 Future RAG shape:

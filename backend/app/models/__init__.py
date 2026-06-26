@@ -1,5 +1,6 @@
 from app.models.learning_record import LearningRecord
 from app.models.ladder import LadderTemplate, LearningPath, LearningPathNode, NodeUserProgress
+from app.models.ladder_exam import LadderExamAttempt
 from app.models.code_review import CodeReview
 from app.models.mistake_note import MistakeNote
 from app.models.problem import Problem, ProblemTag, UserProblemCounter
@@ -15,6 +16,7 @@ __all__ = [
     "CodeReview",
     "LearningRecord",
     "LadderTemplate",
+    "LadderExamAttempt",
     "LearningPath",
     "LearningPathNode",
     "MistakeNote",

@@ -90,3 +90,62 @@ export type LadderPracticeSubmitResult = {
   choice_results: LadderChoiceResult[];
   ladder: LadderSummary;
 };
+
+export type LadderExamQuestionType = "single_choice" | "code_reading";
+export type LadderExamAttemptStatus = "generated" | "submitted";
+
+export type LadderExamOption = {
+  id: string;
+  text: string;
+};
+
+export type LadderExamQuestion = {
+  id: string;
+  type: LadderExamQuestionType;
+  prompt: string;
+  options: LadderExamOption[];
+  explanation: string | null;
+  correct_option_id: string | null;
+};
+
+export type LadderExamAnswer = {
+  question_id: string;
+  option_id: string;
+};
+
+export type LadderExamQuestionResult = {
+  question_id: string;
+  selected_option_id: string | null;
+  correct_option_id: string;
+  correct: boolean;
+  points: number;
+  explanation: string;
+};
+
+export type LadderExamAttempt = {
+  id: string;
+  node_id: string;
+  status: LadderExamAttemptStatus;
+  questions: LadderExamQuestion[];
+  score: number | null;
+  passed: boolean;
+  submitted_answers: LadderExamAnswer[] | null;
+  results: LadderExamQuestionResult[] | null;
+  created_at: string;
+  submitted_at: string | null;
+};
+
+export type LadderExamGenerationResult = {
+  attempt: LadderExamAttempt;
+};
+
+export type LadderExamSubmitPayload = {
+  answers: LadderExamAnswer[];
+};
+
+export type LadderExamSubmitResult = {
+  attempt: LadderExamAttempt;
+  score: number;
+  passed: boolean;
+  ladder: LadderSummary;
+};

@@ -84,6 +84,33 @@ TEMPLATES = [
         },
         "output_schema_json": None,
     },
+    {
+        "name": "Ladder Exam Generation",
+        "type": "ladder_exam_generation",
+        "version": 1,
+        "template_key": "ladder_exam_generation",
+        "file_path": "ladder_exam_generation.md",
+        "input_schema_json": {
+            "user_profile": "string",
+            "node_title": "string",
+            "node_summary": "string",
+            "material_excerpt": "string",
+            "practice_summary": "string",
+            "difficulty_level": "string",
+        },
+        "output_schema_json": {
+            "questions": [
+                {
+                    "id": "string",
+                    "type": "single_choice | code_reading",
+                    "prompt": "string",
+                    "options": [{"id": "string", "text": "string"}],
+                    "correct_option_id": "string",
+                    "explanation": "string",
+                }
+            ]
+        },
+    },
 ]
 
 
