@@ -329,7 +329,7 @@ Student profile
 - External resource links are displayed only and are not fetched or copied by the backend.
 - Phase 18 allows Dashboard links to target `/ladder?node_id=...`; the ladder page validates the node against the current user's summary and falls back safely.
 
-Future OpenMAIC shape:
+OpenMAIC interactive lesson shape:
 
 ```text
 Frontend topic/ladder action
@@ -344,7 +344,10 @@ OpenMAIC integration boundaries:
 - OpenMAIC starts as an optional feature-flagged external service, not copied into the main frontend.
 - The frontend should call AlgoMentor backend APIs, not OpenMAIC directly.
 - Phase 19A exposes only admin-only `/api/openmaic/poc/*` validation endpoints and does not create user-facing lesson pages.
+- Phase 19B adds topic-level `interactive_lessons` records for job/status/classroom URL metadata and exposes only backend lesson APIs to the frontend.
 - The backend must not send student ids, full source code, hidden tests, exam answer keys, full exam payloads, or full learning history to OpenMAIC.
+- Topic lessons send only bounded topic context plus current profile level and goal track.
+- OpenMAIC `unknown` statuses are kept as backend `processing`, and raw upstream errors are replaced with fixed safe messages before storage.
 - OpenMAIC provider keys, access codes, and service URLs stay backend-side or in the OpenMAIC service environment.
 - Topic and ladder lesson generation must be explicit user actions and should tolerate OpenMAIC timeouts/failures without affecting core learning flows.
 

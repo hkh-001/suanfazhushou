@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models.ai_call_log import AICallLog
 from app.models.code_review import CodeReview
+from app.models.interactive_lesson import InteractiveLesson
 from app.models.ladder import LadderTemplate, LearningPath, LearningPathNode, NodeUserProgress
 from app.models.learning_record import LearningRecord
 from app.models.mistake_note import MistakeNote
@@ -35,6 +36,7 @@ def reset_runtime_ai_settings(request: pytest.FixtureRequest) -> Generator[None,
         db_session.execute(delete(LearningPathNode))
         db_session.execute(delete(LearningPath))
         db_session.execute(delete(LadderTemplate))
+        db_session.execute(delete(InteractiveLesson))
         db_session.execute(delete(MistakeNote))
         db_session.execute(delete(CodeReview))
         db_session.execute(delete(AICallLog))
@@ -88,6 +90,7 @@ def dev_user(db_session: Session) -> Generator[User, None, None]:
     db_session.execute(delete(LearningRecord).where(LearningRecord.user_id == dev_user_id))
     db_session.execute(delete(Problem).where(Problem.created_by_user_id == dev_user_id))
     db_session.execute(delete(Submission).where(Submission.user_id == dev_user_id))
+    db_session.execute(delete(InteractiveLesson).where(InteractiveLesson.user_id == dev_user_id))
     db_session.execute(delete(NodeUserProgress).where(NodeUserProgress.user_id == dev_user_id))
     db_session.execute(delete(LearningPath).where(LearningPath.user_id == dev_user_id))
     db_session.execute(delete(UserProblemCounter).where(UserProblemCounter.user_id == dev_user_id))

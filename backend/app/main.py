@@ -6,6 +6,7 @@ from app.api.health import router as health_router
 from app.api.ai import router as ai_router
 from app.api.auth import router as auth_router
 from app.api.code_reviews import router as code_reviews_router
+from app.api.interactive_lessons import router as interactive_lessons_router
 from app.api.ladder import router as ladder_router
 from app.api.learning import router as learning_router
 from app.api.mistakes import router as mistakes_router
@@ -41,3 +42,4 @@ app.include_router(mistakes_router, prefix="/api")
 app.include_router(submissions_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(openmaic_router, prefix="/api")
+app.include_router(interactive_lessons_router, prefix="/api")

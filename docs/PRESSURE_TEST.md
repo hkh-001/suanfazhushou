@@ -840,6 +840,9 @@ Questions:
 - Are OpenMAIC timeouts and generation failures reported as safe user-facing errors?
 - Does topic or ladder lesson generation remain an explicit user action?
 - Can OpenMAIC API or response-shape changes be isolated inside the adapter layer?
+- Do topic lesson records store only job/status/url metadata, not full classroom artifacts?
+- Are OpenMAIC `unknown` statuses normalized to `processing` before database storage?
+- Are stored lesson errors fixed safe backend messages rather than raw upstream error text?
 
 Pass criteria:
 
@@ -847,8 +850,10 @@ Pass criteria:
 - The first OpenMAIC phase proves service startup and server-to-server generation with fake/client tests where practical.
 - Normal users receive `ADMIN_REQUIRED` for POC endpoints.
 - Topic and ladder lesson prompts use bounded summaries only.
+- Topic lesson polling goes through `/api/interactive-lessons/{id}/refresh` and performs a single backend poll, not frontend-to-OpenMAIC calls.
 - Frontend does not call OpenMAIC directly.
 - No OpenMAIC secret appears in committed files, logs, screenshots, API responses, or browser storage.
+- Phase 19B documents POC tradeoffs: async endpoints still use the existing synchronous SQLAlchemy session, completed lessons are reused by default, and stale `pending` rows after process crash require later cleanup policy.
 
 Risk signals:
 

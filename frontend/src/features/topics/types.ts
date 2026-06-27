@@ -46,6 +46,26 @@ export type TopicResponse = {
   data: TopicDetail;
 };
 
+export type InteractiveLessonStatus = "pending" | "submitted" | "processing" | "completed" | "failed";
+
+export type InteractiveLesson = {
+  id: string;
+  topic_id: string;
+  provider: "openmaic";
+  status: InteractiveLessonStatus;
+  title: string;
+  classroom_url: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
+
+export type InteractiveLessonResponse = {
+  data: InteractiveLesson;
+};
+
 export type LearningRecordPayload = {
   topic_id: string;
   status: "not_started" | "learning" | "mastered";

@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 18: Profile-Aware AI Context And Recommendation Integration.
+The project is currently in Post-MVP Phase 19B: Topic Interactive Lessons With OpenMAIC.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -546,6 +546,20 @@ GET /api/openmaic/poc/jobs/{job_id}
 
 - Phase 19A does not add a frontend entry, does not save lesson records, and does not change ladder progress.
 
+Topic interactive lessons:
+
+- Phase 19B adds a user-facing topic detail action that creates lightweight `interactive_lessons` records and calls OpenMAIC through the backend adapter.
+- Users trigger generation explicitly from `/topics/{id}`. The frontend polls AlgoMentor backend endpoints and never calls OpenMAIC directly.
+- The backend sends only a bounded topic summary/content excerpt plus the user's profile level and goal track. It does not send student ids, full learning history, code, hidden tests, private notes, ladder exam payloads, or answer keys.
+- Lesson records store only status, OpenMAIC job metadata, classroom URL, and fixed safe error messages. Full classroom artifacts are not stored in AlgoMentor.
+- Completed lessons open in a new tab. The app does not use iframes, does not write OpenMAIC output back to the knowledge base, and does not change learning records or ladder progress.
+
+```text
+POST /api/topics/{topic_id}/interactive-lessons
+GET /api/interactive-lessons/{lesson_id}
+POST /api/interactive-lessons/{lesson_id}/refresh
+```
+
 ## Testing
 
 Backend:
@@ -602,7 +616,7 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 18 Profile-Aware AI Context And Recommendation Integration.
+Current: Post-MVP Phase 19B Topic Interactive Lessons With OpenMAIC.
 
 Next: Phase 19A OpenMAIC External Service POC.
 

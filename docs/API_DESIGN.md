@@ -515,6 +515,63 @@ Errors:
 - `OPENMAIC_JOB_NOT_FOUND`
 - inherited auth errors
 
+## Phase 19B Interactive Lesson APIs
+
+Phase 19B adds user-triggered topic interactive lessons through the backend OpenMAIC adapter.
+
+```text
+POST /api/topics/{topic_id}/interactive-lessons
+GET /api/interactive-lessons/{lesson_id}
+POST /api/interactive-lessons/{lesson_id}/refresh
+```
+
+Rules:
+
+- All endpoints require `get_current_user`.
+- `topic_id` must point to a `published` topic; missing or unpublished topics return `TOPIC_NOT_FOUND`.
+- `POST /api/topics/{topic_id}/interactive-lessons` is an explicit user action and never runs automatically.
+- If the same user already has a recent `submitted`, `processing`, or `completed` lesson for the same topic, the backend returns that lesson instead of calling OpenMAIC again.
+- `failed` lessons are not reused; users may retry generation.
+- The frontend calls only AlgoMentor APIs and never calls OpenMAIC directly.
+- The backend sends only topic title/category/level/summary/content excerpt plus current profile level and goal track.
+- The backend does not send student id, full learning history, code, submissions, hidden tests, private notes, ladder exam payloads, or answer keys.
+- `refresh` performs a single OpenMAIC poll and does not long-poll.
+- OpenMAIC `unknown` status is returned and stored as `processing`.
+- `completed` requires a classroom URL; otherwise the lesson remains `processing` or becomes `failed`.
+
+Response:
+
+```json
+{
+  "data": {
+    "id": "uuid",
+    "topic_id": "uuid",
+    "provider": "openmaic",
+    "status": "processing",
+    "title": "双指针互动课堂",
+    "classroom_url": null,
+    "error_code": null,
+    "error_message": null,
+    "created_at": "2026-06-27T00:00:00Z",
+    "updated_at": "2026-06-27T00:00:00Z",
+    "completed_at": null
+  }
+}
+```
+
+Errors:
+
+- `INTERACTIVE_LESSON_NOT_FOUND`
+- `INTERACTIVE_LESSON_GENERATION_FAILED`
+- `FEATURE_DISABLED`
+- `OPENMAIC_CONFIG_MISSING`
+- `OPENMAIC_TIMEOUT`
+- `OPENMAIC_UNAVAILABLE`
+- `OPENMAIC_INVALID_RESPONSE`
+- `OPENMAIC_JOB_NOT_FOUND`
+- `TOPIC_NOT_FOUND`
+- inherited auth errors
+
 ## Post-MVP Planned APIs
 
 Planning boundaries:

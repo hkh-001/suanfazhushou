@@ -2,16 +2,31 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { ApiError } from "@/lib/api/client";
 import { isAuthRequiredError } from "@/features/auth/hooks";
-import { fetchTopic, fetchTopics, updateLearningRecord } from "./api";
-import type { LearningRecordPayload, PaginatedTopics, TopicDetail } from "./types";
+import { ApiError } from "@/lib/api/client";
+
+import {
+  createInteractiveLesson,
+  fetchInteractiveLesson,
+  fetchTopic,
+  fetchTopics,
+  refreshInteractiveLesson,
+  updateLearningRecord
+} from "./api";
+import type { InteractiveLesson, LearningRecordPayload, PaginatedTopics, TopicDetail } from "./types";
 
 function getErrorMessage(error: unknown): string {
   if (isAuthRequiredError(error)) {
     return "请先登录后继续使用。";
   }
   if (error instanceof ApiError) {
+    if (
+      ["FEATURE_DISABLED", "OPENMAIC_CONFIG_MISSING", "OPENMAIC_UNAVAILABLE", "OPENMAIC_TIMEOUT"].includes(
+        error.code
+      )
+    ) {
+      return "互动课堂服务暂未启用或暂不可用，请稍后再试。";
+    }
     return error.message;
   }
   if (error instanceof Error) {
@@ -101,4 +116,54 @@ export function useUpdateLearningRecord() {
   }, []);
 
   return { update, loading, error, success };
+}
+
+export function useInteractiveLesson() {
+  const [lesson, setLesson] = useState<InteractiveLesson | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const generate = useCallback(async (topicId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await createInteractiveLesson(topicId);
+      setLesson(result.data);
+      return result.data;
+    } catch (err) {
+      setError(getErrorMessage(err));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const refresh = useCallback(async (lessonId: string) => {
+    setError(null);
+    try {
+      const result = await refreshInteractiveLesson(lessonId);
+      setLesson(result.data);
+      return result.data;
+    } catch (err) {
+      setError(getErrorMessage(err));
+      return null;
+    }
+  }, []);
+
+  const load = useCallback(async (lessonId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchInteractiveLesson(lessonId);
+      setLesson(result.data);
+      return result.data;
+    } catch (err) {
+      setError(getErrorMessage(err));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { lesson, loading, error, generate, refresh, load, setLesson };
 }

@@ -651,6 +651,8 @@ high
 
 ## Phase 19B: Topic Interactive Lessons With OpenMAIC
 
+Status: implemented as a user-triggered topic lesson flow backed by `interactive_lessons` job/status/url records.
+
 ### Goal
 
 Expose a user-triggered interactive lesson flow for knowledge topics using OpenMAIC as an external classroom generator.
@@ -667,6 +669,7 @@ Expose a user-triggered interactive lesson flow for knowledge topics using OpenM
 - Store lightweight lesson records, such as status, source topic, provider, external job id, and external URL, so users can track generation status and reopen classrooms
 - Poll generation status through AlgoMentor backend rather than directly from the frontend to OpenMAIC
 - Open generated classrooms in a new tab or controlled route after generation completes
+- Store OpenMAIC `unknown` status as `processing` and persist only fixed safe error messages, not raw upstream responses
 
 ### Not Included
 
