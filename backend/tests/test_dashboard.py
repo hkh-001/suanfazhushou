@@ -443,7 +443,7 @@ def test_dashboard_review_queue_rules(client, db_session, dev_user) -> None:
     assert str(not_started_topic.id) not in review_ids
     assert str(mastered_topic.id) not in review_ids
     assert next(item for item in review_queue if item["topic_id"] == str(learning_topic.id))["reason"] == (
-        "Learning topic needs another review"
+        "学习中的知识点需要再次复习"
     )
 
 
@@ -492,7 +492,7 @@ def test_dashboard_next_steps_fallbacks_to_non_mastered_when_all_topics_started(
     ]
     assert category_steps[0]["topic_id"] == str(low_mastery_topic.id)
     assert category_steps[0]["rank"] == 1
-    assert category_steps[0]["reason"] == "Continue a topic that is not mastered yet"
+    assert category_steps[0]["reason"] == "继续推进尚未掌握的知识点"
 
 
 def test_dashboard_next_steps_empty_when_all_topics_mastered(client, db_session, dev_user) -> None:

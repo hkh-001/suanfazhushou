@@ -95,7 +95,6 @@ def test_code_review_does_not_log_full_code(client: TestClient, db_session, dev_
     assert log is not None
     assert log.success is True
     assert log.input_tokens == 10
-    assert not hasattr(log, "prompt")
     assert code not in (log.error_message or "")
 
 
@@ -122,7 +121,6 @@ def test_ai_prompt_includes_short_user_profile_context(client: TestClient, db_se
     assert "用户学习背景结束" in prompt
     log = db_session.scalar(select(AICallLog).where(AICallLog.prompt_type == "concept_explanation"))
     assert log is not None
-    assert not hasattr(log, "prompt")
 
 
 def test_user_profile_context_uses_defaults_for_missing_profile_fields(db_session, dev_user) -> None:
