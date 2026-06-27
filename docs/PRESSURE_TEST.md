@@ -827,7 +827,36 @@ Risk signals:
 - Failed or passed exams create submissions or call Judge.
 - Phase 17 starts implementing Judge integration, executable coding exams, submissions, RAG, or complex adaptive curriculum.
 
-## 3.8 RAG Pressure Test
+## 3.8 OpenMAIC External Classroom Pressure Test
+
+Questions:
+
+- Can OpenMAIC run as an optional external service without breaking frontend, backend, postgres, redis, or Judge startup?
+- Does AlgoMentor call OpenMAIC only through a backend adapter?
+- Is the OpenMAIC integration fully disabled when `ENABLE_OPENMAIC_INTEGRATION=false`?
+- Are OpenMAIC provider keys, access codes, and service URLs kept out of frontend responses and browser storage?
+- Does the backend avoid sending student ids, full source code, hidden test data, exam answer keys, full exam payloads, and full learning history to OpenMAIC?
+- Are OpenMAIC timeouts and generation failures reported as safe user-facing errors?
+- Does topic or ladder lesson generation remain an explicit user action?
+- Can OpenMAIC API or response-shape changes be isolated inside the adapter layer?
+
+Pass criteria:
+
+- Existing AI, Judge, ladder, Dashboard, and problem-bank flows still work when OpenMAIC is disabled.
+- The first OpenMAIC phase proves service startup and server-to-server generation with fake/client tests where practical.
+- Topic and ladder lesson prompts use bounded summaries only.
+- Frontend does not call OpenMAIC directly.
+- No OpenMAIC secret appears in committed files, logs, screenshots, API responses, or browser storage.
+
+Risk signals:
+
+- OpenMAIC code is copied into the main frontend before the POC proves the boundary.
+- OpenMAIC output is written back into the knowledge base automatically.
+- Classroom generation changes `material_completed`, `practice_completed`, or `exam_passed`.
+- OpenMAIC receives full code, hidden tests, exam answers, or sensitive user identifiers.
+- OpenMAIC failure blocks normal topic, ladder, Dashboard, AI, or Judge APIs.
+
+## 3.9 RAG Pressure Test
 
 Questions:
 

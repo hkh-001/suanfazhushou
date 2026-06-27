@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 17: AI Ladder Exam And Unlock Flow.
+The project is currently in Post-MVP Phase 18: Profile-Aware AI Context And Recommendation Integration.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -114,8 +114,11 @@ Post-MVP roadmap:
 - Phase 16: Admin Role And Public Problem Bank
 - Phase 17: AI Ladder Exam And Unlock Flow
 - Phase 18: Profile-Aware AI Context And Recommendation Integration
-- Phase 19: RAG Knowledge Retrieval
-- Phase 20: Deployment, Security, Permissions, Production Hardening
+- Phase 19A: OpenMAIC External Service POC
+- Phase 19B: Topic Interactive Lessons With OpenMAIC
+- Phase 19C: Ladder Node Interactive Lessons With OpenMAIC
+- Phase 20: RAG Knowledge Retrieval
+- Phase 21: Deployment, Security, Permissions, Production Hardening
 
 ## Planned Engineering Standards
 
@@ -577,8 +580,8 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 Current: Post-MVP Phase 18 Profile-Aware AI Context And Recommendation Integration.
 
-Next: Phase 19 RAG Knowledge Retrieval.
+Next: Phase 19A OpenMAIC External Service POC.
 
-Later: RAG and production hardening.
+Later: OpenMAIC topic/ladder interactive lessons, RAG, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

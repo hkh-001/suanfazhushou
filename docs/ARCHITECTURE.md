@@ -222,6 +222,8 @@ Problem Bank -> ZIP Import -> Test Cases -> Judging
 Judging -> Failed Submission -> AI Diagnosis
 Mistake Notebook -> Weakness Analysis -> Recommendation
 Student Profile -> Ladder Templates -> Ladder Progress -> Ladder Exams
+Profile + Ladder Progress -> OpenMAIC Interactive Classroom POC
+OpenMAIC POC -> Topic/Ladder Interactive Lessons
 Content Scale -> RAG
 ```
 
@@ -234,6 +236,7 @@ Architecture boundaries:
 - Judging should be isolated as a sandbox or judge service. It must not be mixed into the normal AI code review service.
 - AI diagnosis after failed judgement should consume judge results and limited failure context. It must not replace judge verdicts.
 - Recommendation should build from owned user data such as learning records, mistakes, problems, and submissions.
+- OpenMAIC integration should use an adapter and optional external service boundary. It should not replace AIService, PromptRenderer, user auth, ladder progress rules, or backend-owned permission checks.
 - RAG should extend the existing ContextBuilder path through a RetrievalService. It should not rewrite AIService or bypass prompt template rules.
 
 ## Phase 10 Isolated Judge Architecture
@@ -325,6 +328,24 @@ Student profile
 - Ladder exams do not call Judge, create submissions, run user code, use RetrievalService/RAG, or call recommendation services.
 - External resource links are displayed only and are not fetched or copied by the backend.
 - Phase 18 allows Dashboard links to target `/ladder?node_id=...`; the ladder page validates the node against the current user's summary and falls back safely.
+
+Future OpenMAIC shape:
+
+```text
+Frontend topic/ladder action
+-> Backend interactive lesson API
+-> OpenMAIC Adapter
+-> External OpenMAIC service
+-> Stored lesson job/status/url metadata
+```
+
+OpenMAIC integration boundaries:
+
+- OpenMAIC starts as an optional feature-flagged external service, not copied into the main frontend.
+- The frontend should call AlgoMentor backend APIs, not OpenMAIC directly.
+- The backend must not send student ids, full source code, hidden tests, exam answer keys, full exam payloads, or full learning history to OpenMAIC.
+- OpenMAIC provider keys, access codes, and service URLs stay backend-side or in the OpenMAIC service environment.
+- Topic and ladder lesson generation must be explicit user actions and should tolerate OpenMAIC timeouts/failures without affecting core learning flows.
 
 Future RAG shape:
 

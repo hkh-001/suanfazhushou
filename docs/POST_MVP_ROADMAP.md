@@ -11,6 +11,8 @@ Auth -> Personal Data Ownership
 Problem Bank -> ZIP Import -> Test Cases -> Judging
 Judging -> Failed Submission -> AI Diagnosis
 Mistake Notebook -> Weakness Analysis -> Recommendation
+Profile + Ladder Progress -> OpenMAIC Interactive Classroom POC
+OpenMAIC POC -> Topic/Ladder Interactive Lessons
 Content Scale -> RAG
 ```
 
@@ -21,6 +23,7 @@ Key ordering rules:
 - ZIP import should happen before complete judging, because test cases need a safe import and validation model.
 - Judging must be planned as its own safety-critical system.
 - AI diagnosis after failed judgement should be added only after judging is stable.
+- OpenMAIC work should start as an optional external-service integration after profile-aware ladder context is stable. It must not replace AlgoMentor's AIService, prompt templates, user system, or ladder progress rules.
 - RAG should wait until knowledge, problem, mistake, and code diagnosis data are large enough to justify retrieval.
 
 ## Phase 5: Minimal Auth And User System
@@ -603,7 +606,124 @@ medium
 - Recommendations remain explainable and user-scoped.
 - Dashboard exposes `ladder_progress` and ladder-node recommendation actions.
 
-## Phase 19: RAG Knowledge Retrieval
+## Phase 19A: OpenMAIC External Service POC
+
+### Goal
+
+Validate whether OpenMAIC can run as an independent interactive-classroom service and be called safely from AlgoMentor AI.
+
+### Dependencies
+
+- Phase 13 student profile
+- Phase 14-18 ladder path, progress, and profile-aware context
+- Existing backend service/provider layering
+- OpenMAIC deployment and API compatibility review
+
+### Expected Features
+
+- Add an optional OpenMAIC service only for local/dev POC or controlled deployments
+- Add backend configuration such as `ENABLE_OPENMAIC_INTEGRATION`, `OPENMAIC_BASE_URL`, `OPENMAIC_REQUEST_TIMEOUT_SECONDS`, `OPENMAIC_MAX_POLL_MINUTES`, and optional server-side access code
+- Add an OpenMAIC client/adapter layer isolated from business services
+- Verify server-to-server generation of an interactive classroom from a topic or ladder-node summary
+- Keep OpenMAIC model/API-key configuration separate from AlgoMentor runtime AI settings in the first version
+- Feature flag allows the integration to be fully disabled
+
+### Not Included
+
+- Deep UI embedding
+- Replacing AlgoMentor AIService
+- Copying OpenMAIC code into the main frontend
+- Persisting full classroom artifacts
+- Sending student ids, full code, hidden tests, exam answer keys, or sensitive user content to OpenMAIC
+- RAG, classroom management, teacher workflows, or production SSO
+
+### Risk Level
+
+high
+
+### Completion Criteria
+
+- OpenMAIC can start independently without breaking existing Docker services.
+- AlgoMentor backend can call OpenMAIC through an adapter and handle timeout/failure safely.
+- Existing AI, Judge, ladder, Dashboard, and problem bank tests continue to pass.
+- The integration can be disabled entirely with a feature flag.
+- Sensitive data boundaries are documented before any user-facing rollout.
+
+## Phase 19B: Topic Interactive Lessons With OpenMAIC
+
+### Goal
+
+Expose a user-triggered interactive lesson flow for knowledge topics using OpenMAIC as an external classroom generator.
+
+### Dependencies
+
+- Phase 19A OpenMAIC POC
+- Existing topic detail pages and published-topic visibility rules
+
+### Expected Features
+
+- Add a topic-level "generate interactive lesson" action
+- Build a safe Chinese classroom requirement from topic title, summary, category, current level, and goal track
+- Store lightweight lesson records, such as status, source topic, provider, external job id, and external URL, so users can track generation status and reopen classrooms
+- Poll generation status through AlgoMentor backend rather than directly from the frontend to OpenMAIC
+- Open generated classrooms in a new tab or controlled route after generation completes
+
+### Not Included
+
+- iframe embedding as the default path
+- Automatic generation without user action
+- Classroom completion tracking
+- Writing OpenMAIC output back into the knowledge base
+- Passing full personal learning history or private notes to OpenMAIC
+
+### Risk Level
+
+high
+
+### Completion Criteria
+
+- Users can generate a lesson from a visible topic.
+- Generation is explicit and does not block normal API workers for long periods.
+- OpenMAIC failures appear as safe user-facing errors.
+- No OpenMAIC secret, access code, or provider key reaches the frontend.
+
+## Phase 19C: Ladder Node Interactive Lessons With OpenMAIC
+
+### Goal
+
+Extend interactive lessons to learning ladder nodes so users can open a classroom tailored to the current algorithm node.
+
+### Dependencies
+
+- Phase 19B topic lessons
+- Phase 18 ladder-aware AI context and `/ladder?node_id=...`
+
+### Expected Features
+
+- Add a ladder-node lesson action inside `/ladder`
+- Use current node title, summary, material excerpt, user level, goal track, and progress status as bounded context
+- Link generated lessons back to the source ladder node
+- Optionally support Dashboard recommendation links to a lesson action if the Phase 19B topic flow proves stable
+
+### Not Included
+
+- Marking `material_completed`, `practice_completed`, or `exam_passed` from OpenMAIC activity
+- Importing OpenMAIC quizzes into ladder practice or exams
+- RAG-backed lesson generation
+- Automatic classroom generation for every node
+
+### Risk Level
+
+high
+
+### Completion Criteria
+
+- A user can generate/open a classroom for an accessible ladder node.
+- The backend validates node ownership before generation.
+- Lesson prompts do not include practice answer keys, exam payloads, hidden tests, or full user history.
+- The existing ladder exam and progress rules remain unchanged.
+
+## Phase 20: RAG Knowledge Retrieval
 
 ### Goal
 
@@ -640,7 +760,7 @@ high
 - Sensitive content boundaries are documented.
 - AI service/provider contracts remain stable.
 
-## Phase 20: Deployment, Security, Permissions, Production Hardening
+## Phase 21: Deployment, Security, Permissions, Production Hardening
 
 ### Goal
 
