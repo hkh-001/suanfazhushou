@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { MarkdownContent } from "@/components/MarkdownContent";
@@ -12,17 +12,21 @@ import {
   useCompleteLadderMaterial,
   useGenerateLadderExam,
   useLadder,
+  useLadderInteractiveLesson,
   useLadderNode,
   useSubmitLadderExam,
   useSubmitLadderPractice
 } from "./hooks";
 import type {
+  InteractiveLessonStatus,
   LadderChoicePracticeItem,
   LadderCodingPracticeItem,
   LadderExamAttempt,
   LadderExamQuestionResult,
+  LadderInteractiveLesson,
   LadderNodeStatus,
   LadderNodeSummary,
+  LadderPracticeItem,
   LadderPracticeSubmitResult,
   LadderSummary
 } from "./types";
@@ -59,11 +63,23 @@ const goalTrackLabels: Record<string, string> = {
 };
 
 const levelLabels: Record<string, string> = {
-  beginner: "0 基础",
+  beginner: "零基础",
   elementary: "入门",
   popularization: "普及",
   improvement: "提高"
 };
+
+const lessonStatusLabels: Record<InteractiveLessonStatus, string> = {
+  pending: "等待提交",
+  submitted: "已提交",
+  processing: "生成中",
+  completed: "已完成",
+  failed: "生成失败"
+};
+
+const pollableLessonStatuses = new Set<InteractiveLessonStatus>(["pending", "submitted", "processing"]);
+const LESSON_POLL_INTERVAL_MS = 5000;
+const LESSON_MAX_POLL_MS = 5 * 60 * 1000;
 
 function flattenNodes(summary: LadderSummary | null): LadderNodeSummary[] {
   return summary?.phases.flatMap((phase) => phase.nodes) ?? [];
@@ -88,7 +104,7 @@ function EmptyPanel({ message }: { message: string }) {
   );
 }
 
-function splitPracticeItems(items: NonNullable<ReturnType<typeof useLadderNode>["data"]>["practice_items"]) {
+function splitPracticeItems(items: LadderPracticeItem[]) {
   return {
     choiceItems: items.filter((item): item is LadderChoicePracticeItem => item.type === "choice"),
     codingItems: items.filter((item): item is LadderCodingPracticeItem => item.type === "coding")
@@ -97,6 +113,19 @@ function splitPracticeItems(items: NonNullable<ReturnType<typeof useLadderNode>[
 
 function resultMap(attempt: LadderExamAttempt | null): Record<string, LadderExamQuestionResult> {
   return Object.fromEntries((attempt?.results ?? []).map((result) => [result.question_id, result]));
+}
+
+function LessonStatusBadge({ lesson }: { lesson: LadderInteractiveLesson | null }) {
+  if (!lesson) {
+    return null;
+  }
+  const classes =
+    lesson.status === "completed"
+      ? "bg-emerald-50 text-emerald-700"
+      : lesson.status === "failed"
+        ? "bg-red-50 text-red-700"
+        : "bg-blue-50 text-blue-700";
+  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${classes}`}>{lessonStatusLabels[lesson.status]}</span>;
 }
 
 export function LadderPage() {
@@ -108,13 +137,23 @@ export function LadderPage() {
   const { data: nodeDetail, loading: nodeLoading, error: nodeError, reload: reloadNode } = useLadderNode(selectedNodeId);
   const { complete, loading: completing, error: completeError } = useCompleteLadderMaterial();
   const { submit: submitPractice, loading: submittingPractice, error: submitPracticeError } = useSubmitLadderPractice();
-  const { generate, loading: generatingExam, error: generateExamError } = useGenerateLadderExam();
+  const { generate: generateExam, loading: generatingExam, error: generateExamError } = useGenerateLadderExam();
   const { submit: submitExam, loading: submittingExam, error: submitExamError } = useSubmitLadderExam();
+  const {
+    lesson,
+    loading: lessonLoading,
+    error: lessonError,
+    generate: generateLesson,
+    refresh: refreshLesson,
+    setLesson
+  } = useLadderInteractiveLesson();
+
   const [choiceAnswers, setChoiceAnswers] = useState<Record<string, string>>({});
   const [completedCodingIds, setCompletedCodingIds] = useState<string[]>([]);
   const [practiceResult, setPracticeResult] = useState<LadderPracticeSubmitResult | null>(null);
   const [examAttempt, setExamAttempt] = useState<LadderExamAttempt | null>(null);
   const [examAnswers, setExamAnswers] = useState<Record<string, string>>({});
+  const lessonPollStartedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!data) {
@@ -133,7 +172,27 @@ export function LadderPage() {
     setPracticeResult(null);
     setExamAttempt(null);
     setExamAnswers({});
-  }, [nodeDetail?.id]);
+    setLesson(null);
+    lessonPollStartedAtRef.current = null;
+  }, [nodeDetail?.id, setLesson]);
+
+  useEffect(() => {
+    if (!lesson || !pollableLessonStatuses.has(lesson.status)) {
+      lessonPollStartedAtRef.current = null;
+      return;
+    }
+    if (lessonPollStartedAtRef.current === null) {
+      lessonPollStartedAtRef.current = Date.now();
+    }
+    const interval = window.setInterval(() => {
+      if (!lessonPollStartedAtRef.current || Date.now() - lessonPollStartedAtRef.current > LESSON_MAX_POLL_MS) {
+        window.clearInterval(interval);
+        return;
+      }
+      void refreshLesson(lesson.id);
+    }, LESSON_POLL_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [lesson, refreshLesson]);
 
   async function handleComplete() {
     if (!selectedNodeId) {
@@ -170,7 +229,7 @@ export function LadderPage() {
       return;
     }
     try {
-      const result = await generate(selectedNodeId);
+      const result = await generateExam(selectedNodeId);
       setExamAttempt(result.attempt);
       setExamAnswers({});
     } catch {
@@ -192,6 +251,13 @@ export function LadderPage() {
     } catch {
       // The hook exposes the user-facing error message.
     }
+  }
+
+  async function handleGenerateLesson() {
+    if (!selectedNodeId) {
+      return;
+    }
+    await generateLesson(selectedNodeId);
   }
 
   function toggleCodingItem(itemId: string) {
@@ -314,10 +380,7 @@ export function LadderPage() {
                         type="button"
                       >
                         <div className="flex items-start gap-3">
-                          <span
-                            className={`mt-1 h-3 w-3 shrink-0 rounded-full ${nodeDotStyles[node.status]}`}
-                            aria-hidden="true"
-                          />
+                          <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${nodeDotStyles[node.status]}`} aria-hidden="true" />
                           <span className="min-w-0 flex-1">
                             <span className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-semibold text-[#1e3a8a]">{nodeLabel(node)}</span>
@@ -386,7 +449,7 @@ export function LadderPage() {
                               <a
                                 className="text-sm font-semibold text-[#2563eb] hover:text-[#1d4ed8]"
                                 href={link.url}
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                                 target="_blank"
                               >
                                 {link.title}
@@ -409,6 +472,69 @@ export function LadderPage() {
                       {completeError ? <span className="text-sm font-semibold text-red-700">{completeError}</span> : null}
                     </div>
                   </>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-[#dbeafe] bg-white/95 p-6 shadow-sm shadow-blue-100/60">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-semibold text-[#0f172a]">互动课堂</h3>
+                    <p className="mt-1 text-sm text-[#64748b]">
+                      由 OpenMAIC 外部服务生成当前节点的互动式课堂，不会修改资料、练习或考试进度。
+                    </p>
+                  </div>
+                  <LessonStatusBadge lesson={lesson} />
+                </div>
+                {nodeDetail.locked ? (
+                  <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    通过前置节点考试后才能生成互动课堂。
+                  </p>
+                ) : (
+                  <div className="mt-5 space-y-4">
+                    {lesson ? (
+                      <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4 text-sm text-[#475569]">
+                        <p className="font-semibold text-[#0f172a]">{lesson.title}</p>
+                        <p className="mt-2">状态：{lessonStatusLabels[lesson.status]}</p>
+                        {lesson.error_message ? <p className="mt-2 text-red-700">{lesson.error_message}</p> : null}
+                        {lesson.status === "completed" && lesson.classroom_url ? (
+                          <a
+                            className="mt-4 inline-flex rounded-md bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+                            href={lesson.classroom_url}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            打开互动课堂
+                          </a>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-[#1e3a8a]">
+                        生成请求只会发送节点标题、摘要、资料摘录和完成状态，不发送练习答案、考试内容、代码或隐藏测试。
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3">
+                      {!lesson || lesson.status === "failed" ? (
+                        <button
+                          className="rounded-md bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white outline-none hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#bfdbfe] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+                          disabled={lessonLoading}
+                          onClick={() => void handleGenerateLesson()}
+                          type="button"
+                        >
+                          {lessonLoading ? "正在提交..." : lesson?.status === "failed" ? "重新生成互动课堂" : "生成互动课堂"}
+                        </button>
+                      ) : null}
+                      {lesson && pollableLessonStatuses.has(lesson.status) ? (
+                        <button
+                          className="rounded-md border border-[#bfdbfe] bg-white px-4 py-2 text-sm font-semibold text-[#1d4ed8] outline-none hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
+                          onClick={() => void refreshLesson(lesson.id)}
+                          type="button"
+                        >
+                          刷新状态
+                        </button>
+                      ) : null}
+                      {lessonError ? <span className="text-sm font-semibold text-red-700">{lessonError}</span> : null}
+                    </div>
+                  </div>
                 )}
               </section>
 
@@ -536,7 +662,7 @@ export function LadderPage() {
                   </p>
                 ) : examPassed ? (
                   <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
-                    你已通过该节点考试，下一节点已解锁。
+                    你已通过该节点考试，下一个节点已解锁。
                   </p>
                 ) : (
                   <div className="mt-5 space-y-5">

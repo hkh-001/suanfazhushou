@@ -345,8 +345,10 @@ OpenMAIC integration boundaries:
 - The frontend should call AlgoMentor backend APIs, not OpenMAIC directly.
 - Phase 19A exposes only admin-only `/api/openmaic/poc/*` validation endpoints and does not create user-facing lesson pages.
 - Phase 19B adds topic-level `interactive_lessons` records for job/status/classroom URL metadata and exposes only backend lesson APIs to the frontend.
+- Phase 19C extends `interactive_lessons` to `source_type='ladder_node'` rows linked to `learning_path_nodes` with cascade delete.
 - The backend must not send student ids, full source code, hidden tests, exam answer keys, full exam payloads, or full learning history to OpenMAIC.
 - Topic lessons send only bounded topic context plus current profile level and goal track.
+- Ladder-node lessons send only bounded node title, summary, phase/node index, material excerpt, completion booleans, and profile level/goal track. They do not send practice answer keys or exam payloads.
 - OpenMAIC `unknown` statuses are kept as backend `processing`, and raw upstream errors are replaced with fixed safe messages before storage.
 - OpenMAIC provider keys, access codes, and service URLs stay backend-side or in the OpenMAIC service environment.
 - Topic and ladder lesson generation must be explicit user actions and should tolerate OpenMAIC timeouts/failures without affecting core learning flows.

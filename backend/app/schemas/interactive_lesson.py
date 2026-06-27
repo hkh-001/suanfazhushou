@@ -6,11 +6,14 @@ from pydantic import BaseModel
 
 
 InteractiveLessonStatus = Literal["pending", "submitted", "processing", "completed", "failed"]
+InteractiveLessonSourceType = Literal["topic", "ladder_node"]
 
 
 class InteractiveLessonDetail(BaseModel):
     id: UUID
-    topic_id: UUID
+    source_type: InteractiveLessonSourceType
+    topic_id: UUID | None
+    node_id: UUID | None
     provider: Literal["openmaic"]
     status: InteractiveLessonStatus
     title: str

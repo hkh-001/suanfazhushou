@@ -5,6 +5,7 @@ import type {
   LadderExamGenerationResult,
   LadderExamSubmitPayload,
   LadderExamSubmitResult,
+  LadderInteractiveLessonResponse,
   LadderNodeDetail,
   LadderPracticeSubmitPayload,
   LadderPracticeSubmitResult,
@@ -64,4 +65,18 @@ export async function submitLadderExam(
     body: JSON.stringify(payload)
   });
   return response.data;
+}
+
+export async function createLadderNodeInteractiveLesson(nodeId: string): Promise<LadderInteractiveLessonResponse> {
+  return apiFetch<LadderInteractiveLessonResponse>(`/ladder/nodes/${nodeId}/interactive-lessons`, {
+    method: "POST",
+    timeoutMs: 30000
+  });
+}
+
+export async function refreshLadderInteractiveLesson(lessonId: string): Promise<LadderInteractiveLessonResponse> {
+  return apiFetch<LadderInteractiveLessonResponse>(`/interactive-lessons/${lessonId}/refresh`, {
+    method: "POST",
+    timeoutMs: 30000
+  });
 }

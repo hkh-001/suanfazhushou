@@ -851,9 +851,12 @@ Pass criteria:
 - Normal users receive `ADMIN_REQUIRED` for POC endpoints.
 - Topic and ladder lesson prompts use bounded summaries only.
 - Topic lesson polling goes through `/api/interactive-lessons/{id}/refresh` and performs a single backend poll, not frontend-to-OpenMAIC calls.
+- Ladder-node lesson generation goes through `POST /api/ladder/nodes/{id}/interactive-lessons`, validates current-user active-path ownership, and rejects locked nodes.
+- Ladder-node lesson context excludes practice item raw config, answer keys, exam payloads, submissions, hidden tests, student ids, and full learning history.
+- Phase 19C downgrade is lossy for ladder-node lessons and deletes those rows before restoring the topic-only Phase 19B schema.
 - Frontend does not call OpenMAIC directly.
 - No OpenMAIC secret appears in committed files, logs, screenshots, API responses, or browser storage.
-- Phase 19B documents POC tradeoffs: async endpoints still use the existing synchronous SQLAlchemy session, completed lessons are reused by default, and stale `pending` rows after process crash require later cleanup policy.
+- Phase 19B/19C documents POC tradeoffs: async endpoints still use the existing synchronous SQLAlchemy session, completed lessons are reused by default, and stale `pending` rows after process crash require later cleanup policy.
 
 Risk signals:
 

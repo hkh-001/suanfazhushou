@@ -81,7 +81,7 @@ Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phas
 | `learning_path_nodes` | Phase 14/15 | Expanded per-path algorithm nodes and copied seeded practice items | Implemented in Post-MVP Phase 14; Phase 15 adds `practice_items` |
 | `node_user_progress` | Phase 14/15/17 | Per-user node completion booleans | Implemented in Post-MVP Phase 14; Phase 15 updates `practice_completed`; Phase 17 updates `exam_passed` |
 | `ladder_exam_attempts` | Phase 17 | AI-generated ladder exam attempts and deterministic score snapshots | Implemented in Post-MVP Phase 17 |
-| `interactive_lessons` | Phase 19B | OpenMAIC topic lesson job/status/url metadata | Implemented in Post-MVP Phase 19B |
+| `interactive_lessons` | Phase 19B-19C | OpenMAIC topic and ladder-node lesson job/status/url metadata | Implemented in Post-MVP Phase 19B and extended in Phase 19C |
 | `recommendation_logs` | Deferred after Phase 12 | Recommendation events and explanations | Phase 12 uses real-time rules and does not persist recommendation logs |
 | `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
 | `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
@@ -440,12 +440,14 @@ Notes:
 
 ## interactive_lessons
 
-Implemented in Post-MVP Phase 19B. Not part of MVP v0.1.
+Implemented in Post-MVP Phase 19B and extended in Phase 19C. Not part of MVP v0.1.
 
 ```text
 id UUID primary key
 user_id UUID references users(id) on delete cascade
-topic_id UUID references topics(id) on delete cascade
+source_type varchar(30) not null default topic
+topic_id UUID nullable references topics(id) on delete cascade
+node_id UUID nullable references learning_path_nodes(id) on delete cascade
 provider varchar(40) not null default openmaic
 status varchar(30) not null
 title varchar(160) not null
@@ -461,12 +463,16 @@ completed_at timestamptz nullable
 
 Notes:
 
+- `source_type` is `topic` or `ladder_node`.
+- `topic` rows require `topic_id` and must have `node_id=null`.
+- `ladder_node` rows require `node_id` and must have `topic_id=null`.
+- The Phase 19C downgrade deletes `source_type='ladder_node'` rows before restoring the Phase 19B topic-only schema. This is intentionally lossy.
 - `status` is `pending`, `submitted`, `processing`, `completed`, or `failed`.
 - OpenMAIC adapter status `unknown` is stored as `processing`, never as `unknown`.
 - `completed` lessons must have `openmaic_classroom_url`; otherwise the service keeps the lesson in `processing` or marks it `failed`.
 - The table stores only job/status/url metadata, not full classroom artifacts.
 - `error_code` and `error_message` use backend fixed safe values and do not store raw OpenMAIC messages, auth values, provider keys, or exceptions.
-- Lesson generation is a user-triggered action on published topics and does not change learning records, topic content, ladder progress, submissions, or AI logs.
+- Lesson generation is a user-triggered action on published topics or current-user active ladder nodes and does not change learning records, topic content, ladder progress, submissions, or AI logs.
 
 ## submissions
 

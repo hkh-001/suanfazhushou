@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.providers.ai.base import AIProvider
 from app.schemas.common import DataResponse
+from app.schemas.interactive_lesson import InteractiveLessonDetail
 from app.schemas.ladder import LadderNodeDetail, LadderPracticeSubmitRequest, LadderPracticeSubmitResult, LadderSummary
 from app.schemas.ladder_exam import (
     LadderExamAttemptDetail,
@@ -22,6 +23,7 @@ from app.services.ladder import (
     submit_ladder_node_practice,
 )
 from app.services.ladder_exams import generate_ladder_exam, get_ladder_exam, submit_ladder_exam
+from app.services.interactive_lessons import create_ladder_node_interactive_lesson
 
 router = APIRouter(prefix="/ladder", tags=["ladder"])
 
@@ -70,6 +72,15 @@ def generate_ladder_exam_endpoint(
     provider: AIProvider = Depends(get_ai_provider),
 ) -> DataResponse[LadderExamGenerationResult]:
     return DataResponse(data=generate_ladder_exam(db, user=current_user, node_id=node_id, provider=provider))
+
+
+@router.post("/nodes/{node_id}/interactive-lessons", response_model=DataResponse[InteractiveLessonDetail])
+async def create_ladder_node_interactive_lesson_endpoint(
+    node_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DataResponse[InteractiveLessonDetail]:
+    return DataResponse(data=await create_ladder_node_interactive_lesson(db, user=current_user, node_id=node_id))
 
 
 @router.get("/exams/{attempt_id}", response_model=DataResponse[LadderExamAttemptDetail])

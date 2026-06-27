@@ -692,6 +692,8 @@ high
 
 ## Phase 19C: Ladder Node Interactive Lessons With OpenMAIC
 
+Status: implemented as a user-triggered ladder-node lesson flow backed by the shared `interactive_lessons` metadata table.
+
 ### Goal
 
 Extend interactive lessons to learning ladder nodes so users can open a classroom tailored to the current algorithm node.
@@ -706,7 +708,9 @@ Extend interactive lessons to learning ladder nodes so users can open a classroo
 - Add a ladder-node lesson action inside `/ladder`
 - Use current node title, summary, material excerpt, user level, goal track, and progress status as bounded context
 - Link generated lessons back to the source ladder node
-- Optionally support Dashboard recommendation links to a lesson action if the Phase 19B topic flow proves stable
+- Store ladder-node lessons as `source_type='ladder_node'` metadata rows without storing full classroom artifacts
+- Normalize OpenMAIC `unknown` status to `processing` and store only fixed safe error messages
+- Keep Dashboard recommendation links to lesson actions deferred
 
 ### Not Included
 
@@ -714,6 +718,7 @@ Extend interactive lessons to learning ladder nodes so users can open a classroo
 - Importing OpenMAIC quizzes into ladder practice or exams
 - RAG-backed lesson generation
 - Automatic classroom generation for every node
+- Dashboard lesson recommendations
 
 ### Risk Level
 
@@ -723,6 +728,9 @@ high
 
 - A user can generate/open a classroom for an accessible ladder node.
 - The backend validates node ownership before generation.
+- Locked nodes cannot generate classrooms.
+- Classroom generation does not mutate ladder progress.
+- Ladder-node lesson downgrade is documented as lossy because the Phase 19B schema cannot represent node lessons.
 - Lesson prompts do not include practice answer keys, exam payloads, hidden tests, or full user history.
 - The existing ladder exam and progress rules remain unchanged.
 

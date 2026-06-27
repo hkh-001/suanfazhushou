@@ -50,7 +50,9 @@ export type InteractiveLessonStatus = "pending" | "submitted" | "processing" | "
 
 export type InteractiveLesson = {
   id: string;
-  topic_id: string;
+  source_type: "topic" | "ladder_node";
+  topic_id: string | null;
+  node_id: string | null;
   provider: "openmaic";
   status: InteractiveLessonStatus;
   title: string;

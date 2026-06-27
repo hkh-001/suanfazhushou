@@ -14,7 +14,19 @@ class InteractiveLesson(Base):
 
     id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    topic_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), ForeignKey("topics.id", ondelete="CASCADE"), index=True)
+    topic_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("topics.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    node_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("learning_path_nodes.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    source_type: Mapped[str] = mapped_column(String(30), default="topic")
     provider: Mapped[str] = mapped_column(String(40), default="openmaic")
     status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
     title: Mapped[str] = mapped_column(String(160))
@@ -33,3 +45,4 @@ class InteractiveLesson(Base):
 
     user = relationship("User")
     topic = relationship("Topic")
+    node = relationship("LearningPathNode")

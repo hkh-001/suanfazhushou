@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 19B: Topic Interactive Lessons With OpenMAIC.
+The project is currently in Post-MVP Phase 19C: Ladder Node Interactive Lessons With OpenMAIC.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -41,6 +41,7 @@ This repository currently contains:
 - student-account auth with register, login, logout, current user, HttpOnly Cookie, JWT, and initial learning profile
 - learning ladder foundation with seeded templates, per-user active paths, material reading progress, seeded node practice, AI-generated node exams, deterministic backend scoring, and a `/ladder` page
 - personal problem bank with manual create, list, edit, delete, topic association, and admin-managed public problems
+- OpenMAIC-backed interactive lessons for published topics and accessible learning ladder nodes
 
 It does not yet contain:
 
@@ -553,9 +554,13 @@ Topic interactive lessons:
 - The backend sends only a bounded topic summary/content excerpt plus the user's profile level and goal track. It does not send student ids, full learning history, code, hidden tests, private notes, ladder exam payloads, or answer keys.
 - Lesson records store only status, OpenMAIC job metadata, classroom URL, and fixed safe error messages. Full classroom artifacts are not stored in AlgoMentor.
 - Completed lessons open in a new tab. The app does not use iframes, does not write OpenMAIC output back to the knowledge base, and does not change learning records or ladder progress.
+- Phase 19C extends the same metadata flow to `/ladder` nodes. Ladder-node classrooms are generated only from accessible active-path nodes and use bounded node title, summary, material excerpt, completion booleans, and profile level/goal track.
+- Ladder-node classroom generation does not set `material_completed`, `practice_completed`, or `exam_passed`, and it does not import OpenMAIC quizzes into ladder practice or exams.
+- The Phase 19C downgrade is intentionally lossy for ladder-node lessons because the Phase 19B schema cannot represent them.
 
 ```text
 POST /api/topics/{topic_id}/interactive-lessons
+POST /api/ladder/nodes/{node_id}/interactive-lessons
 GET /api/interactive-lessons/{lesson_id}
 POST /api/interactive-lessons/{lesson_id}/refresh
 ```
@@ -616,10 +621,10 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 19B Topic Interactive Lessons With OpenMAIC.
+Current: Post-MVP Phase 19C Ladder Node Interactive Lessons With OpenMAIC.
 
-Next: Phase 19A OpenMAIC External Service POC.
+Next: Phase 20 RAG Knowledge Retrieval.
 
-Later: OpenMAIC topic/ladder interactive lessons, RAG, and production hardening.
+Later: RAG, classroom recommendation links, and production hardening.
 
 Phase 5 and later belong to the Post-MVP roadmap. Do not add OJ, code execution, mistake notebook, RAG, AI usage summary, or further problem-bank capabilities to MVP v0.1 without a separate phase plan.

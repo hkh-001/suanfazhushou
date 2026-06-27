@@ -149,3 +149,25 @@ export type LadderExamSubmitResult = {
   passed: boolean;
   ladder: LadderSummary;
 };
+
+export type InteractiveLessonStatus = "pending" | "submitted" | "processing" | "completed" | "failed";
+
+export type LadderInteractiveLesson = {
+  id: string;
+  source_type: "topic" | "ladder_node";
+  topic_id: string | null;
+  node_id: string | null;
+  provider: "openmaic";
+  status: InteractiveLessonStatus;
+  title: string;
+  classroom_url: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
+
+export type LadderInteractiveLessonResponse = {
+  data: LadderInteractiveLesson;
+};

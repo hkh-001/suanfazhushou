@@ -6,15 +6,18 @@ import { ApiError } from "@/lib/api/client";
 
 import {
   completeLadderNodeMaterial,
+  createLadderNodeInteractiveLesson,
   fetchLadder,
   fetchLadderNode,
   generateLadderExam,
+  refreshLadderInteractiveLesson,
   submitLadderExam,
   submitLadderNodePractice
 } from "./api";
 import type {
   LadderExamGenerationResult,
   LadderExamSubmitPayload,
+  LadderInteractiveLesson,
   LadderNodeDetail,
   LadderPracticeSubmitPayload,
   LadderSummary
@@ -32,6 +35,9 @@ function userMessage(error: unknown) {
     }
     if (error.code === "LADDER_TEMPLATE_NOT_FOUND") {
       return "暂未找到适合当前画像的学习天梯模板。";
+    }
+    if (error.code === "LADDER_NODE_NOT_FOUND") {
+      return "学习天梯节点不存在。";
     }
     if (error.code === "NODE_LOCKED") {
       return "该节点尚未解锁，请先通过前置节点考试。";
@@ -71,6 +77,16 @@ function userMessage(error: unknown) {
     }
     if (error.code === "PROMPT_TEMPLATE_NOT_FOUND") {
       return "考试生成模板尚未初始化，请先运行 prompt seed。";
+    }
+    if (
+      error.code === "FEATURE_DISABLED" ||
+      error.code === "OPENMAIC_CONFIG_MISSING" ||
+      error.code === "OPENMAIC_TIMEOUT" ||
+      error.code === "OPENMAIC_UNAVAILABLE" ||
+      error.code === "OPENMAIC_INVALID_RESPONSE" ||
+      error.code === "OPENMAIC_JOB_NOT_FOUND"
+    ) {
+      return "互动课堂服务暂未启用或暂不可用，请稍后再试。";
     }
     return error.message;
   }
@@ -213,4 +229,39 @@ export function useSubmitLadderExam() {
   }, []);
 
   return { submit, loading, error };
+}
+
+export function useLadderInteractiveLesson() {
+  const [lesson, setLesson] = useState<LadderInteractiveLesson | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const generate = useCallback(async (nodeId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await createLadderNodeInteractiveLesson(nodeId);
+      setLesson(result.data);
+      return result.data;
+    } catch (err) {
+      setError(userMessage(err));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const refresh = useCallback(async (lessonId: string) => {
+    setError(null);
+    try {
+      const result = await refreshLadderInteractiveLesson(lessonId);
+      setLesson(result.data);
+      return result.data;
+    } catch (err) {
+      setError(userMessage(err));
+      return null;
+    }
+  }, []);
+
+  return { lesson, loading, error, generate, refresh, setLesson };
 }

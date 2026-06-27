@@ -1,10 +1,14 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 from app.core.config import settings
 from app.core.security import SESSION_COOKIE_NAME, create_access_token
 from app.models.ai_call_log import AICallLog
 from app.models.interactive_lesson import InteractiveLesson
+from app.models.ladder import LearningPath, LearningPathNode, NodeUserProgress
 from app.models.learning_record import LearningRecord
 from app.models.topic import Topic
 from app.models.user import User
@@ -79,6 +83,60 @@ def _create_other_user(db_session) -> User:
     return user
 
 
+def _create_path_with_nodes(db_session, user: User, *, status: str = "active") -> tuple[LearningPath, list[LearningPathNode]]:
+    path = LearningPath(
+        user_id=user.id,
+        template_id=None,
+        goal_track=user.goal_track or "self_study",
+        current_level=user.current_level or "beginner",
+        status=status,
+    )
+    db_session.add(path)
+    db_session.flush()
+    nodes = [
+        LearningPathNode(
+            path_id=path.id,
+            phase_index=1,
+            node_index=1,
+            algorithm_key="two-pointers",
+            title="双指针",
+            summary="学习左右指针和快慢指针。",
+            material_markdown="## 双指针\n\n这里是节点资料，用来讲解左右指针和快慢指针。",
+            resource_links=[],
+            practice_items=[
+                {
+                    "id": "choice-1",
+                    "type": "choice",
+                    "prompt": "哪种场景适合双指针？",
+                    "options": [{"id": "a", "text": "有序数组"}, {"id": "b", "text": "随机猜测"}],
+                    "correct_option_id": "a",
+                    "explanation": "有序数组常见。",
+                }
+            ],
+            unlock_rule={},
+        ),
+        LearningPathNode(
+            path_id=path.id,
+            phase_index=1,
+            node_index=2,
+            algorithm_key="binary-search",
+            title="二分查找",
+            summary="学习单调性和边界。",
+            material_markdown="## 二分查找\n\n这里是第二个节点。",
+            resource_links=[],
+            practice_items=[],
+            unlock_rule={},
+        ),
+    ]
+    for node in nodes:
+        db_session.add(node)
+    db_session.flush()
+    for node in nodes:
+        db_session.add(NodeUserProgress(user_id=user.id, node_id=node.id))
+    db_session.commit()
+    return path, nodes
+
+
 def test_interactive_lesson_requires_auth(client, monkeypatch, published_topic) -> None:
     monkeypatch.setattr(settings, "enable_dev_user", False)
 
@@ -120,14 +178,16 @@ def test_interactive_lesson_requires_published_topic(client, dev_user, db_sessio
     assert response.json()["error"]["code"] == "TOPIC_NOT_FOUND"
 
 
-def test_create_interactive_lesson_saves_submitted_status(client, dev_user, monkeypatch, published_topic) -> None:
+def test_existing_topic_lesson_flow_still_works(client, dev_user, monkeypatch, published_topic) -> None:
     _enable_openmaic(monkeypatch)
 
     response = client.post(f"/api/topics/{published_topic.id}/interactive-lessons")
 
     assert response.status_code == 200
     data = response.json()["data"]
+    assert data["source_type"] == "topic"
     assert data["topic_id"] == str(published_topic.id)
+    assert data["node_id"] is None
     assert data["status"] == "submitted"
     assert data["classroom_url"] is None
     assert data["error_code"] is None
@@ -199,11 +259,12 @@ def test_generate_failure_keeps_failed_lesson_with_safe_message(
     assert "secret" not in lesson.error_message
 
 
-def test_reuses_recent_active_lesson(client, dev_user, db_session, monkeypatch, published_topic) -> None:
+def test_reuses_recent_active_topic_lesson(client, dev_user, db_session, monkeypatch, published_topic) -> None:
     _enable_openmaic(monkeypatch)
     existing = InteractiveLesson(
         user_id=dev_user.id,
         topic_id=published_topic.id,
+        source_type="topic",
         title="已有课堂",
         status="processing",
         openmaic_job_id="job-existing",
@@ -223,6 +284,7 @@ def test_failed_lesson_does_not_block_regeneration(client, dev_user, db_session,
     failed = InteractiveLesson(
         user_id=dev_user.id,
         topic_id=published_topic.id,
+        source_type="topic",
         title="失败课堂",
         status="failed",
         error_code="OPENMAIC_TIMEOUT",
@@ -243,6 +305,7 @@ def test_other_user_cannot_read_or_refresh_lesson(client, dev_user, db_session, 
     lesson = InteractiveLesson(
         user_id=dev_user.id,
         topic_id=published_topic.id,
+        source_type="topic",
         title="私有课堂",
         status="processing",
         openmaic_job_id="job-private",
@@ -266,6 +329,7 @@ def test_refresh_updates_completed_lesson(client, dev_user, db_session, monkeypa
     lesson = InteractiveLesson(
         user_id=dev_user.id,
         topic_id=published_topic.id,
+        source_type="topic",
         title="生成中课堂",
         status="processing",
         openmaic_job_id="job-123",
@@ -288,6 +352,7 @@ def test_refresh_job_not_found_marks_failed_safely(client, dev_user, db_session,
     lesson = InteractiveLesson(
         user_id=dev_user.id,
         topic_id=published_topic.id,
+        source_type="topic",
         title="生成中课堂",
         status="processing",
         openmaic_job_id="missing",
@@ -341,6 +406,7 @@ def test_get_interactive_lesson_returns_current_user_lesson(client, dev_user, db
     lesson = InteractiveLesson(
         user_id=dev_user.id,
         topic_id=published_topic.id,
+        source_type="topic",
         title="已完成课堂",
         status="completed",
         openmaic_job_id="job-done",
@@ -353,5 +419,222 @@ def test_get_interactive_lesson_returns_current_user_lesson(client, dev_user, db
     response = client.get(f"/api/interactive-lessons/{lesson.id}")
 
     assert response.status_code == 200
-    assert response.json()["data"]["status"] == "completed"
-    assert response.json()["data"]["classroom_url"] == "http://openmaic.local/classroom/job-done"
+    data = response.json()["data"]
+    assert data["source_type"] == "topic"
+    assert data["topic_id"] == str(published_topic.id)
+    assert data["node_id"] is None
+    assert data["status"] == "completed"
+    assert data["classroom_url"] == "http://openmaic.local/classroom/job-done"
+
+
+def test_ladder_node_lesson_generation_succeeds_for_unlocked_active_node(
+    client,
+    dev_user,
+    db_session,
+    monkeypatch,
+) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+
+    response = client.post(f"/api/ladder/nodes/{nodes[0].id}/interactive-lessons")
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["source_type"] == "ladder_node"
+    assert data["topic_id"] is None
+    assert data["node_id"] == str(nodes[0].id)
+    assert data["status"] == "submitted"
+    requirement = FakeOpenMAICClient.generated_payloads[0].requirement
+    assert nodes[0].title in requirement
+    assert nodes[0].summary in requirement
+    assert "资料阅读完成：False" in requirement
+    assert "节点练习完成：False" in requirement
+    assert "节点考试通过：False" in requirement
+    assert dev_user.current_level in requirement
+    assert dev_user.goal_track in requirement
+    assert dev_user.student_id not in requirement
+    assert "correct_option_id" not in requirement
+    assert "practice_items" not in requirement
+    assert "exam_payload" not in requirement
+    assert "hidden tests" not in requirement.lower()
+
+
+def test_ladder_node_long_material_keeps_classroom_instructions(
+    client,
+    dev_user,
+    db_session,
+    monkeypatch,
+) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+    nodes[0].material_markdown = "长资料内容。" * 400
+    db_session.commit()
+
+    response = client.post(f"/api/ladder/nodes/{nodes[0].id}/interactive-lessons")
+
+    assert response.status_code == 200
+    requirement = FakeOpenMAICClient.generated_payloads[0].requirement
+    assert len(requirement) <= 2000
+    assert "课堂要求" in requirement
+    assert "结合学习者完成状态" in requirement
+    assert "内容已截断" in requirement
+
+
+def test_locked_ladder_node_lesson_returns_node_locked(client, dev_user, db_session, monkeypatch) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+
+    response = client.post(f"/api/ladder/nodes/{nodes[1].id}/interactive-lessons")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "NODE_LOCKED"
+    assert FakeOpenMAICClient.generated_payloads == []
+
+
+def test_non_active_path_ladder_node_lesson_returns_not_found(client, dev_user, db_session, monkeypatch) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user, status="archived")
+
+    response = client.post(f"/api/ladder/nodes/{nodes[0].id}/interactive-lessons")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "LADDER_NODE_NOT_FOUND"
+
+
+def test_reuses_recent_ladder_node_lesson(client, dev_user, db_session, monkeypatch) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+    existing = InteractiveLesson(
+        user_id=dev_user.id,
+        topic_id=None,
+        node_id=nodes[0].id,
+        source_type="ladder_node",
+        title="节点课堂",
+        status="processing",
+        openmaic_job_id="job-node-existing",
+    )
+    db_session.add(existing)
+    db_session.commit()
+
+    response = client.post(f"/api/ladder/nodes/{nodes[0].id}/interactive-lessons")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == str(existing.id)
+    assert FakeOpenMAICClient.generated_payloads == []
+
+
+def test_failed_ladder_node_lesson_can_regenerate(client, dev_user, db_session, monkeypatch) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+    failed = InteractiveLesson(
+        user_id=dev_user.id,
+        topic_id=None,
+        node_id=nodes[0].id,
+        source_type="ladder_node",
+        title="失败节点课堂",
+        status="failed",
+        error_code="OPENMAIC_TIMEOUT",
+        error_message="互动课堂服务请求超时，请稍后重试。",
+    )
+    db_session.add(failed)
+    db_session.commit()
+
+    response = client.post(f"/api/ladder/nodes/{nodes[0].id}/interactive-lessons")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] != str(failed.id)
+    assert len(FakeOpenMAICClient.generated_payloads) == 1
+
+
+def test_other_user_cannot_generate_ladder_node_lesson(client, dev_user, db_session, monkeypatch) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+    other = _create_other_user(db_session)
+    _login_as(client, other)
+
+    response = client.post(f"/api/ladder/nodes/{nodes[0].id}/interactive-lessons")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "LADDER_NODE_NOT_FOUND"
+
+
+def test_refresh_ladder_node_lesson_to_completed(client, dev_user, db_session, monkeypatch) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+    lesson = InteractiveLesson(
+        user_id=dev_user.id,
+        topic_id=None,
+        node_id=nodes[0].id,
+        source_type="ladder_node",
+        title="生成中节点课堂",
+        status="processing",
+        openmaic_job_id="job-123",
+    )
+    db_session.add(lesson)
+    db_session.commit()
+
+    response = client.post(f"/api/interactive-lessons/{lesson.id}/refresh")
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["source_type"] == "ladder_node"
+    assert data["topic_id"] is None
+    assert data["node_id"] == str(nodes[0].id)
+    assert data["status"] == "completed"
+    assert data["classroom_url"] == "http://openmaic.local/classroom/job-123"
+
+
+def test_ladder_path_delete_cascades_ladder_node_lessons(client, dev_user, db_session) -> None:
+    path, nodes = _create_path_with_nodes(db_session, dev_user)
+    lesson = InteractiveLesson(
+        user_id=dev_user.id,
+        topic_id=None,
+        node_id=nodes[0].id,
+        source_type="ladder_node",
+        title="节点课堂",
+        status="processing",
+        openmaic_job_id="job-node",
+    )
+    db_session.add(lesson)
+    db_session.commit()
+    lesson_id = lesson.id
+
+    db_session.delete(path)
+    db_session.commit()
+
+    assert db_session.get(InteractiveLesson, lesson_id) is None
+
+
+def test_interactive_lesson_source_check_rejects_mixed_or_missing_source(
+    client,
+    dev_user,
+    db_session,
+    published_topic,
+) -> None:
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+    db_session.add(
+        InteractiveLesson(
+            user_id=dev_user.id,
+            topic_id=published_topic.id,
+            node_id=nodes[0].id,
+            source_type="topic",
+            title="混合来源",
+            status="pending",
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()
+
+    db_session.add(
+        InteractiveLesson(
+            user_id=dev_user.id,
+            topic_id=None,
+            node_id=None,
+            source_type="ladder_node",
+            title="缺少来源",
+            status="pending",
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db_session.commit()

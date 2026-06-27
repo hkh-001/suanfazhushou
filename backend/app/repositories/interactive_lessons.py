@@ -10,11 +10,12 @@ from app.models.interactive_lesson import InteractiveLesson
 REUSABLE_LESSON_STATUSES = ("submitted", "processing", "completed")
 
 
-def get_recent_reusable_lesson(db: Session, *, user_id: UUID, topic_id: UUID) -> InteractiveLesson | None:
+def get_recent_reusable_topic_lesson(db: Session, *, user_id: UUID, topic_id: UUID) -> InteractiveLesson | None:
     stmt = (
         select(InteractiveLesson)
         .where(
             InteractiveLesson.user_id == user_id,
+            InteractiveLesson.source_type == "topic",
             InteractiveLesson.topic_id == topic_id,
             InteractiveLesson.status.in_(REUSABLE_LESSON_STATUSES),
         )
@@ -24,8 +25,45 @@ def get_recent_reusable_lesson(db: Session, *, user_id: UUID, topic_id: UUID) ->
     return db.scalar(stmt)
 
 
-def create_pending_lesson(db: Session, *, user_id: UUID, topic_id: UUID, title: str) -> InteractiveLesson:
-    lesson = InteractiveLesson(user_id=user_id, topic_id=topic_id, title=title, status="pending")
+def get_recent_reusable_node_lesson(db: Session, *, user_id: UUID, node_id: UUID) -> InteractiveLesson | None:
+    stmt = (
+        select(InteractiveLesson)
+        .where(
+            InteractiveLesson.user_id == user_id,
+            InteractiveLesson.source_type == "ladder_node",
+            InteractiveLesson.node_id == node_id,
+            InteractiveLesson.status.in_(REUSABLE_LESSON_STATUSES),
+        )
+        .order_by(InteractiveLesson.created_at.desc())
+        .limit(1)
+    )
+    return db.scalar(stmt)
+
+
+def create_pending_topic_lesson(db: Session, *, user_id: UUID, topic_id: UUID, title: str) -> InteractiveLesson:
+    lesson = InteractiveLesson(
+        user_id=user_id,
+        topic_id=topic_id,
+        node_id=None,
+        source_type="topic",
+        title=title,
+        status="pending",
+    )
+    db.add(lesson)
+    db.commit()
+    db.refresh(lesson)
+    return lesson
+
+
+def create_pending_node_lesson(db: Session, *, user_id: UUID, node_id: UUID, title: str) -> InteractiveLesson:
+    lesson = InteractiveLesson(
+        user_id=user_id,
+        topic_id=None,
+        node_id=node_id,
+        source_type="ladder_node",
+        title=title,
+        status="pending",
+    )
     db.add(lesson)
     db.commit()
     db.refresh(lesson)
