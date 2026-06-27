@@ -466,6 +466,55 @@ Errors:
 - inherited AI errors: `AI_CONFIG_MISSING`, `AI_PROVIDER_TIMEOUT`, `AI_PROVIDER_ERROR`, `PROMPT_TEMPLATE_NOT_FOUND`
 - inherited auth errors
 
+## Phase 19A OpenMAIC POC APIs
+
+Phase 19A adds admin-only backend POC endpoints for validating an external OpenMAIC service. These endpoints are not user-facing product APIs and do not persist lesson records.
+
+```text
+GET /api/openmaic/poc/status
+POST /api/openmaic/poc/generate
+GET /api/openmaic/poc/jobs/{job_id}
+```
+
+Rules:
+
+- `ENABLE_OPENMAIC_INTEGRATION=false` disables all POC endpoints with `FEATURE_DISABLED`.
+- Only `role=admin` can call the POC endpoints; normal users receive `ADMIN_REQUIRED`.
+- The frontend must not call OpenMAIC directly.
+- OpenMAIC auth values, provider keys, access codes, and raw service errors are never returned.
+- Prefer `header` auth when possible. `query` auth may appear in upstream logs, and `body` auth may not work for GET job polling through some gateways.
+- Generate requests send only a bounded Chinese classroom requirement, `language="zh-CN"`, and disabled TTS/image/video/web search flags.
+
+`POST /api/openmaic/poc/generate` request:
+
+```json
+{
+  "title": "双指针入门",
+  "audience_level": "入门",
+  "goal": "蓝桥杯基础训练",
+  "summary": "讲解左右指针、快慢指针和常见边界错误。"
+}
+```
+
+Response shape:
+
+```text
+GET /api/openmaic/poc/status -> DataResponse[OpenMAICPocStatus]
+POST /api/openmaic/poc/generate -> DataResponse[OpenMAICJobStatus]
+GET /api/openmaic/poc/jobs/{job_id} -> DataResponse[OpenMAICJobStatus]
+```
+
+Errors:
+
+- `FEATURE_DISABLED`
+- `ADMIN_REQUIRED`
+- `OPENMAIC_CONFIG_MISSING`
+- `OPENMAIC_TIMEOUT`
+- `OPENMAIC_UNAVAILABLE`
+- `OPENMAIC_INVALID_RESPONSE`
+- `OPENMAIC_JOB_NOT_FOUND`
+- inherited auth errors
+
 ## Post-MVP Planned APIs
 
 Planning boundaries:

@@ -834,6 +834,7 @@ Questions:
 - Can OpenMAIC run as an optional external service without breaking frontend, backend, postgres, redis, or Judge startup?
 - Does AlgoMentor call OpenMAIC only through a backend adapter?
 - Is the OpenMAIC integration fully disabled when `ENABLE_OPENMAIC_INTEGRATION=false`?
+- Are Phase 19A endpoints limited to admin-only `/api/openmaic/poc/*` routes?
 - Are OpenMAIC provider keys, access codes, and service URLs kept out of frontend responses and browser storage?
 - Does the backend avoid sending student ids, full source code, hidden test data, exam answer keys, full exam payloads, and full learning history to OpenMAIC?
 - Are OpenMAIC timeouts and generation failures reported as safe user-facing errors?
@@ -844,6 +845,7 @@ Pass criteria:
 
 - Existing AI, Judge, ladder, Dashboard, and problem-bank flows still work when OpenMAIC is disabled.
 - The first OpenMAIC phase proves service startup and server-to-server generation with fake/client tests where practical.
+- Normal users receive `ADMIN_REQUIRED` for POC endpoints.
 - Topic and ladder lesson prompts use bounded summaries only.
 - Frontend does not call OpenMAIC directly.
 - No OpenMAIC secret appears in committed files, logs, screenshots, API responses, or browser storage.

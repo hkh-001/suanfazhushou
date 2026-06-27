@@ -522,6 +522,30 @@ Runtime AI settings:
 - This feature is not production key management. Do not enable it on a public production deployment without authentication and a proper secret-management design.
 - Docker Compose reads env-based AI settings from `.env`; runtime AI settings remain off unless `ENABLE_RUNTIME_AI_SETTINGS=true` is set, and local persistent settings remain off unless `ENABLE_PERSISTENT_AI_SETTINGS=true` is set.
 
+OpenMAIC POC settings:
+
+- Phase 19A treats OpenMAIC as an external service reached through the backend only.
+- The integration is disabled by default with `ENABLE_OPENMAIC_INTEGRATION=false`.
+- To test locally, start OpenMAIC separately, then configure the backend:
+
+```env
+ENABLE_OPENMAIC_INTEGRATION=true
+OPENMAIC_BASE_URL=http://localhost:3010
+OPENMAIC_AUTH_MODE=none
+```
+
+- Optional auth modes are `none`, `header`, `query`, and `body`; auth values are server-side only and must not be committed.
+- Prefer `header` auth when OpenMAIC supports it. `query` auth can appear in upstream access logs, and `body` auth is mainly suitable for POST generation because some gateways reject or ignore GET bodies during job polling.
+- POC endpoints are admin-only:
+
+```text
+GET /api/openmaic/poc/status
+POST /api/openmaic/poc/generate
+GET /api/openmaic/poc/jobs/{job_id}
+```
+
+- Phase 19A does not add a frontend entry, does not save lesson records, and does not change ladder progress.
+
 ## Testing
 
 Backend:

@@ -343,6 +343,7 @@ OpenMAIC integration boundaries:
 
 - OpenMAIC starts as an optional feature-flagged external service, not copied into the main frontend.
 - The frontend should call AlgoMentor backend APIs, not OpenMAIC directly.
+- Phase 19A exposes only admin-only `/api/openmaic/poc/*` validation endpoints and does not create user-facing lesson pages.
 - The backend must not send student ids, full source code, hidden tests, exam answer keys, full exam payloads, or full learning history to OpenMAIC.
 - OpenMAIC provider keys, access codes, and service URLs stay backend-side or in the OpenMAIC service environment.
 - Topic and ladder lesson generation must be explicit user actions and should tolerate OpenMAIC timeouts/failures without affecting core learning flows.

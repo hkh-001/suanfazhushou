@@ -9,6 +9,7 @@ from app.api.code_reviews import router as code_reviews_router
 from app.api.ladder import router as ladder_router
 from app.api.learning import router as learning_router
 from app.api.mistakes import router as mistakes_router
+from app.api.openmaic import router as openmaic_router
 from app.api.problems import router as problems_router
 from app.api.settings import router as settings_router
 from app.api.submissions import router as submissions_router
@@ -39,3 +40,4 @@ app.include_router(code_reviews_router, prefix="/api")
 app.include_router(mistakes_router, prefix="/api")
 app.include_router(submissions_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(openmaic_router, prefix="/api")
