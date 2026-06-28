@@ -159,6 +159,8 @@ class GeneratedProblemSaveRequest(BaseModel):
     test_cases: list[GeneratedProblemSaveTestCase] = Field(min_length=1, max_length=20)
     hints: list[str] = Field(default_factory=list, max_length=10)
     solution_idea: str | None = Field(default=None, max_length=20000)
+    solution_code_cpp: str | None = Field(default=None, max_length=20000)
+    solution_code_python: str | None = Field(default=None, max_length=20000)
     requirements: str | None = Field(default=None, max_length=1500)
 
     @field_validator("title", "statement", "input_format", "output_format")
@@ -174,6 +176,8 @@ class GeneratedProblemSaveRequest(BaseModel):
         "sample_input",
         "sample_output",
         "solution_idea",
+        "solution_code_cpp",
+        "solution_code_python",
         "requirements",
     )
     @classmethod

@@ -116,5 +116,7 @@ export type GeneratedProblemSavePayload = {
   test_cases: GeneratedProblemTestCase[];
   hints: string[];
   solution_idea?: string | null;
+  solution_code_cpp?: string | null;
+  solution_code_python?: string | null;
   requirements?: string | null;
 };

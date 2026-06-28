@@ -100,7 +100,9 @@ function parseGeneratedProblem(raw: string): ParsedGeneratedProblem | null {
     sample_output: optionalString(record.sample_output) ?? sampleCase.expected_output,
     test_cases: testCases,
     hints: normalizeHints(record.hints),
-    solution_idea: optionalString(record.solution_idea)
+    solution_idea: optionalString(record.solution_idea),
+    solution_code_cpp: optionalString(record.solution_code_cpp),
+    solution_code_python: optionalString(record.solution_code_python)
   };
 }
 
@@ -349,6 +351,8 @@ export function ProblemGeneratePage() {
                     </div>
                   ) : null}
                   <PreviewField label="题解思路" value={parsedProblem.solution_idea} />
+                  <PreviewField label="C++17 标程" value={parsedProblem.solution_code_cpp} />
+                  <PreviewField label="Python 3.11 标程" value={parsedProblem.solution_code_python} />
                 </dl>
                 {saveError ? (
                   <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">

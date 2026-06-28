@@ -8,6 +8,7 @@ import { MarkdownContent } from "@/components/MarkdownContent";
 
 import { difficultyLabels, difficultyStyles } from "./constants";
 import { useProblem } from "./hooks";
+import type { ProblemDetail } from "./types";
 
 type CopyState = "idle" | "copied" | "error";
 
@@ -40,6 +41,45 @@ function sourceLabel(source: string | null) {
   return "外部导入";
 }
 
+function solutionDownloadName(problem: ProblemDetail): string {
+  const base = problem.slug?.trim() || `problem-${problem.display_id}`;
+  const safeBase =
+    base.replace(/[^a-zA-Z0-9\u4e00-\u9fa5._-]+/g, "-").replace(/^-+|-+$/g, "") ||
+    `problem-${problem.display_id}`;
+  return `${safeBase}-solution.md`;
+}
+
+function buildSolutionMarkdown(problem: ProblemDetail): string {
+  const sections = [`# ${problem.title} 题解与标程`];
+
+  if (hasContent(problem.solution_markdown)) {
+    sections.push(`## 题解\n\n${problem.solution_markdown.trim()}`);
+  }
+
+  if (hasContent(problem.solution_code_cpp)) {
+    sections.push(`## C++17 标程\n\n\`\`\`cpp\n${problem.solution_code_cpp.trim()}\n\`\`\``);
+  }
+
+  if (hasContent(problem.solution_code_python)) {
+    sections.push(`## Python 3.11 标程\n\n\`\`\`python\n${problem.solution_code_python.trim()}\n\`\`\``);
+  }
+
+  return `${sections.join("\n\n")}\n`;
+}
+
+function downloadSolutionMarkdown(problem: ProblemDetail) {
+  const blob = new Blob([buildSolutionMarkdown(problem)], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = solutionDownloadName(problem);
+  anchor.rel = "noopener noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 function ContentSection({ title, content }: { title: string; content: string }) {
   return (
     <section className="border-b border-slate-200 pb-8 last:border-b-0 last:pb-0">
@@ -65,8 +105,7 @@ function SampleCodeBlock({ label, content }: { label: string; content: string })
     window.setTimeout(() => setCopyState("idle"), 1500);
   }
 
-  const buttonLabel =
-    copyState === "copied" ? "已复制" : copyState === "error" ? "复制失败" : "复制";
+  const buttonLabel = copyState === "copied" ? "已复制" : copyState === "error" ? "复制失败" : "复制";
 
   return (
     <section className="min-w-0">
@@ -138,9 +177,7 @@ export function ProblemDetailPage({ id, visibility = "private" }: { id: string; 
                 P{data.display_id} {data.title}
               </h1>
               <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-                <span
-                  className={`rounded-full border px-3 py-1 font-semibold ${difficultyStyles[data.difficulty]}`}
-                >
+                <span className={`rounded-full border px-3 py-1 font-semibold ${difficultyStyles[data.difficulty]}`}>
                   {difficultyLabels[data.difficulty]}
                 </span>
                 {data.estimated_minutes ? (
@@ -181,22 +218,14 @@ export function ProblemDetailPage({ id, visibility = "private" }: { id: string; 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(260px,1fr)]">
         <article className="min-w-0 space-y-8 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
           <ContentSection content={data.description_markdown} title="题目描述" />
-          {hasContent(data.input_format) ? (
-            <ContentSection content={data.input_format} title="输入格式" />
-          ) : null}
-          {hasContent(data.output_format) ? (
-            <ContentSection content={data.output_format} title="输出格式" />
-          ) : null}
-          {hasContent(data.constraints) ? (
-            <ContentSection content={data.constraints} title="数据范围" />
-          ) : null}
+          {hasContent(data.input_format) ? <ContentSection content={data.input_format} title="输入格式" /> : null}
+          {hasContent(data.output_format) ? <ContentSection content={data.output_format} title="输出格式" /> : null}
+          {hasContent(data.constraints) ? <ContentSection content={data.constraints} title="数据范围" /> : null}
           {hasContent(data.sample_input) || hasContent(data.sample_output) ? (
             <section className="border-b border-slate-200 pb-8">
               <h2 className="mb-5 text-xl font-semibold text-slate-950">样例</h2>
               <div className="grid gap-5 xl:grid-cols-2">
-                {hasContent(data.sample_input) ? (
-                  <SampleCodeBlock content={data.sample_input} label="样例输入" />
-                ) : null}
+                {hasContent(data.sample_input) ? <SampleCodeBlock content={data.sample_input} label="样例输入" /> : null}
                 {hasContent(data.sample_output) ? (
                   <SampleCodeBlock content={data.sample_output} label="样例输出" />
                 ) : null}
@@ -271,6 +300,20 @@ export function ProblemDetailPage({ id, visibility = "private" }: { id: string; 
                 </span>
               </summary>
               <div className="space-y-6 border-t border-blue-100 px-5 py-5">
+                <button
+                  className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 outline-none transition hover:bg-blue-100 focus-visible:ring-2 focus-visible:ring-blue-300"
+                  onClick={() => downloadSolutionMarkdown(data)}
+                  type="button"
+                >
+                  下载题解与标程 (.md)
+                </button>
+
+                {hasContent(data.solution_markdown) ? (
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold text-slate-900">题解说明</h3>
+                    <MarkdownContent content={data.solution_markdown} />
+                  </div>
+                ) : null}
                 {hasContent(data.solution_code_cpp) ? (
                   <div>
                     <h3 className="mb-3 text-sm font-semibold text-slate-900">C++17 标程</h3>
@@ -281,12 +324,6 @@ export function ProblemDetailPage({ id, visibility = "private" }: { id: string; 
                   <div>
                     <h3 className="mb-3 text-sm font-semibold text-slate-900">Python 3.11 标程</h3>
                     <MarkdownContent content={`\`\`\`python\n${data.solution_code_python}\n\`\`\``} />
-                  </div>
-                ) : null}
-                {hasContent(data.solution_markdown) ? (
-                  <div>
-                    <h3 className="mb-3 text-sm font-semibold text-slate-900">题解说明</h3>
-                    <MarkdownContent content={data.solution_markdown} />
                   </div>
                 ) : null}
               </div>

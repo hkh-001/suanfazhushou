@@ -240,7 +240,9 @@ def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) 
     }
   ],
   "hints": ["Build prefix sums"],
-  "solution_idea": "Use prefix sums to answer each query in O(1).",
+  "solution_idea": "先预处理前缀和数组，每次询问用右端前缀和减去左端前一个位置的前缀和，单次询问复杂度为 O(1)。",
+  "solution_code_cpp": "#include <bits/stdc++.h>\\nusing namespace std;\\nint main(){return 0;}",
+  "solution_code_python": "import sys\\nprint('ok')",
   "is_ai_generated": true
 }
 """.strip()
@@ -255,6 +257,8 @@ def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) 
     assert response.status_code == 200
     assert '"is_ai_generated": true' in response.json()["data"]["result"]
     assert '"test_cases": [' in response.json()["data"]["result"]
+    assert '"solution_code_cpp":' in response.json()["data"]["result"]
+    assert '"solution_code_python":' in response.json()["data"]["result"]
 
 
 def test_generate_problem_parse_error_is_safe(client: TestClient, db_session, dev_user) -> None:

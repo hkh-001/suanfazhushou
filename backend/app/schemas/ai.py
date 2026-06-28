@@ -53,4 +53,6 @@ class GeneratedProblem(BaseModel):
     test_cases: list[GeneratedProblemTestCase] = Field(min_length=1, max_length=20)
     hints: list[str]
     solution_idea: str
+    solution_code_cpp: str | None = None
+    solution_code_python: str | None = None
     is_ai_generated: Literal[True]

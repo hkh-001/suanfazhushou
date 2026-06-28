@@ -70,7 +70,32 @@ def _generated_problem_payload(**overrides) -> dict:
             },
         ],
         "hints": ["Build prefix sums.", "Use sum[r] - sum[l - 1]."],
-        "solution_idea": "Precompute prefix sums to answer each query in O(1).",
+        "solution_idea": "先预处理前缀和数组，再用 prefix[r] - prefix[l - 1] 在 O(1) 时间回答每个区间和询问。",
+        "solution_code_cpp": (
+            "#include <bits/stdc++.h>\n"
+            "using namespace std;\n"
+            "int main(){ios::sync_with_stdio(false);cin.tie(nullptr);"
+            "int n,q;cin>>n>>q;vector<long long>s(n+1);"
+            "for(int i=1;i<=n;i++){long long x;cin>>x;s[i]=s[i-1]+x;}"
+            "while(q--){int l,r;cin>>l>>r;cout<<s[r]-s[l-1]<<'\\n';}"
+            "return 0;}"
+        ),
+        "solution_code_python": (
+            "import sys\n"
+            "data=list(map(int,sys.stdin.read().split()))\n"
+            "n,q=data[0],data[1]\n"
+            "arr=data[2:2+n]\n"
+            "pref=[0]\n"
+            "for x in arr:\n"
+            "    pref.append(pref[-1]+x)\n"
+            "idx=2+n\n"
+            "out=[]\n"
+            "for _ in range(q):\n"
+            "    l,r=data[idx],data[idx+1]\n"
+            "    idx+=2\n"
+            "    out.append(str(pref[r]-pref[l-1]))\n"
+            "print('\\n'.join(out))\n"
+        ),
     }
     payload.update(overrides)
     return payload
@@ -190,12 +215,16 @@ def test_save_ai_generated_problem_success_and_forced_metadata(client, db_sessio
     assert problem["is_published"] is False
     assert problem["description_markdown"] == "Given an array, answer range sum queries."
     assert problem["hint"] == "- Build prefix sums.\n- Use sum[r] - sum[l - 1]."
-    assert problem["solution_markdown"] == "Precompute prefix sums to answer each query in O(1)."
+    assert problem["solution_markdown"] == "先预处理前缀和数组，再用 prefix[r] - prefix[l - 1] 在 O(1) 时间回答每个区间和询问。"
+    assert "#include <bits/stdc++.h>" in problem["solution_code_cpp"]
+    assert "import sys" in problem["solution_code_python"]
 
     db_problem = db_session.get(Problem, problem["id"])
     assert db_problem is not None
     assert str(db_problem.created_by_user_id) == user["id"]
     assert db_problem.is_ai_generated is True
+    assert db_problem.solution_code_cpp == problem["solution_code_cpp"]
+    assert db_problem.solution_code_python == problem["solution_code_python"]
     test_cases = db_session.scalars(
         select(DbTestCase).where(DbTestCase.problem_id == db_problem.id).order_by(DbTestCase.case_index)
     ).all()
