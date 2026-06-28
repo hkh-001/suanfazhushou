@@ -1,8 +1,12 @@
+from pathlib import Path
+from typing import ClassVar
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    project_root: ClassVar[Path] = Path(__file__).resolve().parents[2]
     app_env: str = "development"
     app_name: str = "AlgoMentor AI"
     log_level: str = "INFO"
@@ -12,8 +16,8 @@ class Settings(BaseSettings):
     enable_dev_user: bool = False
     dev_user_id: str = "00000000-0000-0000-0000-000000000001"
     dev_admin_password: str = ""
-    enable_runtime_ai_settings: bool = False
-    enable_persistent_ai_settings: bool = False
+    enable_runtime_ai_settings: bool = True
+    enable_persistent_ai_settings: bool = True
     persistent_ai_settings_path: str = ".runtime-ai-settings.json"
     secret_key: str = "change-me-in-production-32-bytes-long!!"
     access_token_expire_minutes: int = 1440

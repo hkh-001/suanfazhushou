@@ -1,5 +1,7 @@
 from collections.abc import Generator
 from datetime import datetime, timezone
+from pathlib import Path
+from tempfile import gettempdir
 from uuid import UUID, uuid4
 
 import pytest
@@ -24,13 +26,19 @@ from app.services.settings.ai_runtime_settings import clear_runtime_ai_settings
 
 
 @pytest.fixture(autouse=True)
-def reset_runtime_ai_settings(request: pytest.FixtureRequest) -> Generator[None, None, None]:
-    if {
+def reset_runtime_ai_settings(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[None, None, None]:
+    test_settings_path = Path(gettempdir()) / f"algomentor-runtime-ai-settings-{uuid4().hex}.json"
+    monkeypatch.setattr(settings, "persistent_ai_settings_path", str(test_settings_path))
+    needs_db_cleanup = {
         "client",
         "db_session",
         "dev_user",
         "published_topic",
-    }.intersection(request.fixturenames):
+    }.intersection(request.fixturenames) and request.module.__name__ != "tests.test_settings"
+    if needs_db_cleanup:
         db_session = request.getfixturevalue("db_session")
         db_session.execute(delete(NodeUserProgress))
         db_session.execute(delete(LearningPathNode))

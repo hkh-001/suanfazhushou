@@ -515,13 +515,13 @@ If the default Debian package mirror is unavailable while building the runner im
 Runtime AI settings:
 
 - `GET /api/settings/ai` reports the current effective AI configuration source without returning the API key.
-- `PUT /api/settings/ai`, `DELETE /api/settings/ai`, and `POST /api/settings/ai/test` are disabled by default.
-- For persistent local Docker Compose configuration, set `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` in the local `.env` file before starting the backend. The `.env` file is ignored by Git and must not be committed.
-- To enable runtime AI settings for local backend development or demos, set `ENABLE_RUNTIME_AI_SETTINGS=true` before starting FastAPI locally.
-- Runtime AI settings are stored only in the current backend process memory. They are lost when the backend restarts.
-- To allow `/settings` saves to survive backend restarts in local development, also set `ENABLE_PERSISTENT_AI_SETTINGS=true`. The backend writes `.runtime-ai-settings.json` locally; this file is ignored by Git and must not be used as production secret management.
-- This feature is not production key management. Do not enable it on a public production deployment without authentication and a proper secret-management design.
-- Docker Compose reads env-based AI settings from `.env`; runtime AI settings remain off unless `ENABLE_RUNTIME_AI_SETTINGS=true` is set, and local persistent settings remain off unless `ENABLE_PERSISTENT_AI_SETTINGS=true` is set.
+- `PUT /api/settings/ai`, `DELETE /api/settings/ai`, and `POST /api/settings/ai/test` require `ENABLE_RUNTIME_AI_SETTINGS=true`; the local development default is enabled.
+- Saved runtime settings are global for the backend service, so all users share the same AI provider configuration.
+- With `ENABLE_PERSISTENT_AI_SETTINGS=true`, `PUT /api/settings/ai` writes the ignored local `.runtime-ai-settings.json` file and the backend reloads it automatically after restart. `GET /api/settings/ai` then reports `source="persistent"` until an in-memory runtime update overrides it.
+- `PERSISTENT_AI_SETTINGS_PATH` may be absolute or relative. Relative paths are resolved from the backend project directory, so the file is stable even when the backend process starts from a different working directory.
+- `DELETE /api/settings/ai` clears both runtime memory and the persistent settings file when persistent settings are enabled.
+- The persistent file contains an API key and is ignored by Git. It is convenient local/shared configuration, not a replacement for production secret management.
+- Env-based `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` remain supported as a fallback source when no runtime or persistent settings exist.
 
 OpenMAIC POC settings:
 

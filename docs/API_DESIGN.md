@@ -225,10 +225,12 @@ Phase 4.5 AI settings rules:
 - `base_url` must be displayed without query string or fragment.
 - `PUT`, `DELETE`, and `POST /api/settings/ai/test` require `ENABLE_RUNTIME_AI_SETTINGS=true`.
 - If runtime settings are disabled, mutating/test endpoints return `403` with `FEATURE_DISABLED`.
-- `PUT /api/settings/ai` stores configuration in backend process memory by default.
-- If `APP_ENV=development` and `ENABLE_PERSISTENT_AI_SETTINGS=true`, `PUT /api/settings/ai` also writes a local ignored settings file so `/settings` configuration can survive backend restarts.
+- `PUT /api/settings/ai` stores configuration in backend process memory and, when `ENABLE_PERSISTENT_AI_SETTINGS=true`, writes the local ignored persistent settings file.
+- Runtime AI settings are global/shared for the backend service. They are not stored per user.
+- Persistent settings survive backend restarts and are reported as `source="persistent"` until replaced by an in-memory runtime update.
+- `PERSISTENT_AI_SETTINGS_PATH` may be absolute or relative; relative paths are resolved from the backend project directory.
 - `DELETE /api/settings/ai` clears both runtime memory and the local persistent settings file when persistent settings are enabled.
-- Runtime settings are for local development and demos, not production secret management.
+- Runtime settings are convenient local/shared configuration, not production secret management.
 - `POST /api/settings/ai/test` sends a minimal provider request and must not log API keys, full prompts, or full provider responses.
 
 ## Phase 6 Problem Bank APIs

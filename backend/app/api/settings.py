@@ -7,6 +7,7 @@ from app.schemas.settings import AISettingsResponse, AISettingsTestResponse, AIS
 from app.services.settings.ai_runtime_settings import (
     clear_runtime_ai_settings,
     get_effective_ai_settings,
+    persistent_settings_enabled,
     set_runtime_ai_settings,
 )
 
@@ -35,8 +36,7 @@ def _status_response() -> AISettingsResponse:
             "model": effective.model,
             "api_key_set": effective.api_key_set,
             "runtime_settings_enabled": settings.enable_runtime_ai_settings,
-            "persistent_settings_enabled": settings.app_env == "development"
-            and settings.enable_persistent_ai_settings,
+            "persistent_settings_enabled": persistent_settings_enabled(),
         }
     )
 

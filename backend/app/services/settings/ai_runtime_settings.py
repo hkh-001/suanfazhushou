@@ -1,9 +1,13 @@
 import json
+import logging
+import os
 from pathlib import Path
 from dataclasses import dataclass
 from urllib.parse import urlsplit, urlunsplit
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -31,14 +35,22 @@ class RuntimeAISettings:
 
 
 _runtime_ai_settings: RuntimeAISettings | None = None
+_logged_persistent_paths: set[Path] = set()
 
 
 def _persistent_settings_enabled() -> bool:
-    return settings.app_env == "development" and settings.enable_persistent_ai_settings
+    return bool(settings.enable_persistent_ai_settings)
+
+
+def persistent_settings_enabled() -> bool:
+    return _persistent_settings_enabled()
 
 
 def _persistent_settings_path() -> Path:
-    return Path(settings.persistent_ai_settings_path)
+    path = Path(settings.persistent_ai_settings_path).expanduser()
+    if path.is_absolute():
+        return path
+    return (settings.project_root / path).resolve()
 
 
 def _load_persistent_ai_settings() -> RuntimeAISettings | None:
@@ -89,7 +101,15 @@ def _save_persistent_ai_settings(config: RuntimeAISettings) -> None:
         ),
         encoding="utf-8",
     )
+    try:
+        os.chmod(temp_path, 0o600)
+    except OSError:
+        pass
     temp_path.replace(path)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
 
 
 def _delete_persistent_ai_settings() -> None:
@@ -148,6 +168,10 @@ def get_effective_ai_settings() -> EffectiveAISettings:
 
     persistent = _load_persistent_ai_settings()
     if persistent is not None:
+        path = _persistent_settings_path()
+        if path not in _logged_persistent_paths:
+            logger.info("AI settings loaded from persistent file: %s", path)
+            _logged_persistent_paths.add(path)
         return EffectiveAISettings(
             provider=settings.ai_provider,
             base_url=persistent.base_url,
