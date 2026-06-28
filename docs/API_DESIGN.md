@@ -486,6 +486,7 @@ Rules:
 - OpenMAIC auth values, provider keys, access codes, and raw service errors are never returned.
 - Prefer `header` auth when possible. `query` auth may appear in upstream logs, and `body` auth may not work for GET job polling through some gateways.
 - Generate requests send only a bounded Chinese classroom requirement, `language="zh-CN"`, and disabled TTS/image/video/web search flags.
+- Local Phase 19E validation uses the real OpenMAIC API shape: `POST /api/generate-classroom` returns `202` with `jobId`, `status="queued"`, and `pollUrl`; `GET /api/generate-classroom/{jobId}` returns completion as `status="succeeded"` with the classroom link in `result.url`.
 
 `POST /api/openmaic/poc/generate` request:
 
@@ -513,6 +514,7 @@ Errors:
 - `OPENMAIC_CONFIG_MISSING`
 - `OPENMAIC_TIMEOUT`
 - `OPENMAIC_UNAVAILABLE`
+- `OPENMAIC_AUTH_FAILED`
 - `OPENMAIC_INVALID_RESPONSE`
 - `OPENMAIC_JOB_NOT_FOUND`
 - inherited auth errors

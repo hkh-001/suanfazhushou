@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 19C: Ladder Node Interactive Lessons With OpenMAIC.
+The project is currently in Post-MVP Phase 19E: OpenMAIC Local Real-Service Validation.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -119,6 +119,7 @@ Post-MVP roadmap:
 - Phase 19B: Topic Interactive Lessons With OpenMAIC
 - Phase 19C: Ladder Node Interactive Lessons With OpenMAIC
 - Phase 19D: OpenMAIC Real-Service Hardening
+- Phase 19E: OpenMAIC Local Real-Service Validation
 - Phase 20: RAG Knowledge Retrieval
 - Phase 21: Deployment, Security, Permissions, Production Hardening
 
@@ -528,14 +529,24 @@ OpenMAIC POC settings:
 
 - Phase 19A treats OpenMAIC as an external service reached through the backend only.
 - The integration is disabled by default with `ENABLE_OPENMAIC_INTEGRATION=false`.
-- To test locally, start OpenMAIC separately, then configure the backend:
+- OpenMAIC is not managed by AlgoMentor's Docker Compose. Start it separately before running local integration checks:
+
+```powershell
+cd D:\OpenMAIC
+pnpm dev --port 3010
+```
+
+- Then configure the AlgoMentor backend:
 
 ```env
 ENABLE_OPENMAIC_INTEGRATION=true
 OPENMAIC_BASE_URL=http://localhost:3010
+OPENMAIC_GENERATE_PATH=/api/generate-classroom
+OPENMAIC_POLL_PATH_TEMPLATE=/api/generate-classroom/{job_id}
 OPENMAIC_AUTH_MODE=none
 ```
 
+- OpenMAIC `ACCESS_CODE` protects the browser site. The current server-to-server generation API works with `OPENMAIC_AUTH_MODE=none` for local validation unless the external OpenMAIC deployment adds its own API authentication.
 - Optional auth modes are `none`, `header`, `query`, and `body`; auth values are server-side only and must not be committed.
 - Prefer `header` auth when OpenMAIC supports it. `query` auth can appear in upstream access logs, and `body` auth is mainly suitable for POST generation because some gateways reject or ignore GET bodies during job polling.
 - POC endpoints are admin-only:
@@ -559,14 +570,17 @@ Topic interactive lessons:
 - Ladder-node classroom generation does not set `material_completed`, `practice_completed`, or `exam_passed`, and it does not import OpenMAIC quizzes into ladder practice or exams.
 - The Phase 19C downgrade is intentionally lossy for ladder-node lessons because the Phase 19B schema cannot represent them.
 - Phase 19D hardens real-service integration: adapter status/URL compatibility, auth-failure reporting, stale lesson convergence, and explicit classroom regeneration.
+- Phase 19E validates the real local OpenMAIC response shape. The known local API is `POST /api/generate-classroom` followed by `GET /api/generate-classroom/{jobId}`; completed jobs return `status="succeeded"` with the classroom URL in `result.url`.
 - `OPENMAIC_MAX_POLL_MINUTES` is used as the backend stale guard for `pending`, `submitted`, and `processing` lesson records during refresh.
 - Completed lessons are reused by default. Users can explicitly regenerate with `force=true`; failed lessons can always be regenerated.
-- Local adapter checks can be run without login or database writes:
+- Local adapter checks can be run without login or database writes. By default the script generates a classroom and polls until completion, failure, or timeout:
 
 ```bash
 cd backend
 uv run python scripts/check_openmaic_integration.py
 ```
+
+Use `--no-wait` for a single generate-plus-poll check, or tune polling with `--timeout-minutes` and `--interval-seconds`.
 
 ```text
 POST /api/topics/{topic_id}/interactive-lessons?force=false
@@ -631,7 +645,7 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 19D OpenMAIC Real-Service Hardening.
+Current: Post-MVP Phase 19E OpenMAIC Local Real-Service Validation.
 
 Next: Phase 20 RAG Knowledge Retrieval.
 

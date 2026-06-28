@@ -765,6 +765,34 @@ Make the external OpenMAIC integration reliable enough for local and demo valida
 - Adapter tests cover auth failure, status aliases, URL aliases, and nested unknown status behavior.
 - Local integration script can report normalized OpenMAIC generate/poll results without printing secrets.
 
+## Phase 19E: OpenMAIC Local Real-Service Validation
+
+Status: implemented as local runbook and response-shape validation for the real OpenMAIC service.
+
+### Goal
+
+Close the gap between adapter-level support and a repeatable local OpenMAIC validation flow.
+
+### Expected Features
+
+- Validate the real local OpenMAIC response shape: `queued` generation jobs and `succeeded` completed jobs with `result.url`
+- Make `scripts/check_openmaic_integration.py` wait for completion by default while keeping a `--no-wait` quick mode
+- Document that OpenMAIC runs outside AlgoMentor Docker Compose, typically from `D:\OpenMAIC` on port `3010`
+- Clarify that OpenMAIC `ACCESS_CODE` protects browser access and is not required for the local server-to-server generation API
+
+### Not Included
+
+- OpenMAIC Docker Compose ownership
+- Dashboard lesson recommendations
+- RAG retrieval
+- Copying OpenMAIC code into the AlgoMentor frontend
+
+### Completion Criteria
+
+- Local check script can generate, poll, and print a completed classroom URL against a running OpenMAIC service.
+- Adapter tests cover the real `succeeded + result.url` response shape.
+- Topic and ladder classroom generation continue to work only through AlgoMentor backend APIs.
+
 ## Phase 20: RAG Knowledge Retrieval
 
 ### Goal

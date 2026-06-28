@@ -161,6 +161,7 @@ def test_openmaic_generate_with_fake_client_uses_safe_requirement(client, admin_
     assert "学号" not in payload.requirement
     assert "correct_option_id" not in payload.requirement
     assert "exam_payload" not in payload.requirement
+    assert not any(fragment in payload.requirement for fragment in ["浜", "璇", "鐢", "鍙", "�"])
 
 
 def test_openmaic_job_lookup_uses_fake_client_once(client, admin_user, monkeypatch) -> None:
@@ -379,3 +380,52 @@ def test_openmaic_adapter_accepts_additional_status_and_url_aliases(client, admi
     assert poll_response.status_code == 200
     assert poll_response.json()["data"]["status"] == "processing"
     assert poll_response.json()["data"]["classroom_url"] == "http://openmaic.local/out"
+
+
+def test_openmaic_adapter_accepts_real_openmaic_job_response_shape(client, admin_user, monkeypatch) -> None:
+    _login_as(client, admin_user)
+    _enable_openmaic(monkeypatch)
+    FakeAsyncClient.requests = []
+    FakeAsyncClient.responses = [
+        httpx.Response(
+            202,
+            json={
+                "success": True,
+                "jobId": "job-real",
+                "status": "queued",
+                "message": "Classroom generation job queued",
+                "pollUrl": "http://localhost:3010/api/generate-classroom/job-real",
+                "pollIntervalMs": 5000,
+            },
+        ),
+        httpx.Response(
+            200,
+            json={
+                "success": True,
+                "jobId": "job-real",
+                "status": "succeeded",
+                "progress": 100,
+                "message": "Classroom generation completed",
+                "pollUrl": "http://localhost:3010/api/generate-classroom/job-real",
+                "result": {
+                    "classroomId": "classroom-real",
+                    "url": "http://localhost:3010/classroom/classroom-real",
+                    "scenesCount": 10,
+                },
+                "done": True,
+            },
+        ),
+    ]
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    generate_response = client.post("/api/openmaic/poc/generate", json=_openmaic_payload())
+    poll_response = client.get("/api/openmaic/poc/jobs/job-real")
+
+    assert generate_response.status_code == 200
+    assert generate_response.json()["data"]["status"] == "submitted"
+    assert generate_response.json()["data"]["job_id"] == "job-real"
+    assert poll_response.status_code == 200
+    data = poll_response.json()["data"]
+    assert data["status"] == "completed"
+    assert data["job_id"] == "job-real"
+    assert data["classroom_url"] == "http://localhost:3010/classroom/classroom-real"
