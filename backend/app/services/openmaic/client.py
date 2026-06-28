@@ -136,6 +136,12 @@ class HttpOpenMAICClient:
                 "OpenMAIC job was not found",
                 status_code=404,
             )
+        if response.status_code in {401, 403}:
+            raise OpenMAICClientError(
+                "OPENMAIC_AUTH_FAILED",
+                "OpenMAIC authentication failed",
+                status_code=503,
+            )
         if not response.is_success:
             raise OpenMAICClientError(
                 "OPENMAIC_UNAVAILABLE",
@@ -180,15 +186,48 @@ def _parse_job_status(response: httpx.Response, *, fallback_job_id: str | None =
     status = _normalize_status(_first_string(data, "status", "state") or ("submitted" if response.status_code == 202 else None))
     job_id = _first_string(data, "jobId", "job_id", "id") or fallback_job_id
     poll_url = _first_string(data, "pollUrl", "poll_url", "statusUrl", "status_url")
-    classroom_url = _first_string(data, "classroomUrl", "classroom_url", "url", "resultUrl", "result_url")
+    classroom_url = _first_string(
+        data,
+        "classroomUrl",
+        "classroomURL",
+        "classroom_url",
+        "url",
+        "resultUrl",
+        "result_url",
+        "lessonUrl",
+        "lesson_url",
+        "shareUrl",
+        "share_url",
+        "outputUrl",
+        "output_url",
+    )
     message = _first_string(data, "message", "error", "detail")
 
     nested = data.get("data") or data.get("result")
     if isinstance(nested, dict):
-        status = _normalize_status(_first_string(nested, "status", "state")) or status
+        nested_status = _normalize_status(_first_string(nested, "status", "state"))
+        if nested_status and nested_status != "unknown":
+            status = nested_status
         job_id = _first_string(nested, "jobId", "job_id", "id") or job_id
         poll_url = _first_string(nested, "pollUrl", "poll_url", "statusUrl", "status_url") or poll_url
-        classroom_url = _first_string(nested, "classroomUrl", "classroom_url", "url", "resultUrl", "result_url") or classroom_url
+        classroom_url = (
+            _first_string(
+                nested,
+                "classroomUrl",
+                "classroomURL",
+                "classroom_url",
+                "url",
+                "resultUrl",
+                "result_url",
+                "lessonUrl",
+                "lesson_url",
+                "shareUrl",
+                "share_url",
+                "outputUrl",
+                "output_url",
+            )
+            or classroom_url
+        )
         message = _first_string(nested, "message", "error", "detail") or message
 
     if not job_id and not classroom_url:
@@ -218,13 +257,13 @@ def _normalize_status(value: str | None) -> str | None:
     if value is None:
         return None
     normalized = value.strip().lower()
-    if normalized in {"submitted", "queued", "accepted"}:
+    if normalized in {"submitted", "queued", "accepted", "created"}:
         return "submitted"
     if normalized in {"pending"}:
         return "pending"
-    if normalized in {"processing", "running", "generating", "in_progress"}:
+    if normalized in {"processing", "running", "generating", "in_progress", "started", "working", "building"}:
         return "processing"
-    if normalized in {"completed", "complete", "done", "success", "succeeded", "ready"}:
+    if normalized in {"completed", "complete", "done", "success", "succeeded", "ready", "finished", "finish"}:
         return "completed"
     if normalized in {"failed", "error", "errored"}:
         return "failed"

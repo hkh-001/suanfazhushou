@@ -16,8 +16,9 @@ export function updateLearningRecord(payload: LearningRecordPayload) {
   });
 }
 
-export function createInteractiveLesson(topicId: string): Promise<InteractiveLessonResponse> {
-  return apiFetch<InteractiveLessonResponse>(`/topics/${topicId}/interactive-lessons`, {
+export function createInteractiveLesson(topicId: string, force = false): Promise<InteractiveLessonResponse> {
+  const suffix = force ? "?force=true" : "";
+  return apiFetch<InteractiveLessonResponse>(`/topics/${topicId}/interactive-lessons${suffix}`, {
     method: "POST",
     timeoutMs: 30000
   });

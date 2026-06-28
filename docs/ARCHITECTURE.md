@@ -350,6 +350,8 @@ OpenMAIC integration boundaries:
 - Topic lessons send only bounded topic context plus current profile level and goal track.
 - Ladder-node lessons send only bounded node title, summary, phase/node index, material excerpt, completion booleans, and profile level/goal track. They do not send practice answer keys or exam payloads.
 - OpenMAIC `unknown` statuses are kept as backend `processing`, and raw upstream errors are replaced with fixed safe messages before storage.
+- Phase 19D adds real-service hardening: `401/403` responses become `OPENMAIC_AUTH_FAILED`, unknown nested statuses cannot override recognized top-level statuses, and stale active lessons converge to `OPENMAIC_STALE_PENDING` during refresh.
+- Completed lessons are reused by default, while `force=true` on topic or ladder-node generation endpoints creates a new explicit OpenMAIC generation request.
 - OpenMAIC provider keys, access codes, and service URLs stay backend-side or in the OpenMAIC service environment.
 - Topic and ladder lesson generation must be explicit user actions and should tolerate OpenMAIC timeouts/failures without affecting core learning flows.
 

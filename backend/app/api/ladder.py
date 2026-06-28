@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_ai_provider, get_current_user
@@ -77,10 +77,13 @@ def generate_ladder_exam_endpoint(
 @router.post("/nodes/{node_id}/interactive-lessons", response_model=DataResponse[InteractiveLessonDetail])
 async def create_ladder_node_interactive_lesson_endpoint(
     node_id: UUID,
+    force: bool = Query(default=False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DataResponse[InteractiveLessonDetail]:
-    return DataResponse(data=await create_ladder_node_interactive_lesson(db, user=current_user, node_id=node_id))
+    return DataResponse(
+        data=await create_ladder_node_interactive_lesson(db, user=current_user, node_id=node_id, force=force)
+    )
 
 
 @router.get("/exams/{attempt_id}", response_model=DataResponse[LadderExamAttemptDetail])

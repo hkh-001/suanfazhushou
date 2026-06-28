@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -30,8 +31,12 @@ SAFE_OPENMAIC_ERROR_MESSAGES = {
     "OPENMAIC_UNAVAILABLE": "互动课堂服务暂不可用，请稍后重试。",
     "OPENMAIC_INVALID_RESPONSE": "互动课堂服务返回了无法识别的结果，请稍后重试。",
     "OPENMAIC_JOB_NOT_FOUND": "互动课堂任务不存在或已过期，请重新生成。",
+    "OPENMAIC_AUTH_FAILED": "互动课堂服务鉴权失败，请检查配置。",
+    "OPENMAIC_STALE_PENDING": "互动课堂生成超时，请重新生成。",
 }
 DEFAULT_OPENMAIC_ERROR_MESSAGE = "互动课堂服务暂不可用，请稍后重试。"
+FAILED_GENERATION_MESSAGE = "互动课堂生成失败，请稍后重试。"
+ACTIVE_LESSON_STATUSES = {"pending", "submitted", "processing"}
 
 
 def get_openmaic_client() -> OpenMAICClient:
@@ -91,7 +96,6 @@ def _build_topic_requirement(*, topic: Topic, user: User) -> str:
     goal = user.goal_track or "self_study"
     content_excerpt = _truncate(topic.content_markdown or "", 900)
     requirement = f"""请生成一节中文互动算法课堂。
-
 知识点标题：{topic.title}
 知识点分类：{topic.category}
 知识点阶段：{topic.level}
@@ -122,7 +126,6 @@ def _build_node_requirement(*, node: LearningPathNode, progress: NodeUserProgres
     practice_completed = bool(progress and progress.practice_completed)
     exam_passed = bool(progress and progress.exam_passed)
     requirement = f"""请生成一节中文互动算法课堂。
-
 来源：学习天梯节点
 节点标题：{node.title}
 节点摘要：{node.summary}
@@ -161,13 +164,23 @@ def _status_from_openmaic(result: OpenMAICJobStatus) -> str:
     return "processing"
 
 
+def _is_stale(lesson: InteractiveLesson) -> bool:
+    if lesson.status not in ACTIVE_LESSON_STATUSES:
+        return False
+    max_minutes = max(1, settings.openmaic_max_poll_minutes)
+    updated_at = lesson.updated_at
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - updated_at >= timedelta(minutes=max_minutes)
+
+
 def _apply_openmaic_result(db: Session, *, lesson: InteractiveLesson, result: OpenMAICJobStatus) -> InteractiveLesson:
     mapped_status = _status_from_openmaic(result)
     error_code = None
     error_message = None
     if mapped_status == "failed":
         error_code = "INTERACTIVE_LESSON_GENERATION_FAILED"
-        error_message = "互动课堂生成失败，请稍后重试。"
+        error_message = FAILED_GENERATION_MESSAGE
     return update_lesson_status(
         db,
         lesson=lesson,
@@ -177,6 +190,15 @@ def _apply_openmaic_result(db: Session, *, lesson: InteractiveLesson, result: Op
         classroom_url=result.classroom_url if mapped_status == "completed" else None,
         error_code=error_code,
         error_message=error_message,
+    )
+
+
+def _mark_stale_failed(db: Session, *, lesson: InteractiveLesson) -> InteractiveLesson:
+    return mark_lesson_failed(
+        db,
+        lesson=lesson,
+        error_code="OPENMAIC_STALE_PENDING",
+        error_message=_safe_error_message("OPENMAIC_STALE_PENDING"),
     )
 
 
@@ -226,6 +248,7 @@ async def create_topic_interactive_lesson(
     *,
     topic_id: UUID,
     user: User,
+    force: bool = False,
     client: OpenMAICClient | None = None,
 ) -> InteractiveLessonDetail:
     _feature_guard()
@@ -233,9 +256,10 @@ async def create_topic_interactive_lesson(
     if topic is None:
         raise _topic_not_found()
 
-    reusable = get_recent_reusable_topic_lesson(db, user_id=user.id, topic_id=topic.id)
-    if reusable is not None:
-        return _to_detail(reusable)
+    if not force:
+        reusable = get_recent_reusable_topic_lesson(db, user_id=user.id, topic_id=topic.id)
+        if reusable is not None:
+            return _to_detail(reusable)
 
     lesson = create_pending_topic_lesson(db, user_id=user.id, topic_id=topic.id, title=_topic_lesson_title(topic))
     return await _generate_lesson(
@@ -251,6 +275,7 @@ async def create_ladder_node_interactive_lesson(
     *,
     node_id: UUID,
     user: User,
+    force: bool = False,
     client: OpenMAICClient | None = None,
 ) -> InteractiveLessonDetail:
     _feature_guard()
@@ -263,9 +288,10 @@ async def create_ladder_node_interactive_lesson(
     if _node_status(node, nodes, progress_by_node) == "locked":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NODE_LOCKED)
 
-    reusable = get_recent_reusable_node_lesson(db, user_id=user.id, node_id=node.id)
-    if reusable is not None:
-        return _to_detail(reusable)
+    if not force:
+        reusable = get_recent_reusable_node_lesson(db, user_id=user.id, node_id=node.id)
+        if reusable is not None:
+            return _to_detail(reusable)
 
     lesson = create_pending_node_lesson(db, user_id=user.id, node_id=node.id, title=_node_lesson_title(node))
     return await _generate_lesson(
@@ -294,7 +320,11 @@ async def refresh_interactive_lesson(
     lesson = get_lesson_for_user(db, lesson_id=lesson_id, user_id=user.id)
     if lesson is None:
         raise _lesson_not_found()
-    if lesson.openmaic_job_id is None or lesson.status in {"completed", "failed"}:
+    if lesson.status in {"completed", "failed"}:
+        return _to_detail(lesson)
+    if lesson.openmaic_job_id is None:
+        if _is_stale(lesson):
+            lesson = _mark_stale_failed(db, lesson=lesson)
         return _to_detail(lesson)
 
     openmaic_client = client or get_openmaic_client()
@@ -307,6 +337,10 @@ async def refresh_interactive_lesson(
             error_code=exc.code,
             error_message=_safe_error_message(exc.code),
         )
+        return _to_detail(lesson)
+
+    if _is_stale(lesson) and _status_from_openmaic(result) in ACTIVE_LESSON_STATUSES:
+        lesson = _mark_stale_failed(db, lesson=lesson)
         return _to_detail(lesson)
 
     lesson = _apply_openmaic_result(db, lesson=lesson, result=result)

@@ -28,10 +28,11 @@ def get_topics(
 @router.post("/{topic_id}/interactive-lessons", response_model=DataResponse[InteractiveLessonDetail])
 async def generate_topic_interactive_lesson(
     topic_id: UUID,
+    force: bool = Query(default=False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DataResponse[InteractiveLessonDetail]:
-    return DataResponse(data=await create_topic_interactive_lesson(db, topic_id=topic_id, user=current_user))
+    return DataResponse(data=await create_topic_interactive_lesson(db, topic_id=topic_id, user=current_user, force=force))
 
 
 @router.get("/{topic_id}", response_model=DataResponse[TopicDetail])

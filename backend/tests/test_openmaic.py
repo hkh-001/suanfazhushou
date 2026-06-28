@@ -258,6 +258,20 @@ def test_openmaic_adapter_connection_error_maps_to_safe_error(client, admin_user
     assert response.json()["error"]["code"] == "OPENMAIC_UNAVAILABLE"
 
 
+@pytest.mark.parametrize("status_code", [401, 403])
+def test_openmaic_adapter_auth_failure_maps_to_safe_error(client, admin_user, monkeypatch, status_code) -> None:
+    _login_as(client, admin_user)
+    _enable_openmaic(monkeypatch)
+    FakeAsyncClient.requests = []
+    FakeAsyncClient.responses = [httpx.Response(status_code)]
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    response = client.post("/api/openmaic/poc/generate", json=_openmaic_payload())
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "OPENMAIC_AUTH_FAILED"
+
+
 def test_openmaic_adapter_invalid_response_maps_to_safe_error(client, admin_user, monkeypatch) -> None:
     _login_as(client, admin_user)
     _enable_openmaic(monkeypatch)
@@ -313,3 +327,55 @@ def test_openmaic_poll_path_template_is_used(client, admin_user, monkeypatch) ->
     assert response.json()["data"]["status"] == "completed"
     assert FakeAsyncClient.requests[0]["method"] == "GET"
     assert FakeAsyncClient.requests[0]["url"] == "http://openmaic.local/jobs/job-123/status"
+
+
+def test_openmaic_nested_unknown_status_does_not_override_top_level_completed(
+    client,
+    admin_user,
+    monkeypatch,
+) -> None:
+    _login_as(client, admin_user)
+    _enable_openmaic(monkeypatch)
+    FakeAsyncClient.requests = []
+    FakeAsyncClient.responses = [
+        httpx.Response(
+            200,
+            json={
+                "id": "job-123",
+                "status": "finished",
+                "lessonUrl": "http://openmaic.local/lesson/job-123",
+                "data": {"status": "mystery"},
+            },
+        )
+    ]
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    response = client.get("/api/openmaic/poc/jobs/job-123")
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["status"] == "completed"
+    assert data["classroom_url"] == "http://openmaic.local/lesson/job-123"
+
+
+def test_openmaic_adapter_accepts_additional_status_and_url_aliases(client, admin_user, monkeypatch) -> None:
+    _login_as(client, admin_user)
+    _enable_openmaic(monkeypatch)
+    FakeAsyncClient.requests = []
+    FakeAsyncClient.responses = [
+        httpx.Response(202, json={"id": "job-created", "state": "created"}),
+        httpx.Response(
+            200,
+            json={"result": {"id": "job-created", "state": "building", "outputUrl": "http://openmaic.local/out"}},
+        ),
+    ]
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    generate_response = client.post("/api/openmaic/poc/generate", json=_openmaic_payload())
+    poll_response = client.get("/api/openmaic/poc/jobs/job-created")
+
+    assert generate_response.status_code == 200
+    assert generate_response.json()["data"]["status"] == "submitted"
+    assert poll_response.status_code == 200
+    assert poll_response.json()["data"]["status"] == "processing"
+    assert poll_response.json()["data"]["classroom_url"] == "http://openmaic.local/out"

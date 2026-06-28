@@ -253,11 +253,11 @@ export function LadderPage() {
     }
   }
 
-  async function handleGenerateLesson() {
+  async function handleGenerateLesson(force = false) {
     if (!selectedNodeId) {
       return;
     }
-    await generateLesson(selectedNodeId);
+    await generateLesson(selectedNodeId, force);
   }
 
   function toggleCodingItem(itemId: string) {
@@ -517,10 +517,20 @@ export function LadderPage() {
                         <button
                           className="rounded-md bg-[#2563eb] px-4 py-2 text-sm font-semibold text-white outline-none hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#bfdbfe] focus-visible:ring-2 focus-visible:ring-[#93c5fd]"
                           disabled={lessonLoading}
-                          onClick={() => void handleGenerateLesson()}
+                          onClick={() => void handleGenerateLesson(lesson?.status === "failed")}
                           type="button"
                         >
                           {lessonLoading ? "正在提交..." : lesson?.status === "failed" ? "重新生成互动课堂" : "生成互动课堂"}
+                        </button>
+                      ) : null}
+                      {lesson?.status === "completed" ? (
+                        <button
+                          className="rounded-md border border-[#bfdbfe] bg-white px-4 py-2 text-sm font-semibold text-[#1d4ed8] outline-none hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd] disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={lessonLoading}
+                          onClick={() => void handleGenerateLesson(true)}
+                          type="button"
+                        >
+                          重新生成课堂
                         </button>
                       ) : null}
                       {lesson && pollableLessonStatuses.has(lesson.status) ? (

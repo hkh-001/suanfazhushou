@@ -118,6 +118,7 @@ Post-MVP roadmap:
 - Phase 19A: OpenMAIC External Service POC
 - Phase 19B: Topic Interactive Lessons With OpenMAIC
 - Phase 19C: Ladder Node Interactive Lessons With OpenMAIC
+- Phase 19D: OpenMAIC Real-Service Hardening
 - Phase 20: RAG Knowledge Retrieval
 - Phase 21: Deployment, Security, Permissions, Production Hardening
 
@@ -557,10 +558,19 @@ Topic interactive lessons:
 - Phase 19C extends the same metadata flow to `/ladder` nodes. Ladder-node classrooms are generated only from accessible active-path nodes and use bounded node title, summary, material excerpt, completion booleans, and profile level/goal track.
 - Ladder-node classroom generation does not set `material_completed`, `practice_completed`, or `exam_passed`, and it does not import OpenMAIC quizzes into ladder practice or exams.
 - The Phase 19C downgrade is intentionally lossy for ladder-node lessons because the Phase 19B schema cannot represent them.
+- Phase 19D hardens real-service integration: adapter status/URL compatibility, auth-failure reporting, stale lesson convergence, and explicit classroom regeneration.
+- `OPENMAIC_MAX_POLL_MINUTES` is used as the backend stale guard for `pending`, `submitted`, and `processing` lesson records during refresh.
+- Completed lessons are reused by default. Users can explicitly regenerate with `force=true`; failed lessons can always be regenerated.
+- Local adapter checks can be run without login or database writes:
+
+```bash
+cd backend
+uv run python scripts/check_openmaic_integration.py
+```
 
 ```text
-POST /api/topics/{topic_id}/interactive-lessons
-POST /api/ladder/nodes/{node_id}/interactive-lessons
+POST /api/topics/{topic_id}/interactive-lessons?force=false
+POST /api/ladder/nodes/{node_id}/interactive-lessons?force=false
 GET /api/interactive-lessons/{lesson_id}
 POST /api/interactive-lessons/{lesson_id}/refresh
 ```
@@ -621,7 +631,7 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 19C Ladder Node Interactive Lessons With OpenMAIC.
+Current: Post-MVP Phase 19D OpenMAIC Real-Service Hardening.
 
 Next: Phase 20 RAG Knowledge Retrieval.
 

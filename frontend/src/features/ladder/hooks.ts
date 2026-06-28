@@ -78,6 +78,12 @@ function userMessage(error: unknown) {
     if (error.code === "PROMPT_TEMPLATE_NOT_FOUND") {
       return "考试生成模板尚未初始化，请先运行 prompt seed。";
     }
+    if (error.code === "OPENMAIC_AUTH_FAILED") {
+      return "互动课堂服务鉴权失败，请检查配置。";
+    }
+    if (error.code === "OPENMAIC_STALE_PENDING") {
+      return "互动课堂生成超时，请重新生成。";
+    }
     if (
       error.code === "FEATURE_DISABLED" ||
       error.code === "OPENMAIC_CONFIG_MISSING" ||
@@ -236,11 +242,11 @@ export function useLadderInteractiveLesson() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generate = useCallback(async (nodeId: string) => {
+  const generate = useCallback(async (nodeId: string, force = false) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await createLadderNodeInteractiveLesson(nodeId);
+      const result = await createLadderNodeInteractiveLesson(nodeId, force);
       setLesson(result.data);
       return result.data;
     } catch (err) {

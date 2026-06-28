@@ -20,6 +20,12 @@ function getErrorMessage(error: unknown): string {
     return "请先登录后继续使用。";
   }
   if (error instanceof ApiError) {
+    if (error.code === "OPENMAIC_AUTH_FAILED") {
+      return "互动课堂服务鉴权失败，请检查配置。";
+    }
+    if (error.code === "OPENMAIC_STALE_PENDING") {
+      return "互动课堂生成超时，请重新生成。";
+    }
     if (
       ["FEATURE_DISABLED", "OPENMAIC_CONFIG_MISSING", "OPENMAIC_UNAVAILABLE", "OPENMAIC_TIMEOUT"].includes(
         error.code
@@ -123,11 +129,11 @@ export function useInteractiveLesson() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generate = useCallback(async (topicId: string) => {
+  const generate = useCallback(async (topicId: string, force = false) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await createInteractiveLesson(topicId);
+      const result = await createInteractiveLesson(topicId, force);
       setLesson(result.data);
       return result.data;
     } catch (err) {

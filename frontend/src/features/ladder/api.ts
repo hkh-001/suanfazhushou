@@ -67,8 +67,12 @@ export async function submitLadderExam(
   return response.data;
 }
 
-export async function createLadderNodeInteractiveLesson(nodeId: string): Promise<LadderInteractiveLessonResponse> {
-  return apiFetch<LadderInteractiveLessonResponse>(`/ladder/nodes/${nodeId}/interactive-lessons`, {
+export async function createLadderNodeInteractiveLesson(
+  nodeId: string,
+  force = false
+): Promise<LadderInteractiveLessonResponse> {
+  const suffix = force ? "?force=true" : "";
+  return apiFetch<LadderInteractiveLessonResponse>(`/ladder/nodes/${nodeId}/interactive-lessons${suffix}`, {
     method: "POST",
     timeoutMs: 30000
   });

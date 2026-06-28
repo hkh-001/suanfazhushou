@@ -734,6 +734,37 @@ high
 - Lesson prompts do not include practice answer keys, exam payloads, hidden tests, or full user history.
 - The existing ladder exam and progress rules remain unchanged.
 
+## Phase 19D: OpenMAIC Real-Service Hardening
+
+Status: implemented as compatibility and operational hardening for the existing OpenMAIC adapter and lesson flows.
+
+### Goal
+
+Make the external OpenMAIC integration reliable enough for local and demo validation against a real running OpenMAIC service.
+
+### Expected Features
+
+- Harden adapter status and classroom URL parsing for realistic OpenMAIC response shapes
+- Map OpenMAIC authentication failures to `OPENMAIC_AUTH_FAILED`
+- Use `OPENMAIC_MAX_POLL_MINUTES` as a stale lesson guard during refresh
+- Allow explicit regeneration with `force=true` for topic and ladder-node lessons
+- Provide `scripts/check_openmaic_integration.py` for local adapter checks without database writes
+
+### Not Included
+
+- Dashboard lesson recommendations
+- OpenMAIC Docker Compose ownership
+- iframe embedding
+- Classroom completion tracking
+- Writing classroom artifacts back into AlgoMentor content
+
+### Completion Criteria
+
+- Topic and ladder-node completed lessons can be explicitly regenerated.
+- Stale `pending`, `submitted`, or `processing` lessons converge to a safe failed state.
+- Adapter tests cover auth failure, status aliases, URL aliases, and nested unknown status behavior.
+- Local integration script can report normalized OpenMAIC generate/poll results without printing secrets.
+
 ## Phase 20: RAG Knowledge Retrieval
 
 ### Goal

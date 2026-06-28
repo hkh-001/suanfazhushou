@@ -857,6 +857,8 @@ Pass criteria:
 - Frontend does not call OpenMAIC directly.
 - No OpenMAIC secret appears in committed files, logs, screenshots, API responses, or browser storage.
 - Phase 19B/19C documents POC tradeoffs: async endpoints still use the existing synchronous SQLAlchemy session, completed lessons are reused by default, and stale `pending` rows after process crash require later cleanup policy.
+- Phase 19D replaces the stale pending tradeoff with refresh-time convergence: active lessons older than `OPENMAIC_MAX_POLL_MINUTES` are marked failed with `OPENMAIC_STALE_PENDING` after a final poll when possible.
+- Users can explicitly regenerate completed or failed lessons through backend `force=true`; frontend must still avoid direct OpenMAIC calls.
 
 Risk signals:
 

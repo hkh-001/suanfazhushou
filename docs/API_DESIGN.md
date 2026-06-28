@@ -522,8 +522,8 @@ Errors:
 Phase 19B adds user-triggered topic interactive lessons through the backend OpenMAIC adapter. Phase 19C extends the same lesson metadata flow to learning ladder nodes.
 
 ```text
-POST /api/topics/{topic_id}/interactive-lessons
-POST /api/ladder/nodes/{node_id}/interactive-lessons
+POST /api/topics/{topic_id}/interactive-lessons?force=false
+POST /api/ladder/nodes/{node_id}/interactive-lessons?force=false
 GET /api/interactive-lessons/{lesson_id}
 POST /api/interactive-lessons/{lesson_id}/refresh
 ```
@@ -536,6 +536,7 @@ Rules:
 - `POST /api/ladder/nodes/{node_id}/interactive-lessons` is an explicit user action for current-user active-path nodes only.
 - If the same user already has a recent `submitted`, `processing`, or `completed` lesson for the same topic, the backend returns that lesson instead of calling OpenMAIC again.
 - If the same user already has a recent `submitted`, `processing`, or `completed` lesson for the same ladder node, the backend returns that lesson instead of calling OpenMAIC again.
+- `force=true` skips reusable `submitted`, `processing`, or `completed` lessons and creates a new OpenMAIC generation request.
 - `failed` lessons are not reused; users may retry generation.
 - The frontend calls only AlgoMentor APIs and never calls OpenMAIC directly.
 - The backend sends only topic title/category/level/summary/content excerpt plus current profile level and goal track.
@@ -543,6 +544,7 @@ Rules:
 - The backend does not send student id, full learning history, code, submissions, hidden tests, private notes, ladder exam payloads, or answer keys.
 - Ladder-node lessons do not send `practice_items`, choice answer keys, full exam payloads, or exam answer keys.
 - `refresh` performs a single OpenMAIC poll and does not long-poll.
+- `OPENMAIC_MAX_POLL_MINUTES` is used as a stale guard during refresh. Stale active lessons are marked `failed` with `OPENMAIC_STALE_PENDING` after a final poll when a job id exists.
 - OpenMAIC `unknown` status is returned and stored as `processing`.
 - `completed` requires a classroom URL; otherwise the lesson remains `processing` or becomes `failed`.
 - OpenMAIC lessons never mutate learning records, ladder `material_completed`, `practice_completed`, `exam_passed`, submissions, or AI logs.
@@ -581,6 +583,8 @@ Errors:
 - `OPENMAIC_UNAVAILABLE`
 - `OPENMAIC_INVALID_RESPONSE`
 - `OPENMAIC_JOB_NOT_FOUND`
+- `OPENMAIC_AUTH_FAILED`
+- `OPENMAIC_STALE_PENDING`
 - `TOPIC_NOT_FOUND`
 - inherited auth errors
 

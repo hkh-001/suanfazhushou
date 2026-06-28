@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
@@ -211,6 +212,7 @@ def test_create_interactive_lesson_uses_safe_topic_requirement(client, dev_user,
     assert "隐藏测试" in requirement
     assert "correct_option_id" not in requirement
     assert "exam_payload" not in requirement
+    assert not any(fragment in requirement for fragment in ["浜", "璇", "鐢", "鍙", "�"])
 
 
 def test_openmaic_unknown_status_is_stored_as_processing(client, dev_user, monkeypatch, published_topic) -> None:
@@ -277,6 +279,28 @@ def test_reuses_recent_active_topic_lesson(client, dev_user, db_session, monkeyp
     assert response.status_code == 200
     assert response.json()["data"]["id"] == str(existing.id)
     assert FakeOpenMAICClient.generated_payloads == []
+
+
+def test_force_topic_lesson_skips_completed_reuse(client, dev_user, db_session, monkeypatch, published_topic) -> None:
+    _enable_openmaic(monkeypatch)
+    existing = InteractiveLesson(
+        user_id=dev_user.id,
+        topic_id=published_topic.id,
+        source_type="topic",
+        title="已有课堂",
+        status="completed",
+        openmaic_job_id="job-existing",
+        openmaic_classroom_url="http://openmaic.local/classroom/existing",
+        completed_at=datetime.now(timezone.utc),
+    )
+    db_session.add(existing)
+    db_session.commit()
+
+    response = client.post(f"/api/topics/{published_topic.id}/interactive-lessons?force=true")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] != str(existing.id)
+    assert len(FakeOpenMAICClient.generated_payloads) == 1
 
 
 def test_failed_lesson_does_not_block_regeneration(client, dev_user, db_session, monkeypatch, published_topic) -> None:
@@ -374,6 +398,71 @@ def test_refresh_job_not_found_marks_failed_safely(client, dev_user, db_session,
     assert data["error_message"] == "互动课堂任务不存在或已过期，请重新生成。"
 
 
+def test_refresh_stale_pending_without_job_marks_failed(client, dev_user, db_session, monkeypatch, published_topic) -> None:
+    _enable_openmaic(monkeypatch)
+    monkeypatch.setattr(settings, "openmaic_max_poll_minutes", 5)
+    lesson = InteractiveLesson(
+        user_id=dev_user.id,
+        topic_id=published_topic.id,
+        source_type="topic",
+        title="卡住的课堂",
+        status="pending",
+    )
+    db_session.add(lesson)
+    db_session.commit()
+    db_session.execute(
+        update(InteractiveLesson)
+        .where(InteractiveLesson.id == lesson.id)
+        .values(updated_at=datetime.now(timezone.utc) - timedelta(minutes=6))
+    )
+    db_session.commit()
+
+    response = client.post(f"/api/interactive-lessons/{lesson.id}/refresh")
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["status"] == "failed"
+    assert data["error_code"] == "OPENMAIC_STALE_PENDING"
+    assert data["error_message"] == "互动课堂生成超时，请重新生成。"
+    assert FakeOpenMAICClient.requested_jobs == []
+
+
+def test_refresh_stale_processing_polls_once_then_marks_failed(
+    client,
+    dev_user,
+    db_session,
+    monkeypatch,
+    published_topic,
+) -> None:
+    _enable_openmaic(monkeypatch)
+    monkeypatch.setattr(settings, "openmaic_max_poll_minutes", 5)
+    FakeOpenMAICClient.refresh_result = OpenMAICJobStatus(status="processing", job_id="job-stale")
+    lesson = InteractiveLesson(
+        user_id=dev_user.id,
+        topic_id=published_topic.id,
+        source_type="topic",
+        title="卡住的课堂",
+        status="processing",
+        openmaic_job_id="job-stale",
+    )
+    db_session.add(lesson)
+    db_session.commit()
+    db_session.execute(
+        update(InteractiveLesson)
+        .where(InteractiveLesson.id == lesson.id)
+        .values(updated_at=datetime.now(timezone.utc) - timedelta(minutes=6))
+    )
+    db_session.commit()
+
+    response = client.post(f"/api/interactive-lessons/{lesson.id}/refresh")
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["status"] == "failed"
+    assert data["error_code"] == "OPENMAIC_STALE_PENDING"
+    assert FakeOpenMAICClient.requested_jobs == ["job-stale"]
+
+
 def test_interactive_lesson_does_not_touch_ai_logs_or_learning_records(
     client,
     dev_user,
@@ -457,6 +546,7 @@ def test_ladder_node_lesson_generation_succeeds_for_unlocked_active_node(
     assert "practice_items" not in requirement
     assert "exam_payload" not in requirement
     assert "hidden tests" not in requirement.lower()
+    assert not any(fragment in requirement for fragment in ["浜", "璇", "鐢", "鍙", "�"])
 
 
 def test_ladder_node_long_material_keeps_classroom_instructions(
@@ -521,6 +611,30 @@ def test_reuses_recent_ladder_node_lesson(client, dev_user, db_session, monkeypa
     assert response.status_code == 200
     assert response.json()["data"]["id"] == str(existing.id)
     assert FakeOpenMAICClient.generated_payloads == []
+
+
+def test_force_ladder_node_lesson_skips_completed_reuse(client, dev_user, db_session, monkeypatch) -> None:
+    _enable_openmaic(monkeypatch)
+    _, nodes = _create_path_with_nodes(db_session, dev_user)
+    existing = InteractiveLesson(
+        user_id=dev_user.id,
+        topic_id=None,
+        node_id=nodes[0].id,
+        source_type="ladder_node",
+        title="已有节点课堂",
+        status="completed",
+        openmaic_job_id="job-node-existing",
+        openmaic_classroom_url="http://openmaic.local/classroom/node-existing",
+        completed_at=datetime.now(timezone.utc),
+    )
+    db_session.add(existing)
+    db_session.commit()
+
+    response = client.post(f"/api/ladder/nodes/{nodes[0].id}/interactive-lessons?force=true")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] != str(existing.id)
+    assert len(FakeOpenMAICClient.generated_payloads) == 1
 
 
 def test_failed_ladder_node_lesson_can_regenerate(client, dev_user, db_session, monkeypatch) -> None:
