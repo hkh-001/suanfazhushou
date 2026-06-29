@@ -17,7 +17,7 @@ export function friendlyAIError(error: unknown) {
     return "AI 服务暂时返回错误，请稍后重试。";
   }
   if (message.includes("AI output could not be parsed")) {
-    return "AI 返回内容暂时无法解析，请调整输入后重试。";
+    return "AI 返回内容格式不正确或缺少必要字段，请调整输入后重试。";
   }
   return message || "请求失败，请稍后重试。";
 }

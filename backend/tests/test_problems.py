@@ -20,6 +20,9 @@ class FakeGeneratedProblemJudgeClient:
     def __init__(self, verdict: str = "accepted") -> None:
         self.verdict = verdict
         self.calls = 0
+        # None | "test_case_id" | "case_index" | "is_sample" — simulate a malformed Judge
+        # response that the derivation must reject.
+        self.corrupt: str | None = None
 
     async def judge(self, payload):
         self.calls += 1
@@ -31,22 +34,25 @@ class FakeGeneratedProblemJudgeClient:
                 compile_output="compile failed",
                 case_results=[],
             )
+        accepted = self.verdict == "accepted"
         results = [
             JudgeCaseResult(
-                test_case_id=case.id,
-                case_index=case.case_index,
+                test_case_id=uuid4() if self.corrupt == "test_case_id" else case.id,
+                case_index=case.case_index + 10 if self.corrupt == "case_index" else case.case_index,
                 name=case.name,
-                is_sample=case.is_sample,
-                verdict="accepted" if self.verdict == "accepted" else "wrong_answer",
+                is_sample=False if self.corrupt == "is_sample" else case.is_sample,
+                verdict="accepted" if accepted else "wrong_answer",
                 execution_time_ms=3,
                 memory_kb=1024,
-                actual_output=case.expected_output_text if self.verdict == "accepted" else "wrong",
+                # Derived (real) output differs per case so tests can assert it is mapped
+                # back to the correct case.
+                actual_output=case.expected_output_text if accepted else f"derived-{case.case_index}",
             )
             for case in payload.test_cases
         ]
         return JudgeResponse(
             verdict=self.verdict,
-            passed_case_count=len(results) if self.verdict == "accepted" else 0,
+            passed_case_count=len(results) if accepted else 0,
             total_case_count=len(results),
             execution_time_ms=6,
             memory_kb=1024,
@@ -288,20 +294,67 @@ def test_save_ai_generated_problem_success_and_forced_metadata(client, db_sessio
     assert test_cases[1].is_sample is False
 
 
-def test_save_ai_generated_problem_rejects_reference_output_mismatch(
+def test_save_ai_generated_problem_derives_outputs_from_reference_solution(
+    client,
+    db_session,
+    generated_problem_judge_client,
+) -> None:
+    _register(client)
+    # The reference solution runs but its real output differs from the AI's guess; the
+    # derived output (distinct per case) must overwrite the stored expected output and map
+    # back to the correct case.
+    generated_problem_judge_client.verdict = "wrong_answer"
+
+    response = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload())
+
+    assert response.status_code == 200
+    assert generated_problem_judge_client.calls == 1
+    db_problem = db_session.scalar(select(Problem).where(Problem.title == "AI Prefix Sum Practice"))
+    assert db_problem is not None
+    test_cases = db_session.scalars(
+        select(DbTestCase).where(DbTestCase.problem_id == db_problem.id).order_by(DbTestCase.case_index)
+    ).all()
+    assert [case.expected_output_text for case in test_cases] == ["derived-1", "derived-2"]
+    # Default payload marks the first case as the sample, so sample_output mirrors it.
+    assert db_problem.sample_output == "derived-1"
+
+
+def test_save_ai_generated_problem_sample_output_tracks_sample_case(
     client,
     db_session,
     generated_problem_judge_client,
 ) -> None:
     _register(client)
     generated_problem_judge_client.verdict = "wrong_answer"
+    # Make the second test case the sample; sample_output must follow it (derived-2).
+    payload = _generated_problem_payload()
+    payload["test_cases"][0]["is_sample"] = False
+    payload["test_cases"][1]["is_sample"] = True
+    payload.pop("sample_output", None)
+
+    response = client.post("/api/problems/save-ai-generated", json=payload)
+
+    assert response.status_code == 200
+    db_problem = db_session.scalar(select(Problem).where(Problem.title == "AI Prefix Sum Practice"))
+    assert db_problem is not None
+    assert db_problem.sample_output == "derived-2"
+
+
+@pytest.mark.parametrize("corrupt", ["test_case_id", "case_index", "is_sample"])
+def test_save_ai_generated_problem_rejects_malformed_judge_response(
+    client,
+    db_session,
+    generated_problem_judge_client,
+    corrupt: str,
+) -> None:
+    _register(client)
+    generated_problem_judge_client.corrupt = corrupt
 
     response = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload())
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "AI_GENERATED_PROBLEM_INVALID"
-    assert "标程输出与预期输出不一致" in response.json()["error"]["message"]
-    assert generated_problem_judge_client.calls == 1
+    assert "标程无法运行" in response.json()["error"]["message"]
     assert db_session.scalar(select(func.count()).select_from(Problem).where(Problem.title == "AI Prefix Sum Practice")) == 0
 
 

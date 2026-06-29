@@ -28,6 +28,7 @@ from app.repositories.problems import (
 from app.schemas.common import PaginatedResponse, Pagination
 from app.schemas.problem import (
     GeneratedProblemSaveRequest,
+    GeneratedProblemSaveTestCase,
     ProblemCreate,
     ProblemDeleteResult,
     ProblemDetail,
@@ -49,14 +50,14 @@ PUBLIC_PROBLEM_FORBIDDEN = {
     "code": "PUBLIC_PROBLEM_FORBIDDEN",
     "message": "Only admins can create or modify public problems",
 }
-AI_GENERATED_PROBLEM_INVALID_OUTPUT = {
-    "code": "AI_GENERATED_PROBLEM_INVALID",
-    "message": "AI 生成的题目未通过自校验：标程输出与预期输出不一致。请重新生成。",
-}
 AI_GENERATED_PROBLEM_INVALID_RUNTIME = {
     "code": "AI_GENERATED_PROBLEM_INVALID",
     "message": "AI 生成的标程无法运行，请重新生成。",
 }
+
+# Verdicts that mean the reference solution ran to completion and produced output for a
+# case. Anything else (compile/runtime/TLE/MLE/OLE/not_run) means the solution is broken.
+_REFERENCE_RAN_CASE_VERDICTS = frozenset({"accepted", "wrong_answer"})
 
 
 def _not_found() -> HTTPException:
@@ -174,11 +175,19 @@ def list_problems(db: Session, *, user: User, page: int, page_size: int) -> Pagi
     )
 
 
-async def _validate_generated_problem_reference_solution(
+async def _derive_generated_problem_outputs(
     payload: GeneratedProblemSaveRequest,
     *,
     judge_client: JudgeClient,
-) -> None:
+) -> list[str] | None:
+    """Run the AI reference solution and return its real output per test case.
+
+    The reference solution is treated as ground truth (as a real judge does): we run it on
+    each AI-provided input and use its actual stdout as the canonical ``expected_output``,
+    overwriting the AI's hand-written guess. Returns the outputs ordered by case, or
+    ``None`` when no reference solution is available (backward compatible skip). Raises
+    when the solution fails to compile or run cleanly.
+    """
     source_code = payload.solution_code_cpp
     language = "cpp"
     if not source_code:
@@ -186,38 +195,54 @@ async def _validate_generated_problem_reference_solution(
         language = "python"
     if not source_code:
         logger.warning("AI generated problem saved without reference solution validation: title=%s", payload.title)
-        return
+        return None
+
+    requested = [
+        JudgeTestCaseRequest(
+            id=uuid4(),
+            case_index=index,
+            name=case.name or f"{index:02d}",
+            input_text=case.input,
+            expected_output_text=case.expected_output,
+            # Mark every case as a sample so the runner returns actual_output for all of
+            # them; this internal flag does not affect what gets persisted.
+            is_sample=True,
+        )
+        for index, case in enumerate(payload.test_cases, start=1)
+    ]
+    # Snapshot the request so we can defend against a malformed Judge response writing an
+    # output to the wrong case (mismatched/duplicated case_index or test_case_id).
+    expected_case_index = {case.id: case.case_index for case in requested}
 
     judge_payload = JudgeRequest(
         submission_id=uuid4(),
         language=language,
         source_code=source_code,
-        test_cases=[
-            JudgeTestCaseRequest(
-                id=uuid4(),
-                case_index=index,
-                name=case.name or f"{index:02d}",
-                input_text=case.input,
-                expected_output_text=case.expected_output,
-                is_sample=case.is_sample or index == 1,
-            )
-            for index, case in enumerate(payload.test_cases, start=1)
-        ],
+        test_cases=requested,
     )
     judge_result = await judge_client.judge(judge_payload)
-    if (
-        judge_result.verdict == "accepted"
-        and len(judge_result.case_results) == len(judge_payload.test_cases)
-        and all(
-            result.verdict == "accepted" for result in judge_result.case_results
-        )
-    ):
-        return
-    if judge_result.verdict in {"wrong_answer", "output_limit_exceeded"} or any(
-        result.verdict == "wrong_answer" for result in judge_result.case_results
-    ):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=AI_GENERATED_PROBLEM_INVALID_OUTPUT)
-    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=AI_GENERATED_PROBLEM_INVALID_RUNTIME)
+
+    results = judge_result.case_results
+    seen_ids: set[UUID] = set()
+    consistent = len(results) == len(requested)
+    if consistent:
+        for result in results:
+            if (
+                result.test_case_id not in expected_case_index
+                or result.test_case_id in seen_ids
+                or result.case_index != expected_case_index[result.test_case_id]
+                or not result.is_sample
+                or result.verdict not in _REFERENCE_RAN_CASE_VERDICTS
+                or result.actual_output is None
+            ):
+                consistent = False
+                break
+            seen_ids.add(result.test_case_id)
+    if not consistent:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=AI_GENERATED_PROBLEM_INVALID_RUNTIME)
+
+    ordered = sorted(results, key=lambda result: result.case_index)
+    return [result.actual_output or "" for result in ordered]
 
 
 def list_public_problem_bank(db: Session, *, user: User, page: int, page_size: int) -> PaginatedResponse[ProblemListItem]:
@@ -296,10 +321,25 @@ async def save_ai_generated_problem(
     payload: GeneratedProblemSaveRequest,
     judge_client: JudgeClient,
 ) -> ProblemDetail:
-    await _validate_generated_problem_reference_solution(payload, judge_client=judge_client)
+    derived_outputs = await _derive_generated_problem_outputs(payload, judge_client=judge_client)
+
+    def _expected_output(index: int, case: GeneratedProblemSaveTestCase) -> str:
+        # When a reference solution ran, trust its real output over the AI's guess.
+        if derived_outputs is not None:
+            return derived_outputs[index - 1]
+        return case.expected_output
+
     topics = _resolve_topics(db, [payload.topic_id] if payload.topic_id else [])
     hint = "\n".join(f"- {hint}" for hint in payload.hints) or None
-    sample_case = next((case for case in payload.test_cases if case.is_sample), payload.test_cases[0])
+    sample_index, sample_case = next(
+        ((index, case) for index, case in enumerate(payload.test_cases, start=1) if case.is_sample),
+        (1, payload.test_cases[0]),
+    )
+    if derived_outputs is not None:
+        # Keep the displayed sample answer consistent with the ground-truth test data.
+        sample_output = _expected_output(sample_index, sample_case)
+    else:
+        sample_output = payload.sample_output or sample_case.expected_output
     problem = Problem(
         display_id=allocate_problem_display_id(db, user_id=user.id),
         title=payload.title,
@@ -313,7 +353,7 @@ async def save_ai_generated_problem(
         output_format=payload.output_format,
         constraints=payload.constraints,
         sample_input=payload.sample_input or sample_case.input,
-        sample_output=payload.sample_output or sample_case.expected_output,
+        sample_output=sample_output,
         hint=hint,
         solution_markdown=payload.solution_idea,
         solution_code_cpp=payload.solution_code_cpp,
@@ -328,7 +368,7 @@ async def save_ai_generated_problem(
             case_index=index,
             name=case.name or f"{index:02d}",
             input_text=case.input,
-            expected_output_text=case.expected_output,
+            expected_output_text=_expected_output(index, case),
             is_sample=case.is_sample or index == 1,
             is_hidden=False,
         )

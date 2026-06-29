@@ -100,17 +100,46 @@ class AIService:
         provider_result = self._call_provider(prompt=prompt, prompt_type="problem_generation", started=started, user=user)
         try:
             parsed = GeneratedProblem.model_validate(json.loads(_strip_json_fence(provider_result.content)))
-        except (json.JSONDecodeError, ValidationError) as exc:
+        except json.JSONDecodeError as exc:
+            latency_ms = round((perf_counter() - started) * 1000)
+            logger.warning("AI problem generation JSON parse failed for user %s after %s ms", user.id, latency_ms)
             self._log_call(
                 user=user,
                 model=provider_result.model,
                 prompt_type="problem_generation",
                 input_tokens=provider_result.usage.input_tokens,
                 output_tokens=provider_result.usage.output_tokens,
-                latency_ms=round((perf_counter() - started) * 1000),
+                latency_ms=latency_ms,
                 success=False,
                 error_code="AI_OUTPUT_PARSE_ERROR",
-                error_message="Ai Output Parse Error",
+                error_message="AI returned malformed JSON",
+            )
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "code": "AI_OUTPUT_PARSE_ERROR",
+                    "message": "AI generated output could not be parsed",
+                },
+            ) from exc
+        except ValidationError as exc:
+            latency_ms = round((perf_counter() - started) * 1000)
+            failed_fields = [str(err["loc"][-1]) for err in exc.errors() if err.get("loc")]
+            logger.warning(
+                "AI problem generation validation failed for user %s after %s ms: missing/invalid fields: %s",
+                user.id,
+                latency_ms,
+                ", ".join(failed_fields),
+            )
+            self._log_call(
+                user=user,
+                model=provider_result.model,
+                prompt_type="problem_generation",
+                input_tokens=provider_result.usage.input_tokens,
+                output_tokens=provider_result.usage.output_tokens,
+                latency_ms=latency_ms,
+                success=False,
+                error_code="AI_OUTPUT_PARSE_ERROR",
+                error_message=f"Validation failed for fields: {', '.join(failed_fields)}",
             )
             raise HTTPException(
                 status_code=502,

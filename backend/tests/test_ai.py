@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -323,7 +324,7 @@ def test_generate_problem_parses_json(client: TestClient, db_session, dev_user, 
     assert '"solution_code_python":' in response.json()["data"]["result"]
 
 
-def test_generate_problem_requires_reference_solutions(client: TestClient, db_session, dev_user, monkeypatch) -> None:
+def test_generate_problem_requires_reference_solution(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     add_template(db_session, template_key="problem_generation")
     override_provider(
         monkeypatch,
@@ -350,12 +351,101 @@ def test_generate_problem_requires_reference_solutions(client: TestClient, db_se
   "is_ai_generated": true
 }
 """.strip()
-        )
+        ),
     )
 
     response = client.post(
         "/api/ai/generate-problem",
         json={"difficulty": "beginner", "requirements": "range sum"},
+    )
+
+    # No reference solution at all must be rejected: the server derives expected_output by
+    # running the reference solution, so a problem without one would bypass the Judge check.
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "AI_OUTPUT_PARSE_ERROR"
+
+
+@pytest.mark.parametrize("language", ["cpp", "python"])
+def test_generate_problem_allows_single_language_reference_solution(
+    client: TestClient, db_session, dev_user, monkeypatch, language: str
+) -> None:
+    add_template(db_session, template_key="problem_generation")
+    solution_fields = {
+        "cpp": '"solution_code_cpp": "#include <bits/stdc++.h>\\nint main(){return 0;}"',
+        "python": '"solution_code_python": "import sys\\nprint(0)"',
+    }[language]
+    override_provider(
+        monkeypatch,
+        FakeAIProvider(
+            (
+                """
+{
+  "title": "前缀和练习",
+  "statement": "给定数组并回答区间和询问。",
+  "input_format": "第一行包含 n 和 q。",
+  "output_format": "每行输出一个答案。",
+  "constraints": "1 <= n, q <= 1000",
+  "sample_input": "3 1\\n1 2 3\\n1 3",
+  "sample_output": "6",
+  "test_cases": [
+    {
+      "name": "01",
+      "input": "3 1\\n1 2 3\\n1 3",
+      "expected_output": "6",
+      "is_sample": true
+    }
+  ],
+  "hints": ["先计算前缀和。"],
+  "solution_idea": "这道题的核心是预处理前缀和数组。prefix[i] 表示前 i 个元素的总和，因此任意区间 [l, r] 的和可以用 prefix[r] - prefix[l - 1] 在常数时间得到。先用一次线性扫描构造 prefix，然后逐个处理询问即可。时间复杂度为 O(n + q)，空间复杂度为 O(n)。",
+  __SOLUTION__,
+  "is_ai_generated": true
+}
+""".strip()
+            ).replace("__SOLUTION__", solution_fields)
+        ),
+    )
+
+    response = client.post(
+        "/api/ai/generate-problem",
+        json={"difficulty": "beginner", "requirements": "range sum"},
+    )
+
+    # A single-language reference solution is sufficient and must pass schema validation.
+    assert response.status_code == 200
+    assert '"is_ai_generated": true' in response.json()["data"]["result"]
+
+
+def test_generate_problem_fails_when_required_fields_missing(client: TestClient, db_session, dev_user, monkeypatch) -> None:
+    add_template(db_session, template_key="problem_generation")
+    override_provider(
+        monkeypatch,
+        FakeAIProvider(
+            """
+{
+  "statement": "missing title",
+  "input_format": "x",
+  "output_format": "y",
+  "constraints": "none",
+  "sample_input": "1",
+  "sample_output": "2",
+  "test_cases": [
+    {
+      "name": "01",
+      "input": "1",
+      "expected_output": "2",
+      "is_sample": true
+    }
+  ],
+  "hints": [],
+  "is_ai_generated": true
+}
+""".strip()
+        ),
+    )
+
+    response = client.post(
+        "/api/ai/generate-problem",
+        json={"difficulty": "beginner", "requirements": "test"},
     )
 
     assert response.status_code == 502
