@@ -28,9 +28,10 @@ export function getSubmissionErrorMessage(error: unknown): string {
       PROBLEM_TEST_CASES_REQUIRED: "该题目没有测试用例，暂时无法判题。",
       SUBMISSION_NOT_FOUND: "提交记录不存在，或你没有访问权限。",
       SUBMISSION_DIAGNOSIS_NOT_AVAILABLE: "当前判题结果不支持 AI 失败诊断。",
-      AI_CONFIG_MISSING: "当前未配置 AI 服务，请先进入系统设置完成配置。",
+      AI_CONFIG_MISSING: "请先前往 设置 → 个人 AI 服务配置 填写 API key。",
       AI_PROVIDER_TIMEOUT: "AI 服务响应超时，请稍后重试。",
-      AI_PROVIDER_ERROR: "AI 服务暂时返回错误，请稍后重试。",
+      AI_PROVIDER_ERROR: "AI 服务调用失败，请检查 API key 和网络。",
+      REQUEST_TIMEOUT: "请求响应时间过长，请稍后重试；如果频繁出现，请检查 AI 服务是否可用。",
       PROMPT_TEMPLATE_NOT_FOUND: "AI 诊断模板尚未初始化，请先运行 Prompt 模板 seed。"
     };
     return messages[error.code] ?? error.message;

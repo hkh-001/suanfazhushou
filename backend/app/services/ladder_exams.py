@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.models.ladder_exam import LadderExamAttempt
 from app.models.user import User
-from app.providers.ai.base import AIProvider
 from app.repositories.ladder import get_active_path, get_path_node_for_user, get_progress_for_path, mark_exam_passed
 from app.repositories.ladder_exams import (
     create_exam_attempt,
@@ -110,7 +109,6 @@ def generate_ladder_exam(
     *,
     user: User,
     node_id: UUID,
-    provider: AIProvider,
 ) -> LadderExamGenerationResult:
     node, nodes, progress_by_node, progress = _get_node_and_progress(db, user=user, node_id=node_id)
     if _node_status(node, nodes, progress_by_node) == "locked":
@@ -126,7 +124,7 @@ def generate_ladder_exam(
     if existing is not None:
         return LadderExamGenerationResult(attempt=_public_attempt(existing))
 
-    ai_result = AIService(db, provider).generate_ladder_exam(
+    ai_result = AIService(db).generate_ladder_exam(
         user=user,
         node_title=node.title,
         node_summary=node.summary,

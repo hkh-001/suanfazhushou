@@ -793,6 +793,35 @@ Close the gap between adapter-level support and a repeatable local OpenMAIC vali
 - Adapter tests cover the real `succeeded + result.url` response shape.
 - Topic and ladder classroom generation continue to work only through AlgoMentor backend APIs.
 
+## Phase 19F: Per-user AI Provider Settings
+
+Status: implemented as account-scoped BYOK configuration before RAG.
+
+### Goal
+
+Let each logged-in user save one OpenAI-compatible AI provider configuration that survives backend restarts and is used by AI calls for that user.
+
+### Expected Features
+
+- Store per-user `base_url`, `api_key`, and `model` in `user_ai_settings`
+- Resolve AI settings in priority order: user config, global runtime/persistent fallback, environment variables, none
+- Use current-user settings for AI chat, problem generation, code review, submission diagnosis, ladder exam generation, and settings test calls
+- Keep API keys out of frontend responses, browser storage, logs, and AI call metadata
+
+### Not Included
+
+- OpenMAIC configuration changes
+- Multiple provider profiles per user
+- Production-grade key encryption or KMS-backed secret storage
+- RAG retrieval
+
+### Completion Criteria
+
+- A user's saved AI configuration persists after backend restart.
+- Another user cannot read or use that configuration.
+- Clearing settings deletes only the current user's row.
+- Existing global runtime/env settings remain available only as fallback.
+
 ## Phase 20: RAG Knowledge Retrieval
 
 ### Goal

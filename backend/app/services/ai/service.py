@@ -1,4 +1,5 @@
 import json
+import logging
 from time import perf_counter
 
 from fastapi import HTTPException
@@ -7,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.user import User
-from app.providers.ai.base import AIProvider, AIProviderError, AIProviderResult
+from app.providers.ai.base import AIProviderError, AIProviderResult
+from app.providers.ai.openai_compatible import OpenAICompatibleProvider
 from app.repositories.ai_call_logs import create_ai_call_log
 from app.schemas.ai import (
     AIResponseData,
@@ -22,7 +24,7 @@ from app.models.submission import Submission
 from app.schemas.submission import SubmissionDiagnosisResponse
 from app.services.ai.context_builder import ContextBuilder
 from app.services.ai.prompt_renderer import PromptRenderer
-from app.services.settings.ai_runtime_settings import get_effective_ai_settings
+from app.services.settings.user_ai_settings import get_effective_ai_settings_for_user
 
 
 _ERROR_MESSAGES = {
@@ -32,6 +34,8 @@ _ERROR_MESSAGES = {
     "AI_OUTPUT_PARSE_ERROR": "AI output could not be parsed",
     "PROMPT_TEMPLATE_NOT_FOUND": "Prompt template not found",
 }
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_error_message(code: str) -> str:
@@ -49,9 +53,8 @@ def _strip_json_fence(content: str) -> str:
 
 
 class AIService:
-    def __init__(self, db: Session, provider: AIProvider) -> None:
+    def __init__(self, db: Session) -> None:
         self.db = db
-        self.provider = provider
         self.context_builder = ContextBuilder(db)
         self.prompt_renderer = PromptRenderer(db)
 
@@ -96,7 +99,7 @@ class AIService:
         started = perf_counter()
         provider_result = self._call_provider(prompt=prompt, prompt_type="problem_generation", started=started, user=user)
         try:
-            parsed = GeneratedProblem.model_validate(json.loads(provider_result.content))
+            parsed = GeneratedProblem.model_validate(json.loads(_strip_json_fence(provider_result.content)))
         except (json.JSONDecodeError, ValidationError) as exc:
             self._log_call(
                 user=user,
@@ -151,11 +154,13 @@ class AIService:
             template_key="submission_diagnosis",
             values=values,
         )
+        logger.info("Diagnosis started for submission %s, prompt length %d", submission.id, len(prompt))
         result = self._complete(
             user=user,
             prompt=prompt,
             prompt_type="submission_diagnosis",
         )
+        logger.info("Diagnosis finished for submission %s", submission.id)
         return SubmissionDiagnosisResponse(
             submission_id=submission.id,
             verdict=submission.verdict,
@@ -262,10 +267,11 @@ class AIService:
         started: float,
         user: User,
     ) -> AIProviderResult:
+        effective_settings = get_effective_ai_settings_for_user(self.db, user)
+        provider = OpenAICompatibleProvider(effective_settings)
         try:
-            return self.provider.complete(prompt=prompt, prompt_type=prompt_type)
+            return provider.complete(prompt=prompt, prompt_type=prompt_type)
         except AIProviderError as exc:
-            effective_settings = get_effective_ai_settings()
             self._log_call(
                 user=user,
                 model=effective_settings.model or "unconfigured",
@@ -298,7 +304,7 @@ class AIService:
         create_ai_call_log(
             self.db,
             user_id=user.id,
-            provider=self.provider.provider_name,
+            provider=OpenAICompatibleProvider.provider_name,
             model=model,
             prompt_type=prompt_type,
             input_tokens=input_tokens,

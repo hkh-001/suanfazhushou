@@ -11,8 +11,11 @@ from app.services.settings.ai_runtime_settings import EffectiveAISettings, get_e
 class OpenAICompatibleProvider(AIProvider):
     provider_name = "openai_compatible"
 
+    def __init__(self, effective_settings: EffectiveAISettings | None = None) -> None:
+        self.effective_settings = effective_settings
+
     def _get_config(self) -> EffectiveAISettings:
-        effective_settings = get_effective_ai_settings()
+        effective_settings = self.effective_settings or get_effective_ai_settings()
         if not effective_settings.configured:
             raise AIProviderError(
                 "AI_CONFIG_MISSING",

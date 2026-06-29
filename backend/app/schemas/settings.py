@@ -7,7 +7,7 @@ from app.services.settings.ai_runtime_settings import sanitize_base_url
 
 class AISettingsStatus(BaseModel):
     configured: bool
-    source: Literal["runtime", "persistent", "env", "none"]
+    source: Literal["user", "runtime", "persistent", "env", "none"]
     provider: str
     base_url: str | None
     model: str | None

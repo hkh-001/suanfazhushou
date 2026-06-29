@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
@@ -10,7 +11,6 @@ from app.models.problem import Problem
 from app.models.submission import Submission, SubmissionCaseResult
 from app.models.test_case import TestCase
 from app.models.user import User
-from app.providers.ai.base import AIProvider
 from app.repositories.problems import get_accessible_problem_with_test_cases
 from app.repositories.submissions import create_submission as insert_submission
 from app.repositories.submissions import get_user_submission
@@ -24,7 +24,10 @@ from app.schemas.submission import (
 )
 from app.services.ai.service import AIService
 from app.services.judge.client import JudgeClient
+from app.services.settings.user_ai_settings import get_effective_ai_settings_for_user
 from app.services.submission_limiter import SubmissionLimiter
+
+logger = logging.getLogger(__name__)
 
 PROBLEM_NOT_FOUND = {"code": "PROBLEM_NOT_FOUND", "message": "Problem not found"}
 SUBMISSION_NOT_FOUND = {"code": "SUBMISSION_NOT_FOUND", "message": "Submission not found"}
@@ -234,7 +237,6 @@ def diagnose_submission(
     *,
     user: User,
     submission_id: UUID,
-    provider: AIProvider,
 ) -> SubmissionDiagnosisResponse:
     submission = get_user_submission(db, submission_id=submission_id, user_id=user.id)
     if submission is None:
@@ -244,4 +246,11 @@ def diagnose_submission(
             status_code=status.HTTP_409_CONFLICT,
             detail=DIAGNOSIS_NOT_AVAILABLE,
         )
-    return AIService(db, provider).diagnose_submission(user=user, submission=submission)
+    effective_settings = get_effective_ai_settings_for_user(db, user)
+    if not effective_settings.configured:
+        logger.info("Diagnosis skipped for submission %s: no AI config", submission.id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_CONFIG_MISSING", "message": "AI provider configuration is missing"},
+        )
+    return AIService(db).diagnose_submission(user=user, submission=submission)

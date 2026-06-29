@@ -3,10 +3,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_ai_provider, get_current_user
+from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.providers.ai.base import AIProvider
 from app.schemas.common import DataResponse
 from app.schemas.interactive_lesson import InteractiveLessonDetail
 from app.schemas.ladder import LadderNodeDetail, LadderPracticeSubmitRequest, LadderPracticeSubmitResult, LadderSummary
@@ -69,9 +68,8 @@ def generate_ladder_exam_endpoint(
     node_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    provider: AIProvider = Depends(get_ai_provider),
 ) -> DataResponse[LadderExamGenerationResult]:
-    return DataResponse(data=generate_ladder_exam(db, user=current_user, node_id=node_id, provider=provider))
+    return DataResponse(data=generate_ladder_exam(db, user=current_user, node_id=node_id))
 
 
 @router.post("/nodes/{node_id}/interactive-lessons", response_model=DataResponse[InteractiveLessonDetail])

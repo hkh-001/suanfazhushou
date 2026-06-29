@@ -4,8 +4,6 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import func, select
 
-from app.core.deps import get_ai_provider
-from app.main import app
 from app.models.ai_call_log import AICallLog
 from app.models.code_review import CodeReview
 from app.models.mistake_note import MistakeNote
@@ -43,7 +41,7 @@ class ErrorAIProvider(AIProvider):
         )
 
 
-def _register(client, prefix: str = "diagnosis") -> dict:
+def _register(client, prefix: str = "diagnosis", *, configure_ai: bool = True) -> dict:
     suffix = uuid4().hex[:8]
     response = client.post(
         "/api/auth/register",
@@ -57,7 +55,18 @@ def _register(client, prefix: str = "diagnosis") -> dict:
         },
     )
     assert response.status_code == 200
-    return response.json()["data"]
+    user = response.json()["data"]
+    if configure_ai:
+        settings_response = client.put(
+            "/api/settings/ai",
+            json={
+                "base_url": "https://api.example.test/v1",
+                "api_key": "sk-test",
+                "model": "fake-model",
+            },
+        )
+        assert settings_response.status_code == 200
+    return user
 
 
 def _add_template(db_session) -> None:
@@ -144,11 +153,20 @@ def _create_submission(
     return submission
 
 
-def _override_provider(provider: AIProvider) -> None:
-    app.dependency_overrides[get_ai_provider] = lambda: provider
+def _override_provider(monkeypatch, provider: AIProvider) -> None:
+    class ProviderFactory:
+        provider_name = provider.provider_name
+
+        def __init__(self, effective_settings=None) -> None:
+            self.effective_settings = effective_settings
+
+        def complete(self, *, prompt: str, prompt_type: str) -> AIProviderResult:
+            return provider.complete(prompt=prompt, prompt_type=prompt_type)
+
+    monkeypatch.setattr("app.services.ai.service.OpenAICompatibleProvider", ProviderFactory)
 
 
-def test_failed_submission_diagnosis_uses_safe_context(client, db_session) -> None:
+def test_failed_submission_diagnosis_uses_safe_context(client, db_session, monkeypatch) -> None:
     user = _register(client)
     problem = _create_problem(client)
     source_code = "A" * 10000 + "MIDDLE_SECRET" + "B" * 10000
@@ -182,7 +200,7 @@ def test_failed_submission_diagnosis_uses_safe_context(client, db_session) -> No
     )
     _add_template(db_session)
     provider = CapturingAIProvider()
-    _override_provider(provider)
+    _override_provider(monkeypatch, provider)
 
     response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
 
@@ -197,7 +215,8 @@ def test_failed_submission_diagnosis_uses_safe_context(client, db_session) -> No
         "failed_case_count_included": 2,
     }
     prompt = provider.prompts[0]
-    assert "[... source code truncated ...]" in prompt
+    assert len(prompt) <= 8000
+    assert "[代码已截断，仅保留首尾片段]" in prompt
     assert "MIDDLE_SECRET" not in prompt
     assert "sample input" in prompt
     assert "sample expected" in prompt
@@ -219,6 +238,25 @@ def test_failed_submission_diagnosis_uses_safe_context(client, db_session) -> No
     assert source_code not in (log.error_message or "")
 
 
+def test_diagnosis_without_ai_config_fast_fails_without_provider_call(client, db_session, monkeypatch) -> None:
+    user = _register(client, "no-ai-config", configure_ai=False)
+    problem = _create_problem(client)
+    submission = _create_submission(
+        db_session,
+        user_id=UUID(user["id"]),
+        problem=problem,
+    )
+    _add_template(db_session)
+    provider = CapturingAIProvider()
+    _override_provider(monkeypatch, provider)
+
+    response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "AI_CONFIG_MISSING"
+    assert provider.prompts == []
+
+
 @pytest.mark.parametrize(
     "verdict",
     [
@@ -233,6 +271,7 @@ def test_failed_submission_diagnosis_uses_safe_context(client, db_session) -> No
 def test_all_explainable_verdicts_are_supported(
     client,
     db_session,
+    monkeypatch,
     verdict: str,
 ) -> None:
     user = _register(client, verdict)
@@ -245,7 +284,7 @@ def test_all_explainable_verdicts_are_supported(
     )
     _add_template(db_session)
     provider = CapturingAIProvider()
-    _override_provider(provider)
+    _override_provider(monkeypatch, provider)
 
     response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
 
@@ -258,6 +297,7 @@ def test_all_explainable_verdicts_are_supported(
 def test_non_diagnosable_verdict_does_not_call_provider(
     client,
     db_session,
+    monkeypatch,
     verdict: str,
 ) -> None:
     user = _register(client, verdict)
@@ -269,7 +309,7 @@ def test_non_diagnosable_verdict_does_not_call_provider(
         verdict=verdict,
     )
     provider = CapturingAIProvider()
-    _override_provider(provider)
+    _override_provider(monkeypatch, provider)
 
     response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
 
@@ -278,7 +318,7 @@ def test_non_diagnosable_verdict_does_not_call_provider(
     assert provider.prompts == []
 
 
-def test_submission_diagnosis_is_user_scoped(client, db_session) -> None:
+def test_submission_diagnosis_is_user_scoped(client, db_session, monkeypatch) -> None:
     owner = _register(client, "owner")
     problem = _create_problem(client)
     submission = _create_submission(
@@ -290,7 +330,7 @@ def test_submission_diagnosis_is_user_scoped(client, db_session) -> None:
     _register(client, "other")
     _add_template(db_session)
     provider = CapturingAIProvider()
-    _override_provider(provider)
+    _override_provider(monkeypatch, provider)
 
     response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
 
@@ -299,7 +339,7 @@ def test_submission_diagnosis_is_user_scoped(client, db_session) -> None:
     assert provider.prompts == []
 
 
-def test_deleted_problem_uses_submission_snapshot(client, db_session) -> None:
+def test_deleted_problem_uses_submission_snapshot(client, db_session, monkeypatch) -> None:
     user = _register(client)
     problem = _create_problem(client)
     submission = _create_submission(
@@ -311,7 +351,7 @@ def test_deleted_problem_uses_submission_snapshot(client, db_session) -> None:
     db_session.commit()
     _add_template(db_session)
     provider = CapturingAIProvider()
-    _override_provider(provider)
+    _override_provider(monkeypatch, provider)
 
     response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
 
@@ -321,7 +361,7 @@ def test_deleted_problem_uses_submission_snapshot(client, db_session) -> None:
     assert problem["title"] in provider.prompts[0]
 
 
-def test_diagnosis_limits_failed_cases_to_five(client, db_session) -> None:
+def test_diagnosis_limits_failed_cases_to_five(client, db_session, monkeypatch) -> None:
     user = _register(client)
     problem = _create_problem(client)
     cases = [
@@ -344,7 +384,7 @@ def test_diagnosis_limits_failed_cases_to_five(client, db_session) -> None:
     )
     _add_template(db_session)
     provider = CapturingAIProvider()
-    _override_provider(provider)
+    _override_provider(monkeypatch, provider)
 
     response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
 
@@ -355,7 +395,7 @@ def test_diagnosis_limits_failed_cases_to_five(client, db_session) -> None:
     assert "Case #6" not in prompt
 
 
-def test_provider_failure_does_not_change_submission_verdict(client, db_session) -> None:
+def test_provider_failure_does_not_change_submission_verdict(client, db_session, monkeypatch) -> None:
     user = _register(client)
     problem = _create_problem(client)
     submission = _create_submission(
@@ -364,7 +404,7 @@ def test_provider_failure_does_not_change_submission_verdict(client, db_session)
         problem=problem,
     )
     _add_template(db_session)
-    _override_provider(ErrorAIProvider())
+    _override_provider(monkeypatch, ErrorAIProvider())
 
     response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
 
@@ -374,7 +414,7 @@ def test_provider_failure_does_not_change_submission_verdict(client, db_session)
     assert db_session.get(Submission, submission.id).verdict == "wrong_answer"
 
 
-def test_missing_submission_diagnosis_template_is_safe(client, db_session) -> None:
+def test_missing_submission_diagnosis_template_is_safe(client, db_session, monkeypatch) -> None:
     user = _register(client)
     problem = _create_problem(client)
     submission = _create_submission(
@@ -390,7 +430,7 @@ def test_missing_submission_diagnosis_template_is_safe(client, db_session) -> No
         template.enabled = False
     db_session.commit()
     provider = CapturingAIProvider()
-    _override_provider(provider)
+    _override_provider(monkeypatch, provider)
 
     response = client.post(f"/api/submissions/{submission.id}/ai-diagnose")
 

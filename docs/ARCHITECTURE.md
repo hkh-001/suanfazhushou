@@ -191,8 +191,19 @@ AI provider requirements:
 - bounded retries
 - metadata logging
 - safe error handling
+- Phase 19F resolves provider configuration per authenticated user before falling back to global runtime, persistent-file, and env settings
 
-Frontend must never call model providers directly. New AI features, including Post-MVP judging diagnosis and RAG-enhanced tutoring, must continue to use the backend service/provider layer.
+Phase 19F user settings flow:
+
+```text
+Current User
+-> AIService
+-> user_ai_settings lookup
+-> global runtime/persistent/env fallback if no user config exists
+-> OpenAICompatibleProvider(explicit effective settings)
+```
+
+Frontend must never call model providers directly. New AI features, including Post-MVP judging diagnosis and RAG-enhanced tutoring, must continue to use the backend service/provider layer. API routers should not inject a global provider for user-scoped AI calls; `AIService` owns user-aware provider construction.
 
 ## Prompt Template Architecture
 

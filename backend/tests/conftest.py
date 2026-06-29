@@ -22,6 +22,7 @@ from app.models.problem import Problem, UserProblemCounter
 from app.models.submission import Submission
 from app.models.topic import Topic
 from app.models.user import User
+from app.models.user_ai_setting import UserAISetting
 from app.services.settings.ai_runtime_settings import clear_runtime_ai_settings
 
 
@@ -48,6 +49,7 @@ def reset_runtime_ai_settings(
         db_session.execute(delete(MistakeNote))
         db_session.execute(delete(CodeReview))
         db_session.execute(delete(AICallLog))
+        db_session.execute(delete(UserAISetting))
         db_session.commit()
     clear_runtime_ai_settings()
     try:
@@ -102,6 +104,7 @@ def dev_user(db_session: Session) -> Generator[User, None, None]:
     db_session.execute(delete(NodeUserProgress).where(NodeUserProgress.user_id == dev_user_id))
     db_session.execute(delete(LearningPath).where(LearningPath.user_id == dev_user_id))
     db_session.execute(delete(UserProblemCounter).where(UserProblemCounter.user_id == dev_user_id))
+    db_session.execute(delete(UserAISetting).where(UserAISetting.user_id == dev_user_id))
     db_session.execute(delete(User).where(User.id == dev_user_id))
     db_session.flush()
     user = User(

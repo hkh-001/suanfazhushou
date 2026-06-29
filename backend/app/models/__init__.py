@@ -8,6 +8,7 @@ from app.models.problem import Problem, ProblemTag, UserProblemCounter
 from app.models.test_case import TestCase
 from app.models.topic import Topic, TopicDependency
 from app.models.user import User
+from app.models.user_ai_setting import UserAISetting
 from app.models.ai_call_log import AICallLog
 from app.models.prompt_template import PromptTemplate
 from app.models.submission import Submission, SubmissionCaseResult
@@ -32,5 +33,6 @@ __all__ = [
     "Topic",
     "TopicDependency",
     "User",
+    "UserAISetting",
     "UserProblemCounter",
 ]

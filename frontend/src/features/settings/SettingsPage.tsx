@@ -10,15 +10,16 @@ import { clearAISettings, fetchAISettings, saveAISettings, testAISettings } from
 import type { AISettingsStatus } from "./types";
 
 const sourceLabels: Record<AISettingsStatus["source"], string> = {
-  runtime: "当前使用运行时配置",
-  persistent: "当前使用本地持久化配置",
-  env: "当前使用环境变量配置",
+  user: "当前账号配置",
+  runtime: "全局运行时配置",
+  persistent: "全局本地持久化配置",
+  env: "环境变量配置",
   none: "当前未配置 AI 服务"
 };
 
 function friendlySettingsError(error: unknown) {
-  if (error instanceof ApiError && error.code === "FEATURE_DISABLED") {
-    return "运行时 AI 设置当前未启用。如需本地演示，请设置 ENABLE_RUNTIME_AI_SETTINGS=true。";
+  if (error instanceof ApiError && error.code === "AUTH_REQUIRED") {
+    return "请先登录后再配置个人 AI 服务。";
   }
   if (error instanceof ApiError || error instanceof Error) {
     return error.message;
@@ -46,8 +47,6 @@ export function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const runtimeEnabled = status?.runtime_settings_enabled ?? false;
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -69,10 +68,6 @@ export function SettingsPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!runtimeEnabled) {
-      setError("运行时 AI 设置当前未启用。如需本地演示，请设置 ENABLE_RUNTIME_AI_SETTINGS=true。");
-      return;
-    }
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -86,11 +81,7 @@ export function SettingsPage() {
       setBaseUrl(response.data.base_url ?? "");
       setModel(response.data.model ?? "");
       setApiKey("");
-      setMessage(
-        response.data.persistent_settings_enabled
-          ? "AI 服务配置已保存到后端运行时内存和本地持久化文件。"
-          : "AI 服务配置已保存到后端运行时内存。"
-      );
+      setMessage("个人 AI 服务配置已保存。后端重启后会从数据库自动恢复。");
     } catch (err) {
       setError(friendlySettingsError(err));
     } finally {
@@ -99,10 +90,6 @@ export function SettingsPage() {
   }
 
   async function handleTest() {
-    if (!runtimeEnabled) {
-      setError("运行时 AI 设置当前未启用。如需本地演示，请设置 ENABLE_RUNTIME_AI_SETTINGS=true。");
-      return;
-    }
     setTesting(true);
     setError(null);
     setMessage(null);
@@ -117,10 +104,6 @@ export function SettingsPage() {
   }
 
   async function handleClear() {
-    if (!runtimeEnabled) {
-      setError("运行时 AI 设置当前未启用。如需本地演示，请设置 ENABLE_RUNTIME_AI_SETTINGS=true。");
-      return;
-    }
     setClearing(true);
     setError(null);
     setMessage(null);
@@ -130,7 +113,11 @@ export function SettingsPage() {
       setBaseUrl(response.data.base_url ?? "");
       setModel(response.data.model ?? "");
       setApiKey("");
-      setMessage("运行时 AI 配置已清除。");
+      setMessage(
+        response.data.source === "none"
+          ? "你的个人 AI 配置已清除。当前没有可用的全局 fallback 配置。"
+          : "你的个人 AI 配置已清除。当前会回退到全局配置。"
+      );
     } catch (err) {
       setError(friendlySettingsError(err));
     } finally {
@@ -141,8 +128,8 @@ export function SettingsPage() {
   return (
     <AppShell maxWidth="max-w-6xl">
       <PageHeader
-        description="配置本地开发或演示环境中的 OpenAI-compatible 大模型服务。默认只保存在后端运行时内存中；启用本地持久化后，服务重启仍可恢复。"
-        title="系统设置"
+        description="为当前账号配置 OpenAI-compatible 大模型服务。保存后配置会写入后端数据库，服务重启后自动恢复。"
+        title="个人 AI 服务配置"
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -150,7 +137,7 @@ export function SettingsPage() {
           <div className="border-b border-[#e2e8f0] pb-5">
             <h2 className="text-xl font-semibold text-[#0f172a]">AI 服务配置</h2>
             <p className="mt-2 text-sm leading-6 text-[#64748b]">
-              请不要在公共环境中输入真实密钥。API 密钥不会显示明文，也不会写入浏览器存储。
+              API 密钥只保存在后端数据库中，不会在页面明文显示，也不会写入浏览器存储。
             </p>
           </div>
 
@@ -161,7 +148,7 @@ export function SettingsPage() {
               接口地址
               <input
                 className="mt-2 w-full rounded-md border border-[#bfdbfe] bg-white px-3 py-2 text-[#0f172a] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe] disabled:bg-slate-100"
-                disabled={!runtimeEnabled || saving}
+                disabled={saving}
                 onChange={(event) => setBaseUrl(event.target.value)}
                 placeholder="https://api.openai.com/v1"
                 value={baseUrl}
@@ -171,7 +158,7 @@ export function SettingsPage() {
               API 密钥
               <input
                 className="mt-2 w-full rounded-md border border-[#bfdbfe] bg-white px-3 py-2 text-[#0f172a] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe] disabled:bg-slate-100"
-                disabled={!runtimeEnabled || saving}
+                disabled={saving}
                 onChange={(event) => setApiKey(event.target.value)}
                 placeholder="sk-..."
                 type="password"
@@ -182,7 +169,7 @@ export function SettingsPage() {
               模型名称
               <input
                 className="mt-2 w-full rounded-md border border-[#bfdbfe] bg-white px-3 py-2 text-[#0f172a] outline-none focus:border-[#2563eb] focus:ring-2 focus:ring-[#bfdbfe] disabled:bg-slate-100"
-                disabled={!runtimeEnabled || saving}
+                disabled={saving}
                 onChange={(event) => setModel(event.target.value)}
                 placeholder="gpt-4o-mini / deepseek-chat / kimi-k2"
                 value={model}
@@ -196,14 +183,14 @@ export function SettingsPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 className="rounded-md bg-[#2563eb] px-5 py-3 text-sm font-semibold text-white outline-none transition hover:bg-[#1d4ed8] focus-visible:ring-2 focus-visible:ring-[#93c5fd] disabled:cursor-not-allowed disabled:bg-slate-300"
-                disabled={!runtimeEnabled || saving}
+                disabled={saving}
                 type="submit"
               >
-                {saving ? "正在保存..." : "保存配置"}
+                {saving ? "正在保存..." : "保存我的配置"}
               </button>
               <button
                 className="rounded-md border border-[#bfdbfe] bg-white px-5 py-3 text-sm font-semibold text-[#1d4ed8] outline-none transition hover:bg-[#eff6ff] focus-visible:ring-2 focus-visible:ring-[#93c5fd] disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                disabled={!runtimeEnabled || testing}
+                disabled={testing}
                 onClick={() => void handleTest()}
                 type="button"
               >
@@ -211,11 +198,11 @@ export function SettingsPage() {
               </button>
               <button
                 className="rounded-md border border-red-200 bg-white px-5 py-3 text-sm font-semibold text-red-700 outline-none transition hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-200 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                disabled={!runtimeEnabled || clearing}
+                disabled={clearing}
                 onClick={() => void handleClear()}
                 type="button"
               >
-                {clearing ? "正在清除..." : "清除配置"}
+                {clearing ? "正在清除..." : "清除我的配置"}
               </button>
             </div>
           </form>
@@ -233,18 +220,6 @@ export function SettingsPage() {
 
             {status ? (
               <dl className="mt-5 space-y-4 text-sm">
-                <div>
-                  <dt className="text-[#64748b]">运行时修改</dt>
-                  <dd className="mt-1 font-semibold text-[#0f172a]">
-                    {status.runtime_settings_enabled ? "已启用" : "未启用"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[#64748b]">本地持久化</dt>
-                  <dd className="mt-1 font-semibold text-[#0f172a]">
-                    {status.persistent_settings_enabled ? "已启用" : "未启用"}
-                  </dd>
-                </div>
                 <div>
                   <dt className="text-[#64748b]">配置状态</dt>
                   <dd className="mt-1 font-semibold text-[#0f172a]">
@@ -269,6 +244,18 @@ export function SettingsPage() {
                     {status.api_key_set ? "已设置" : "未设置"}
                   </dd>
                 </div>
+                <div>
+                  <dt className="text-[#64748b]">全局运行时 fallback</dt>
+                  <dd className="mt-1 font-semibold text-[#0f172a]">
+                    {status.runtime_settings_enabled ? "可用" : "未启用"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[#64748b]">全局本地文件 fallback</dt>
+                  <dd className="mt-1 font-semibold text-[#0f172a]">
+                    {status.persistent_settings_enabled ? "可用" : "未启用"}
+                  </dd>
+                </div>
               </dl>
             ) : (
               <p className="mt-4 text-sm text-[#64748b]">暂时无法读取配置状态。</p>
@@ -278,19 +265,12 @@ export function SettingsPage() {
           <section className="rounded-xl border border-[#dbeafe] bg-[#f8fbff] p-5 text-sm leading-6 text-[#475569] shadow-sm shadow-blue-100/60">
             <h2 className="text-lg font-semibold text-[#0f172a]">安全说明</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5">
-              <li>默认运行时配置只保存在当前后端进程内存中，服务重启后会丢失。</li>
-              <li>启用本地持久化后，配置会写入后端本地文件，仅用于开发和演示。</li>
+              <li>当前账号配置优先于全局 fallback 配置。</li>
+              <li>清除配置只会删除你的个人配置，不会影响其他用户。</li>
               <li>API 密钥不会在页面明文展示，也不会写入浏览器存储。</li>
-              <li>该能力仅用于本地开发和演示，不应在公网无鉴权启用。</li>
+              <li>当前版本将密钥保存在后端数据库中，生产环境需要进一步加密。</li>
             </ul>
           </section>
-
-          {!runtimeEnabled ? (
-            <section className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
-              运行时 AI 设置当前未启用。如需本地演示，请设置{" "}
-              <code className="font-mono">ENABLE_RUNTIME_AI_SETTINGS=true</code> 后重启后端。
-            </section>
-          ) : null}
         </aside>
       </div>
     </AppShell>

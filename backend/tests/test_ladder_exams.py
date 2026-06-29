@@ -3,8 +3,6 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import select
 
-from app.core.deps import get_ai_provider
-from app.main import app
 from app.models.ai_call_log import AICallLog
 from app.models.ladder import LadderTemplate, NodeUserProgress
 from app.models.ladder_exam import LadderExamAttempt
@@ -29,8 +27,17 @@ class FakeExamProvider(AIProvider):
         )
 
 
-def _override_provider(provider: AIProvider) -> None:
-    app.dependency_overrides[get_ai_provider] = lambda: provider
+def _override_provider(monkeypatch, provider: AIProvider) -> None:
+    class ProviderFactory:
+        provider_name = provider.provider_name
+
+        def __init__(self, effective_settings=None) -> None:
+            self.effective_settings = effective_settings
+
+        def complete(self, *, prompt: str, prompt_type: str) -> AIProviderResult:
+            return provider.complete(prompt=prompt, prompt_type=prompt_type)
+
+    monkeypatch.setattr("app.services.ai.service.OpenAICompatibleProvider", ProviderFactory)
 
 
 def _register(client, *, student_id: str | None = None):
@@ -189,12 +196,12 @@ def _exam_payload() -> dict:
     return {"questions": questions}
 
 
-def _prepare_node(client, db_session, *, provider: FakeExamProvider | None = None) -> tuple[str, str]:
+def _prepare_node(client, db_session, monkeypatch, *, provider: FakeExamProvider | None = None) -> tuple[str, str]:
     _add_template(db_session)
     _add_prompt_template(db_session)
     _register(client)
     if provider is not None:
-        _override_provider(provider)
+        _override_provider(monkeypatch, provider)
     summary = client.get("/api/ladder")
     assert summary.status_code == 200
     node_ids = [node["id"] for node in _nodes(summary.json())]
@@ -251,9 +258,9 @@ def test_exam_generate_requires_unlocked_material_and_practice(client, db_sessio
     assert practice_required.json()["error"]["code"] == "LADDER_EXAM_REQUIRE_PRACTICE"
 
 
-def test_exam_generate_reuses_generated_attempt_and_hides_answers(client, db_session) -> None:
+def test_exam_generate_reuses_generated_attempt_and_hides_answers(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider()
-    first_node_id, _ = _prepare_node(client, db_session, provider=provider)
+    first_node_id, _ = _prepare_node(client, db_session, monkeypatch, provider=provider)
 
     first = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
     second = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
@@ -268,9 +275,9 @@ def test_exam_generate_reuses_generated_attempt_and_hides_answers(client, db_ses
     assert len(db_session.scalars(select(LadderExamAttempt)).all()) == 1
 
 
-def test_exam_generate_accepts_markdown_json_fence(client, db_session) -> None:
+def test_exam_generate_accepts_markdown_json_fence(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider(f"```json\n{json.dumps(_exam_payload())}\n```")
-    first_node_id, _ = _prepare_node(client, db_session, provider=provider)
+    first_node_id, _ = _prepare_node(client, db_session, monkeypatch, provider=provider)
 
     response = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
 
@@ -278,9 +285,9 @@ def test_exam_generate_accepts_markdown_json_fence(client, db_session) -> None:
     assert response.json()["data"]["attempt"]["status"] == "generated"
 
 
-def test_exam_generate_invalid_json_does_not_save_attempt(client, db_session) -> None:
+def test_exam_generate_invalid_json_does_not_save_attempt(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider("not json")
-    first_node_id, _ = _prepare_node(client, db_session, provider=provider)
+    first_node_id, _ = _prepare_node(client, db_session, monkeypatch, provider=provider)
 
     response = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
 
@@ -293,9 +300,9 @@ def test_exam_generate_invalid_json_does_not_save_attempt(client, db_session) ->
     assert "not json" not in (log.error_message or "")
 
 
-def test_get_exam_and_submit_are_user_scoped(client, db_session) -> None:
+def test_get_exam_and_submit_are_user_scoped(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider()
-    first_node_id, _ = _prepare_node(client, db_session, provider=provider)
+    first_node_id, _ = _prepare_node(client, db_session, monkeypatch, provider=provider)
     generated = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
     attempt_id = generated.json()["data"]["attempt"]["id"]
     client.cookies.clear()
@@ -310,9 +317,9 @@ def test_get_exam_and_submit_are_user_scoped(client, db_session) -> None:
     assert submit_response.json()["error"]["code"] == "LADDER_EXAM_NOT_FOUND"
 
 
-def test_exam_submit_scores_deterministically_and_unlocks_next_node(client, db_session) -> None:
+def test_exam_submit_scores_deterministically_and_unlocks_next_node(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider()
-    first_node_id, second_node_id = _prepare_node(client, db_session, provider=provider)
+    first_node_id, second_node_id = _prepare_node(client, db_session, monkeypatch, provider=provider)
     generated = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
     attempt_id = generated.json()["data"]["attempt"]["id"]
 
@@ -334,9 +341,9 @@ def test_exam_submit_scores_deterministically_and_unlocks_next_node(client, db_s
     assert progress.exam_passed is True
 
 
-def test_exam_submit_below_80_does_not_pass_and_allows_new_attempt(client, db_session) -> None:
+def test_exam_submit_below_80_does_not_pass_and_allows_new_attempt(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider()
-    first_node_id, _ = _prepare_node(client, db_session, provider=provider)
+    first_node_id, _ = _prepare_node(client, db_session, monkeypatch, provider=provider)
     generated = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
     attempt_id = generated.json()["data"]["attempt"]["id"]
     low_score_answers = [{"question_id": f"single-{index}", "option_id": "a"} for index in range(1, 10)] + [
@@ -356,9 +363,9 @@ def test_exam_submit_below_80_does_not_pass_and_allows_new_attempt(client, db_se
     assert provider.calls == 2
 
 
-def test_exam_submit_requires_all_12_answers(client, db_session) -> None:
+def test_exam_submit_requires_all_12_answers(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider()
-    first_node_id, _ = _prepare_node(client, db_session, provider=provider)
+    first_node_id, _ = _prepare_node(client, db_session, monkeypatch, provider=provider)
     generated = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
     attempt_id = generated.json()["data"]["attempt"]["id"]
 
@@ -370,9 +377,9 @@ def test_exam_submit_requires_all_12_answers(client, db_session) -> None:
     assert response.status_code == 422
 
 
-def test_exam_submit_80_points_passes_and_repeat_is_idempotent(client, db_session) -> None:
+def test_exam_submit_80_points_passes_and_repeat_is_idempotent(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider()
-    first_node_id, _ = _prepare_node(client, db_session, provider=provider)
+    first_node_id, _ = _prepare_node(client, db_session, monkeypatch, provider=provider)
     generated = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
     attempt_id = generated.json()["data"]["attempt"]["id"]
     exact_80_answers = [{"question_id": f"single-{index}", "option_id": "a"} for index in range(1, 11)] + [
@@ -391,9 +398,9 @@ def test_exam_submit_80_points_passes_and_repeat_is_idempotent(client, db_sessio
     assert repeat.json()["data"]["passed"] is True
 
 
-def test_passed_node_cannot_generate_new_exam_and_no_judge_or_submission_created(client, db_session) -> None:
+def test_passed_node_cannot_generate_new_exam_and_no_judge_or_submission_created(client, db_session, monkeypatch) -> None:
     provider = FakeExamProvider()
-    first_node_id, _ = _prepare_node(client, db_session, provider=provider)
+    first_node_id, _ = _prepare_node(client, db_session, monkeypatch, provider=provider)
     generated = client.post(f"/api/ladder/nodes/{first_node_id}/exam-generate")
     attempt_id = generated.json()["data"]["attempt"]["id"]
     submission_count_before = len(db_session.scalars(select(Submission)).all())

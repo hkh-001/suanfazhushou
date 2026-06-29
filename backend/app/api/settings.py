@@ -1,32 +1,27 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.deps import get_current_user
+from app.db.session import get_db
+from app.models.user import User
 from app.providers.ai.base import AIProviderError
 from app.providers.ai.openai_compatible import OpenAICompatibleProvider
 from app.schemas.settings import AISettingsResponse, AISettingsTestResponse, AISettingsUpdateRequest
 from app.services.settings.ai_runtime_settings import (
-    clear_runtime_ai_settings,
-    get_effective_ai_settings,
     persistent_settings_enabled,
-    set_runtime_ai_settings,
+)
+from app.services.settings.user_ai_settings import (
+    clear_user_ai_settings,
+    get_effective_ai_settings_for_user,
+    set_user_ai_settings,
 )
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 
-def _feature_guard() -> None:
-    if not settings.enable_runtime_ai_settings:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "FEATURE_DISABLED",
-                "message": "Runtime AI settings are disabled",
-            },
-        )
-
-
-def _status_response() -> AISettingsResponse:
-    effective = get_effective_ai_settings()
+def _status_response(db: Session, user: User) -> AISettingsResponse:
+    effective = get_effective_ai_settings_for_user(db, user)
     return AISettingsResponse(
         data={
             "configured": effective.configured,
@@ -42,33 +37,46 @@ def _status_response() -> AISettingsResponse:
 
 
 @router.get("/ai", response_model=AISettingsResponse)
-def get_ai_settings() -> AISettingsResponse:
-    return _status_response()
+def get_ai_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AISettingsResponse:
+    return _status_response(db, current_user)
 
 
 @router.put("/ai", response_model=AISettingsResponse)
-def update_ai_settings(payload: AISettingsUpdateRequest) -> AISettingsResponse:
-    _feature_guard()
-    set_runtime_ai_settings(
+def update_ai_settings(
+    payload: AISettingsUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AISettingsResponse:
+    set_user_ai_settings(
+        db,
+        user=current_user,
         base_url=payload.base_url,
         api_key=payload.api_key,
         model=payload.model,
     )
-    return _status_response()
+    return _status_response(db, current_user)
 
 
 @router.delete("/ai", response_model=AISettingsResponse)
-def delete_ai_settings() -> AISettingsResponse:
-    _feature_guard()
-    clear_runtime_ai_settings()
-    return _status_response()
+def delete_ai_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AISettingsResponse:
+    clear_user_ai_settings(db, user=current_user)
+    return _status_response(db, current_user)
 
 
 @router.post("/ai/test", response_model=AISettingsTestResponse)
-def test_ai_settings() -> AISettingsTestResponse:
-    _feature_guard()
+def test_ai_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AISettingsTestResponse:
+    effective = get_effective_ai_settings_for_user(db, current_user)
     try:
-        OpenAICompatibleProvider().complete(
+        OpenAICompatibleProvider(effective).complete(
             prompt='Reply with "ok" only.',
             prompt_type="settings_test",
         )

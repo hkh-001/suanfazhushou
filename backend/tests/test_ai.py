@@ -1,10 +1,9 @@
 from uuid import uuid4
 
+import httpx
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.core.deps import get_ai_provider
-from app.main import app
 from app.models.ai_call_log import AICallLog
 from app.models.ladder import LadderTemplate, LearningPath, LearningPathNode, NodeUserProgress
 from app.models.ladder_exam import LadderExamAttempt
@@ -44,6 +43,32 @@ class TimeoutAIProvider(AIProvider):
         raise AIProviderError("AI_PROVIDER_TIMEOUT", "AI provider request timed out", status_code=503)
 
 
+class FakeHTTPClient:
+    headers_list: list[dict] = []
+
+    def __init__(self, timeout: int) -> None:
+        self.timeout = timeout
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def post(self, url, json, headers):
+        FakeHTTPClient.headers_list.append(headers)
+        response = httpx.Response(
+            200,
+            json={
+                "model": json["model"],
+                "choices": [{"message": {"content": "User-key response"}}],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 4},
+            },
+        )
+        response.request = httpx.Request("POST", url)
+        return response
+
+
 def add_template(db_session, *, template_key: str, version: int = 1, content: str | None = None) -> PromptTemplate:
     template = PromptTemplate(
         name=template_key,
@@ -59,13 +84,22 @@ def add_template(db_session, *, template_key: str, version: int = 1, content: st
     return template
 
 
-def override_provider(provider: AIProvider) -> None:
-    app.dependency_overrides[get_ai_provider] = lambda: provider
+def override_provider(monkeypatch, provider: AIProvider) -> None:
+    class ProviderFactory:
+        provider_name = provider.provider_name
+
+        def __init__(self, effective_settings=None) -> None:
+            self.effective_settings = effective_settings
+
+        def complete(self, *, prompt: str, prompt_type: str) -> AIProviderResult:
+            return provider.complete(prompt=prompt, prompt_type=prompt_type)
+
+    monkeypatch.setattr("app.services.ai.service.OpenAICompatibleProvider", ProviderFactory)
 
 
-def test_chat_returns_fake_provider_result(client: TestClient, db_session, dev_user) -> None:
+def test_chat_returns_fake_provider_result(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     add_template(db_session, template_key="concept_explanation")
-    override_provider(FakeAIProvider("Step-by-step explanation"))
+    override_provider(monkeypatch, FakeAIProvider("Step-by-step explanation"))
 
     response = client.post(
         "/api/ai/chat",
@@ -80,9 +114,36 @@ def test_chat_returns_fake_provider_result(client: TestClient, db_session, dev_u
     assert body["usage"] == {"input_tokens": 10, "output_tokens": 20}
 
 
-def test_code_review_does_not_log_full_code(client: TestClient, db_session, dev_user) -> None:
+def test_chat_uses_current_user_ai_settings(client: TestClient, db_session, dev_user, monkeypatch) -> None:
+    add_template(db_session, template_key="concept_explanation")
+    response = client.put(
+        "/api/settings/ai",
+        json={
+            "base_url": "https://user-provider.example/v1",
+            "api_key": "user-chat-key",
+            "model": "user-chat-model",
+        },
+    )
+    assert response.status_code == 200
+    FakeHTTPClient.headers_list = []
+    monkeypatch.setattr(httpx, "Client", FakeHTTPClient)
+
+    chat_response = client.post(
+        "/api/ai/chat",
+        json={"question": "How do arrays work?", "mode": "beginner"},
+    )
+
+    assert chat_response.status_code == 200
+    body = chat_response.json()["data"]
+    assert body["result"] == "User-key response"
+    assert body["model"] == "user-chat-model"
+    assert FakeHTTPClient.headers_list[0]["Authorization"] == "Bearer user-chat-key"
+    assert "user-chat-key" not in chat_response.text
+
+
+def test_code_review_does_not_log_full_code(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     add_template(db_session, template_key="code_review")
-    override_provider(FakeAIProvider("Bug cause before fix"))
+    override_provider(monkeypatch, FakeAIProvider("Bug cause before fix"))
     code = "int main(){return 0;}"
 
     response = client.post(
@@ -98,14 +159,14 @@ def test_code_review_does_not_log_full_code(client: TestClient, db_session, dev_
     assert code not in (log.error_message or "")
 
 
-def test_ai_prompt_includes_short_user_profile_context(client: TestClient, db_session, dev_user) -> None:
+def test_ai_prompt_includes_short_user_profile_context(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     dev_user.current_level = "popularization"
     dev_user.goal_track = "lanqiao"
     dev_user.goal_description = "\u5e0c\u671b\u51c6\u5907\u7701\u8d5b\u3002"
     db_session.commit()
     add_template(db_session, template_key="concept_explanation")
     provider = CapturingAIProvider("Profile-aware response")
-    override_provider(provider)
+    override_provider(monkeypatch, provider)
 
     response = client.post(
         "/api/ai/chat",
@@ -212,9 +273,10 @@ def test_user_profile_context_includes_ladder_summary_without_exam_payload(db_se
     assert "full exam payload" not in context
 
 
-def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) -> None:
+def test_generate_problem_parses_json(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     add_template(db_session, template_key="problem_generation")
     override_provider(
+        monkeypatch,
         FakeAIProvider(
             """
 {
@@ -240,9 +302,9 @@ def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) 
     }
   ],
   "hints": ["Build prefix sums"],
-  "solution_idea": "先预处理前缀和数组，每次询问用右端前缀和减去左端前一个位置的前缀和，单次询问复杂度为 O(1)。",
-  "solution_code_cpp": "#include <bits/stdc++.h>\\nusing namespace std;\\nint main(){return 0;}",
-  "solution_code_python": "import sys\\nprint('ok')",
+  "solution_idea": "这道题的核心是把每个前缀位置的累计和提前算好。设 prefix[i] 表示前 i 个数的总和，那么区间 [l, r] 的答案就是 prefix[r] - prefix[l - 1]。预处理时从左到右扫描数组并维护累计值；回答询问时只需要读取两个前缀值相减。这样可以避免每次询问重新遍历区间。时间复杂度为 O(n + q)，空间复杂度为 O(n)。实现时要注意输入下标从 1 开始，prefix[0] 应该设为 0。",
+  "solution_code_cpp": "#include <bits/stdc++.h>\\nusing namespace std;\\nint main(){ios::sync_with_stdio(false);cin.tie(nullptr);int n,q;if(!(cin>>n>>q)) return 0;vector<long long> pref(n+1);for(int i=1;i<=n;i++){long long x;cin>>x;pref[i]=pref[i-1]+x;}while(q--){int l,r;cin>>l>>r;cout<<pref[r]-pref[l-1]<<'\\\\n';}return 0;}",
+  "solution_code_python": "import sys\\ndata=list(map(int,sys.stdin.read().split()))\\nif not data:\\n    raise SystemExit\\nn,q=data[0],data[1]\\narr=data[2:2+n]\\npref=[0]\\nfor x in arr:\\n    pref.append(pref[-1]+x)\\nidx=2+n\\nout=[]\\nfor _ in range(q):\\n    l,r=data[idx],data[idx+1]\\n    idx+=2\\n    out.append(str(pref[r]-pref[l-1]))\\nprint('\\\\n'.join(out))",
   "is_ai_generated": true
 }
 """.strip()
@@ -261,9 +323,48 @@ def test_generate_problem_parses_json(client: TestClient, db_session, dev_user) 
     assert '"solution_code_python":' in response.json()["data"]["result"]
 
 
-def test_generate_problem_parse_error_is_safe(client: TestClient, db_session, dev_user) -> None:
+def test_generate_problem_requires_reference_solutions(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     add_template(db_session, template_key="problem_generation")
-    override_provider(FakeAIProvider("not json"))
+    override_provider(
+        monkeypatch,
+        FakeAIProvider(
+            """
+{
+  "title": "前缀和练习",
+  "statement": "给定数组并回答区间和询问。",
+  "input_format": "第一行包含 n 和 q。",
+  "output_format": "每行输出一个答案。",
+  "constraints": "1 <= n, q <= 1000",
+  "sample_input": "3 1\\n1 2 3\\n1 3",
+  "sample_output": "6",
+  "test_cases": [
+    {
+      "name": "01",
+      "input": "3 1\\n1 2 3\\n1 3",
+      "expected_output": "6",
+      "is_sample": true
+    }
+  ],
+  "hints": ["先计算前缀和。"],
+  "solution_idea": "这道题的核心是预处理前缀和数组。prefix[i] 表示前 i 个元素的总和，因此任意区间 [l, r] 的和可以用 prefix[r] - prefix[l - 1] 在常数时间得到。先用一次线性扫描构造 prefix，然后逐个处理询问即可。时间复杂度为 O(n + q)，空间复杂度为 O(n)。",
+  "is_ai_generated": true
+}
+""".strip()
+        )
+    )
+
+    response = client.post(
+        "/api/ai/generate-problem",
+        json={"difficulty": "beginner", "requirements": "range sum"},
+    )
+
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "AI_OUTPUT_PARSE_ERROR"
+
+
+def test_generate_problem_parse_error_is_safe(client: TestClient, db_session, dev_user, monkeypatch) -> None:
+    add_template(db_session, template_key="problem_generation")
+    override_provider(monkeypatch, FakeAIProvider("not json"))
 
     response = client.post(
         "/api/ai/generate-problem",
@@ -289,7 +390,6 @@ def test_missing_prompt_template_returns_safe_error(client: TestClient, db_sessi
     ):
         template.enabled = False
     db_session.commit()
-    override_provider(FakeAIProvider())
 
     response = client.post("/api/ai/chat", json={"question": "Explain arrays", "mode": "beginner"})
 
@@ -299,7 +399,6 @@ def test_missing_prompt_template_returns_safe_error(client: TestClient, db_sessi
 
 def test_ai_config_missing_returns_safe_error(client: TestClient, db_session, dev_user) -> None:
     add_template(db_session, template_key="concept_explanation")
-    app.dependency_overrides.pop(get_ai_provider, None)
 
     response = client.post("/api/ai/chat", json={"question": "Explain arrays", "mode": "beginner"})
 
@@ -307,9 +406,9 @@ def test_ai_config_missing_returns_safe_error(client: TestClient, db_session, de
     assert response.json()["error"]["code"] == "AI_CONFIG_MISSING"
 
 
-def test_provider_timeout_returns_safe_error(client: TestClient, db_session, dev_user) -> None:
+def test_provider_timeout_returns_safe_error(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     add_template(db_session, template_key="concept_explanation")
-    override_provider(TimeoutAIProvider())
+    override_provider(monkeypatch, TimeoutAIProvider())
 
     response = client.post("/api/ai/chat", json={"question": "Explain arrays", "mode": "beginner"})
 
@@ -317,10 +416,10 @@ def test_provider_timeout_returns_safe_error(client: TestClient, db_session, dev
     assert response.json()["error"]["code"] == "AI_PROVIDER_TIMEOUT"
 
 
-def test_template_version_desc_is_used(client: TestClient, db_session, dev_user) -> None:
+def test_template_version_desc_is_used(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     add_template(db_session, template_key="concept_explanation", version=1, content="old {{question}}")
     add_template(db_session, template_key="concept_explanation", version=2, content="new {{question}}")
-    override_provider(FakeAIProvider("latest template used"))
+    override_provider(monkeypatch, FakeAIProvider("latest template used"))
 
     response = client.post("/api/ai/chat", json={"question": "Explain arrays", "mode": "beginner"})
 
@@ -342,9 +441,9 @@ def test_ai_input_validation(client: TestClient, dev_user) -> None:
     assert response.status_code == 422
 
 
-def test_missing_topic_uses_safe_404(client: TestClient, db_session, dev_user) -> None:
+def test_missing_topic_uses_safe_404(client: TestClient, db_session, dev_user, monkeypatch) -> None:
     add_template(db_session, template_key="concept_explanation")
-    override_provider(FakeAIProvider())
+    override_provider(monkeypatch, FakeAIProvider())
 
     response = client.post(
         "/api/ai/chat",

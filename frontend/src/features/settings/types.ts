@@ -1,4 +1,4 @@
-export type AISettingsSource = "runtime" | "persistent" | "env" | "none";
+export type AISettingsSource = "user" | "runtime" | "persistent" | "env" | "none";
 
 export type AISettingsStatus = {
   configured: boolean;

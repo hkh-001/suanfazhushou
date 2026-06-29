@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api/client";
 import type { AIResponse, ChatPayload, CodeReviewPayload, ProblemGenerationPayload } from "./types";
 
 const AI_REQUEST_TIMEOUT_MS = 65000;
+const PROBLEM_GENERATION_TIMEOUT_MS = 240000;
 
 export function submitChat(payload: ChatPayload): Promise<AIResponse> {
   return apiFetch<AIResponse>("/ai/chat", {
@@ -24,6 +25,6 @@ export function submitProblemGeneration(payload: ProblemGenerationPayload): Prom
   return apiFetch<AIResponse>("/ai/generate-problem", {
     method: "POST",
     body: JSON.stringify(payload),
-    timeoutMs: AI_REQUEST_TIMEOUT_MS
+    timeoutMs: PROBLEM_GENERATION_TIMEOUT_MS
   });
 }

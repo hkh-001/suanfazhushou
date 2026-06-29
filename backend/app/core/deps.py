@@ -51,4 +51,6 @@ def get_optional_current_user(request: Request, db: Session = Depends(get_db)) -
 
 
 def get_ai_provider() -> AIProvider:
+    # Legacy helper for non-user-scoped provider tests. User-facing AI calls build
+    # providers inside AIService so they can use per-user AI settings.
     return OpenAICompatibleProvider()

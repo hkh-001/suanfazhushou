@@ -372,22 +372,25 @@ Pass criteria:
 - AI error is returned as safe API response.
 - Full prompt, full code, and API keys are not saved in `ai_call_logs` by default.
 
-## 2.6.1 Runtime AI Settings Safety
+## 2.6.1 Per-user AI Settings Safety
 
 Checks:
 
-- Runtime AI settings are disabled by default with `ENABLE_RUNTIME_AI_SETTINGS=false`.
-- `PUT /api/settings/ai`, `DELETE /api/settings/ai`, and `POST /api/settings/ai/test` return `FEATURE_DISABLED` unless explicitly enabled.
-- Runtime settings are stored only in backend process memory.
-- API keys are not returned to the frontend, stored in the database, written to files, logged, or stored in browser storage.
+- `GET /api/settings/ai`, `PUT /api/settings/ai`, `DELETE /api/settings/ai`, and `POST /api/settings/ai/test` require the current authenticated user.
+- User settings are isolated by `user_id`; one user's key must not be visible to or used by another user.
+- `DELETE /api/settings/ai` deletes only the current user's `user_ai_settings` row.
+- Effective settings resolve as user config first, then global runtime/persistent fallback, then env, then none.
+- API keys are not returned to the frontend, logged, or stored in browser storage.
+- `user_ai_settings.api_key` is currently plaintext in the backend database for local/development use; production deployment requires encryption or KMS-backed secret storage.
 - `base_url` accepts only `http` and `https`, and query string / fragment are removed.
-- Docker Compose is not expanded in Phase 4.5; runtime settings are primarily for local backend startup mode.
+- OpenMAIC config remains env-only and is not affected by per-user AI provider settings.
 
 Pass criteria:
 
-- `/settings` clearly shows whether runtime editing is enabled.
-- `/settings` distinguishes runtime, env, and missing configuration sources.
-- Provider calls pick up runtime config changes without restarting the app.
+- `/settings` shows `source=user` after the current user saves a configuration.
+- Restarting the backend does not lose the current user's AI provider configuration.
+- AI chat, problem generation, code diagnosis, submission diagnosis, and ladder exams use the current user's effective settings.
+- Clearing one user's settings does not affect other users.
 - Settings tests clear runtime config after execution.
 
 Risk signals:

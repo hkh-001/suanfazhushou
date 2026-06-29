@@ -82,6 +82,7 @@ Current database reality includes MVP v0.1 tables plus implemented Post-MVP Phas
 | `node_user_progress` | Phase 14/15/17 | Per-user node completion booleans | Implemented in Post-MVP Phase 14; Phase 15 updates `practice_completed`; Phase 17 updates `exam_passed` |
 | `ladder_exam_attempts` | Phase 17 | AI-generated ladder exam attempts and deterministic score snapshots | Implemented in Post-MVP Phase 17 |
 | `interactive_lessons` | Phase 19B-19C | OpenMAIC topic and ladder-node lesson job/status/url metadata | Implemented in Post-MVP Phase 19B and extended in Phase 19C |
+| `user_ai_settings` | Phase 19F | Per-user OpenAI-compatible provider configuration | Implemented in Post-MVP Phase 19F |
 | `recommendation_logs` | Deferred after Phase 12 | Recommendation events and explanations | Phase 12 uses real-time rules and does not persist recommendation logs |
 | `knowledge_chunks` | Phase 13 | Retrieval units for RAG | Wait for content scale and retrieval design |
 | `retrieval_logs` | Phase 13 | Retrieval evaluation and trace metadata | Must avoid sensitive content leakage |
@@ -473,6 +474,30 @@ Notes:
 - The table stores only job/status/url metadata, not full classroom artifacts.
 - `error_code` and `error_message` use backend fixed safe values and do not store raw OpenMAIC messages, auth values, provider keys, or exceptions.
 - Lesson generation is a user-triggered action on published topics or current-user active ladder nodes and does not change learning records, topic content, ladder progress, submissions, or AI logs.
+
+## user_ai_settings
+
+Implemented in Post-MVP Phase 19F. Not part of MVP v0.1.
+
+```text
+id UUID primary key
+user_id UUID unique references users(id) on delete cascade
+provider varchar(40) not null default openai_compatible
+base_url varchar(500) not null
+api_key text not null
+model varchar(120) not null
+is_active boolean not null default true
+created_at timestamptz not null
+updated_at timestamptz not null
+```
+
+Notes:
+
+- Each user has at most one AI provider configuration in Phase 19F.
+- Effective AI settings resolve in this order: `user_ai_settings` -> global runtime/persistent fallback -> environment variables -> none.
+- `api_key` is never returned to the frontend or logs.
+- `api_key` is currently plaintext in the database for local/development use; production deployments must add encryption or KMS-backed secret storage.
+- Deleting a user cascades and deletes that user's AI configuration.
 
 ## submissions
 
