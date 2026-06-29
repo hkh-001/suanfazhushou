@@ -10,7 +10,7 @@ knowledge map -> AI tutoring -> code diagnosis -> learning records -> dashboard 
 
 ## Current Stage
 
-The project is currently in Post-MVP Phase 19E: OpenMAIC Local Real-Service Validation.
+The project is currently in Post-MVP Phase 19F: Per-user AI Provider Settings.
 
 MVP v0.1 is defined as Phase 0 through Phase 4:
 
@@ -37,7 +37,7 @@ This repository currently contains:
 - AI tutoring, code diagnosis, and AI-generated practice prompt APIs and pages
 - prompt template runtime loading and AI call metadata logs
 - Dashboard page with learning progress, review queue, and rule-based next steps
-- local-only runtime AI settings page and API guarded by `ENABLE_RUNTIME_AI_SETTINGS`
+- per-user AI provider settings page and API with global runtime/env fallback
 - student-account auth with register, login, logout, current user, HttpOnly Cookie, JWT, and initial learning profile
 - learning ladder foundation with seeded templates, per-user active paths, material reading progress, seeded node practice, AI-generated node exams, deterministic backend scoring, and a `/ladder` page
 - personal problem bank with manual create, list, edit, delete, topic association, and admin-managed public problems
@@ -120,6 +120,7 @@ Post-MVP roadmap:
 - Phase 19C: Ladder Node Interactive Lessons With OpenMAIC
 - Phase 19D: OpenMAIC Real-Service Hardening
 - Phase 19E: OpenMAIC Local Real-Service Validation
+- Phase 19F: Per-user AI Provider Settings
 - Phase 20: RAG Knowledge Retrieval
 - Phase 21: Deployment, Security, Permissions, Production Hardening
 
@@ -485,9 +486,11 @@ Phase 10 safety notes:
 - Only sample test-case content is returned to users; hidden inputs and expected outputs remain private.
 - Full source code is stored as current-user-owned submission data and is not written to AI logs or sent to an AI provider.
 - The Docker socket Judge design is for local development and controlled deployments. Production should use a separate Judge host or stronger sandbox boundary.
+- AI-generated problems are also checked before saving: the generated reference solution is sent to the isolated Judge with temporary IDs and generated test cases. If the reference output does not match the expected output, the problem is rejected and no `submissions` record is created.
 - Phase 11 AI diagnosis is user-triggered, consumes only persisted Judge results, and never reruns code.
 - Hidden test-case input, expected output, actual output, and names are not sent to the AI provider.
 - AI diagnosis is temporary by default. Full source and diagnosis are saved only after an explicit second action through the existing code review records.
+- AI diagnosis requires an effective personal or fallback AI provider configuration. Missing settings fail fast with `AI_CONFIG_MISSING` before a prompt is rendered.
 
 Phase 11 diagnosis API:
 
@@ -514,16 +517,14 @@ docker compose up --build
 
 If the default Debian package mirror is unavailable while building the runner image, the optional `DEBIAN_MIRROR` and `DEBIAN_SECURITY_MIRROR` build variables may be set locally. They are not runtime secrets and are not hardcoded into the project.
 
-Runtime AI settings:
+AI provider settings:
 
-- `GET /api/settings/ai` reports the current effective AI configuration source without returning the API key.
-- `PUT /api/settings/ai`, `DELETE /api/settings/ai`, and `POST /api/settings/ai/test` require `ENABLE_RUNTIME_AI_SETTINGS=true`; the local development default is enabled.
-- Saved runtime settings are global for the backend service, so all users share the same AI provider configuration.
-- With `ENABLE_PERSISTENT_AI_SETTINGS=true`, `PUT /api/settings/ai` writes the ignored local `.runtime-ai-settings.json` file and the backend reloads it automatically after restart. `GET /api/settings/ai` then reports `source="persistent"` until an in-memory runtime update overrides it.
-- `PERSISTENT_AI_SETTINGS_PATH` may be absolute or relative. Relative paths are resolved from the backend project directory, so the file is stable even when the backend process starts from a different working directory.
-- `DELETE /api/settings/ai` clears both runtime memory and the persistent settings file when persistent settings are enabled.
-- The persistent file contains an API key and is ignored by Git. It is convenient local/shared configuration, not a replacement for production secret management.
-- Env-based `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` remain supported as a fallback source when no runtime or persistent settings exist.
+- `GET /api/settings/ai` reports the current user's effective AI configuration source without returning the API key.
+- `PUT /api/settings/ai` stores the current user's OpenAI-compatible `base_url`, `api_key`, and `model` in the `user_ai_settings` table.
+- `DELETE /api/settings/ai` deletes only the current user's AI provider configuration. Other users are unaffected.
+- Effective source priority is `user` -> global `runtime`/`persistent` -> `env` -> `none`.
+- Existing global runtime and `.runtime-ai-settings.json` support remains as a fallback for local development and demos, but user settings are preferred.
+- `user_ai_settings.api_key` is stored in the backend database and is never returned to the frontend. It is currently plaintext for local/development use; production deployments must add encryption or KMS-backed secret storage.
 
 OpenMAIC POC settings:
 
@@ -645,7 +646,7 @@ AI secrets must stay backend-only. Do not put real AI keys in frontend code, bro
 
 ## Next Step
 
-Current: Post-MVP Phase 19E OpenMAIC Local Real-Service Validation.
+Current: Post-MVP Phase 19F Per-user AI Provider Settings.
 
 Next: Phase 20 RAG Knowledge Retrieval.
 

@@ -2,14 +2,66 @@ from datetime import datetime, timezone
 from uuid import UUID
 from uuid import uuid4
 
-from sqlalchemy import delete, select, text
+import pytest
+from sqlalchemy import delete, func, select, text
 
 from app.core.config import settings
 from app.core.security import SESSION_COOKIE_NAME, create_access_token
+from app.main import app
 from app.models.problem import Problem, UserProblemCounter
 from app.models.test_case import TestCase as DbTestCase
 from app.models.topic import Topic
 from app.models.user import User
+from app.schemas.judge import JudgeCaseResult, JudgeResponse
+from app.services.judge.client import get_judge_client
+
+
+class FakeGeneratedProblemJudgeClient:
+    def __init__(self, verdict: str = "accepted") -> None:
+        self.verdict = verdict
+        self.calls = 0
+
+    async def judge(self, payload):
+        self.calls += 1
+        if self.verdict == "compile_error":
+            return JudgeResponse(
+                verdict="compile_error",
+                passed_case_count=0,
+                total_case_count=len(payload.test_cases),
+                compile_output="compile failed",
+                case_results=[],
+            )
+        results = [
+            JudgeCaseResult(
+                test_case_id=case.id,
+                case_index=case.case_index,
+                name=case.name,
+                is_sample=case.is_sample,
+                verdict="accepted" if self.verdict == "accepted" else "wrong_answer",
+                execution_time_ms=3,
+                memory_kb=1024,
+                actual_output=case.expected_output_text if self.verdict == "accepted" else "wrong",
+            )
+            for case in payload.test_cases
+        ]
+        return JudgeResponse(
+            verdict=self.verdict,
+            passed_case_count=len(results) if self.verdict == "accepted" else 0,
+            total_case_count=len(results),
+            execution_time_ms=6,
+            memory_kb=1024,
+            case_results=results,
+        )
+
+
+@pytest.fixture(autouse=True)
+def generated_problem_judge_client():
+    fake = FakeGeneratedProblemJudgeClient()
+    app.dependency_overrides[get_judge_client] = lambda: fake
+    try:
+        yield fake
+    finally:
+        app.dependency_overrides.pop(get_judge_client, None)
 
 
 def _user_payload(prefix: str = "problem-user") -> dict:
@@ -234,6 +286,58 @@ def test_save_ai_generated_problem_success_and_forced_metadata(client, db_sessio
     assert test_cases[0].expected_output_text == "6"
     assert test_cases[0].is_sample is True
     assert test_cases[1].is_sample is False
+
+
+def test_save_ai_generated_problem_rejects_reference_output_mismatch(
+    client,
+    db_session,
+    generated_problem_judge_client,
+) -> None:
+    _register(client)
+    generated_problem_judge_client.verdict = "wrong_answer"
+
+    response = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload())
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "AI_GENERATED_PROBLEM_INVALID"
+    assert "标程输出与预期输出不一致" in response.json()["error"]["message"]
+    assert generated_problem_judge_client.calls == 1
+    assert db_session.scalar(select(func.count()).select_from(Problem).where(Problem.title == "AI Prefix Sum Practice")) == 0
+
+
+def test_save_ai_generated_problem_rejects_unrunnable_reference_solution(
+    client,
+    db_session,
+    generated_problem_judge_client,
+) -> None:
+    _register(client)
+    generated_problem_judge_client.verdict = "compile_error"
+
+    response = client.post("/api/problems/save-ai-generated", json=_generated_problem_payload())
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "AI_GENERATED_PROBLEM_INVALID"
+    assert "标程无法运行" in response.json()["error"]["message"]
+    assert generated_problem_judge_client.calls == 1
+    assert db_session.scalar(select(func.count()).select_from(Problem).where(Problem.title == "AI Prefix Sum Practice")) == 0
+
+
+def test_save_ai_generated_problem_without_reference_solution_is_backward_compatible(
+    client,
+    generated_problem_judge_client,
+    caplog,
+) -> None:
+    _register(client)
+
+    response = client.post(
+        "/api/problems/save-ai-generated",
+        json=_generated_problem_payload(solution_code_cpp=None, solution_code_python=None),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["is_ai_generated"] is True
+    assert generated_problem_judge_client.calls == 0
+    assert "without reference solution validation" in caplog.text
 
 
 def test_save_ai_generated_problem_rejects_client_owned_fields(client) -> None:

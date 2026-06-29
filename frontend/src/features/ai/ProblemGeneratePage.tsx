@@ -237,7 +237,7 @@ export function ProblemGeneratePage() {
         onSubmit={submit}
       >
         <p className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-3 text-sm font-semibold text-[#1d4ed8]">
-          生成结果不会自动保存。只有点击“保存到个人题库”后，题目才会进入你的个人题库。
+          生成结果不会自动保存。只有点击“保存到个人题库”后，系统会用 AI 标程自校验测试数据，校验通过后题目才会进入你的个人题库。
         </p>
         {topicsError ? (
           <p className="text-sm font-semibold text-red-700">知识点加载失败：{topicsError}</p>

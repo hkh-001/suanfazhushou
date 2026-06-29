@@ -27,6 +27,7 @@ from app.services.problems import (
     save_ai_generated_problem,
     update_problem,
 )
+from app.services.judge.client import JudgeClient, get_judge_client
 
 router = APIRouter(prefix="/problems", tags=["problems"])
 
@@ -51,12 +52,13 @@ def list_problems_endpoint(
 
 
 @router.post("/save-ai-generated", response_model=DataResponse[ProblemDetail])
-def save_ai_generated_problem_endpoint(
+async def save_ai_generated_problem_endpoint(
     payload: GeneratedProblemSaveRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    judge_client: JudgeClient = Depends(get_judge_client),
 ) -> DataResponse[ProblemDetail]:
-    return DataResponse(data=save_ai_generated_problem(db, user=current_user, payload=payload))
+    return DataResponse(data=await save_ai_generated_problem(db, user=current_user, payload=payload, judge_client=judge_client))
 
 
 @router.post("/import/zip", response_model=DataResponse[ProblemImportResult], status_code=status.HTTP_201_CREATED)

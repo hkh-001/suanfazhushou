@@ -1,3 +1,4 @@
+import logging
 import re
 from math import ceil
 from uuid import UUID, uuid4
@@ -35,6 +36,10 @@ from app.schemas.problem import (
     ProblemTopicTag,
     ProblemUpdate,
 )
+from app.schemas.judge import JudgeRequest, JudgeTestCaseRequest
+from app.services.judge.client import JudgeClient
+
+logger = logging.getLogger(__name__)
 
 PROBLEM_NOT_FOUND = {"code": "PROBLEM_NOT_FOUND", "message": "Problem not found"}
 PROBLEM_SLUG_EXISTS = {"code": "PROBLEM_SLUG_ALREADY_EXISTS", "message": "Problem slug already exists"}
@@ -43,6 +48,14 @@ VALIDATION_ERROR = {"code": "VALIDATION_ERROR", "message": "Request validation f
 PUBLIC_PROBLEM_FORBIDDEN = {
     "code": "PUBLIC_PROBLEM_FORBIDDEN",
     "message": "Only admins can create or modify public problems",
+}
+AI_GENERATED_PROBLEM_INVALID_OUTPUT = {
+    "code": "AI_GENERATED_PROBLEM_INVALID",
+    "message": "AI 生成的题目未通过自校验：标程输出与预期输出不一致。请重新生成。",
+}
+AI_GENERATED_PROBLEM_INVALID_RUNTIME = {
+    "code": "AI_GENERATED_PROBLEM_INVALID",
+    "message": "AI 生成的标程无法运行，请重新生成。",
 }
 
 
@@ -161,6 +174,52 @@ def list_problems(db: Session, *, user: User, page: int, page_size: int) -> Pagi
     )
 
 
+async def _validate_generated_problem_reference_solution(
+    payload: GeneratedProblemSaveRequest,
+    *,
+    judge_client: JudgeClient,
+) -> None:
+    source_code = payload.solution_code_cpp
+    language = "cpp"
+    if not source_code:
+        source_code = payload.solution_code_python
+        language = "python"
+    if not source_code:
+        logger.warning("AI generated problem saved without reference solution validation: title=%s", payload.title)
+        return
+
+    judge_payload = JudgeRequest(
+        submission_id=uuid4(),
+        language=language,
+        source_code=source_code,
+        test_cases=[
+            JudgeTestCaseRequest(
+                id=uuid4(),
+                case_index=index,
+                name=case.name or f"{index:02d}",
+                input_text=case.input,
+                expected_output_text=case.expected_output,
+                is_sample=case.is_sample or index == 1,
+            )
+            for index, case in enumerate(payload.test_cases, start=1)
+        ],
+    )
+    judge_result = await judge_client.judge(judge_payload)
+    if (
+        judge_result.verdict == "accepted"
+        and len(judge_result.case_results) == len(judge_payload.test_cases)
+        and all(
+            result.verdict == "accepted" for result in judge_result.case_results
+        )
+    ):
+        return
+    if judge_result.verdict in {"wrong_answer", "output_limit_exceeded"} or any(
+        result.verdict == "wrong_answer" for result in judge_result.case_results
+    ):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=AI_GENERATED_PROBLEM_INVALID_OUTPUT)
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=AI_GENERATED_PROBLEM_INVALID_RUNTIME)
+
+
 def list_public_problem_bank(db: Session, *, user: User, page: int, page_size: int) -> PaginatedResponse[ProblemListItem]:
     total = count_public_problems(db)
     problems = list_public_problems(db, page=page, page_size=page_size)
@@ -230,7 +289,14 @@ def create_problem(db: Session, *, user: User, payload: ProblemCreate) -> Proble
     return _to_detail(insert_problem(db, problem, topics), user)
 
 
-def save_ai_generated_problem(db: Session, *, user: User, payload: GeneratedProblemSaveRequest) -> ProblemDetail:
+async def save_ai_generated_problem(
+    db: Session,
+    *,
+    user: User,
+    payload: GeneratedProblemSaveRequest,
+    judge_client: JudgeClient,
+) -> ProblemDetail:
+    await _validate_generated_problem_reference_solution(payload, judge_client=judge_client)
     topics = _resolve_topics(db, [payload.topic_id] if payload.topic_id else [])
     hint = "\n".join(f"- {hint}" for hint in payload.hints) or None
     sample_case = next((case for case in payload.test_cases if case.is_sample), payload.test_cases[0])

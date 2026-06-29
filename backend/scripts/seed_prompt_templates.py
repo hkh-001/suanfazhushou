@@ -64,6 +64,8 @@ TEMPLATES = [
             ],
             "hints": ["string"],
             "solution_idea": "string",
+            "solution_code_cpp": "string",
+            "solution_code_python": "string",
             "is_ai_generated": True,
         },
     },

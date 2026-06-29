@@ -211,27 +211,25 @@ Settings:
 - `DELETE /api/settings/ai`
 - `POST /api/settings/ai/test`
 
-Phase 4.5 AI settings rules:
+Phase 19F AI settings rules:
 
-- `GET /api/settings/ai` returns the current effective AI configuration status and never returns an API key.
+- All `/api/settings/ai` endpoints require the current authenticated user.
+- `GET /api/settings/ai` returns the current user's effective AI configuration status and never returns an API key.
 - Settings response includes:
   - `configured`
-  - `source`: `runtime`, `persistent`, `env`, or `none`
+  - `source`: `user`, `runtime`, `persistent`, `env`, or `none`
   - `provider`
   - `base_url`
   - `model`
   - `api_key_set`
   - `runtime_settings_enabled`
 - `base_url` must be displayed without query string or fragment.
-- `PUT`, `DELETE`, and `POST /api/settings/ai/test` require `ENABLE_RUNTIME_AI_SETTINGS=true`.
-- If runtime settings are disabled, mutating/test endpoints return `403` with `FEATURE_DISABLED`.
-- `PUT /api/settings/ai` stores configuration in backend process memory and, when `ENABLE_PERSISTENT_AI_SETTINGS=true`, writes the local ignored persistent settings file.
-- Runtime AI settings are global/shared for the backend service. They are not stored per user.
-- Persistent settings survive backend restarts and are reported as `source="persistent"` until replaced by an in-memory runtime update.
-- `PERSISTENT_AI_SETTINGS_PATH` may be absolute or relative; relative paths are resolved from the backend project directory.
-- `DELETE /api/settings/ai` clears both runtime memory and the local persistent settings file when persistent settings are enabled.
-- Runtime settings are convenient local/shared configuration, not production secret management.
-- `POST /api/settings/ai/test` sends a minimal provider request and must not log API keys, full prompts, or full provider responses.
+- `PUT /api/settings/ai` upserts the current user's `user_ai_settings` row and returns `source="user"`.
+- `DELETE /api/settings/ai` deletes only the current user's row. If a global fallback exists, the response may report `runtime`, `persistent`, or `env`; otherwise it reports `none`.
+- `POST /api/settings/ai/test` sends a minimal provider request using the current user's effective settings.
+- User settings take precedence over global runtime, persistent-file, and env settings.
+- The API never accepts a frontend-supplied `user_id`.
+- `user_ai_settings.api_key` is not returned in any response. It is currently stored in plaintext in the backend database for local/development use and must be encrypted before production use.
 
 ## Phase 6 Problem Bank APIs
 
@@ -269,10 +267,11 @@ Rules:
 - `POST /api/problems/save-ai-generated` must be registered before `/api/problems/{id}` so `save-ai-generated` is not parsed as a problem id.
 - Saved generated problems force `is_ai_generated=true`, `source="ai_generated"`, `is_published=false`, and current-user ownership on the backend.
 - Saved generated problems share the same per-user `display_id` sequence as manually created problems.
+- Before saving an AI-generated problem, the backend validates the generated reference solution against the generated test cases through the isolated Judge service. The validation uses temporary IDs, does not create `submissions`, and rejects mismatched or unrunnable generated content with `AI_GENERATED_PROBLEM_INVALID`.
 - Phase 9 imports ZIP problem packages only through explicit user upload.
 - ZIP imports force `source="zip_import"`, `is_ai_generated=false`, `is_published=false`, and current-user ownership on the backend.
 - ZIP imports persist `.in` / `.out` files as `test_cases`; Phase 9 does not execute those files.
-- Problem bank APIs still do not create submissions or judge code.
+- Manual and ZIP problem-bank APIs still do not create submissions or judge code.
 - Phase 16 submission creation accepts either the current user's personal problem or a public problem.
 
 ZIP import contract:
@@ -379,6 +378,7 @@ Rules:
 - Does not check Judge availability, rerun code, or modify the stored verdict.
 - Source, problem, compiler, and failed-case context are bounded before the Prompt is rendered.
 - Hidden case names and content are never included in the Prompt.
+- Requires an effective per-user or fallback AI provider configuration. Missing AI settings return `AI_CONFIG_MISSING` before prompt construction or provider calls.
 - The result is not persisted automatically; users may explicitly save it through `POST /api/code-reviews`.
 
 Response includes:
@@ -608,7 +608,7 @@ Rules:
 - Never expose stack traces to frontend users.
 - AI provider errors should return safe API errors.
 - Validation errors should identify invalid fields where practical.
-- Disabled runtime AI settings should return `FEATURE_DISABLED`.
+- Disabled optional integrations, such as OpenMAIC, should return `FEATURE_DISABLED`.
 
 ## API Versioning
 

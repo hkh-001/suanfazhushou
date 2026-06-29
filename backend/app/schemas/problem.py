@@ -162,6 +162,7 @@ class GeneratedProblemSaveRequest(BaseModel):
     solution_code_cpp: str | None = Field(default=None, max_length=20000)
     solution_code_python: str | None = Field(default=None, max_length=20000)
     requirements: str | None = Field(default=None, max_length=1500)
+    validated: bool = False
 
     @field_validator("title", "statement", "input_format", "output_format")
     @classmethod
